@@ -34,8 +34,20 @@ When these files exist in the current repo, read them before planning:
 - `.codex/context/memory.md`
 - `.codex/context/history.md`
 - `.codex/context/handoffs.md`
+- `.wiki/index.md` *(read FIRST when the wiki exists -- canonical TOC, ≤100 lines, lists all sections + cross-cutting links. Cheaper than guessing what's in the wiki.)*
 - `.wiki/features.md` *(only when user-visible behavior or feature discovery is relevant)*
 - `.wiki/.features` *(only when `.wiki/features.md` is relevant and a machine-readable manifest helps)*
+
+**On-demand section loading**: do NOT bulk-read `.wiki/sections/`. Use the
+lazy-load resolver to fetch only relevant sections:
+```powershell
+pwsh ~/.agents/tools/wiki-resolver.ps1 -Task "{task}" -ChangedFiles "{files}" -RepoRoot .
+```
+The resolver returns `index.md` + matched sections in one prompt block.
+Embed only what it returns -- never hand-pick section files yourself.
+
+If `.wiki/` is missing entirely, prompt the user to run `/wiki-init`
+before non-trivial planning (per the kit's always-on rules).
 
 Treat repo-local files as overrides.
 

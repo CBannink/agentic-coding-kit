@@ -327,7 +327,7 @@ $brief = @"
 - SCOPE: $scope ($scopeReason)
 - TIER_REC: $tierRec ($tierReason -- orchestrator may override UPWARD only)
 - REFLECT_NEEDED: $(if ($reflectNeeded) { "YES ($reflectCount unaddressed entries -- run /reflect first)" } else { "no ($reflectCount entries)" })
-- WIKI: $(if ($wikiExists) { "yes (.wiki/features.md exists -- use wiki-resolver.ps1 to load only relevant sections, NOT bulk-load)" } else { "MISSING -- run /wiki-init to bootstrap (mandatory per global rules)" })
+- WIKI: $(if ($wikiExists) { "yes -- read .wiki/index.md FIRST (TOC, ≤100 lines), then use wiki-resolver.ps1 for on-demand section loading. NEVER bulk-read .wiki/sections/." } else { "MISSING -- run /wiki-init to bootstrap (mandatory per global rules)" })
 - BUILD_BRIEF: $(if ($buildBriefPath) { "YES -- read handoff at $buildBriefPath BEFORE planning (source: $buildBriefSource)" } else { "none" })
 - PARALLEL_INSTANCE: $(if ($parallelWarning) { $parallelWarning } else { "none detected" })
 - STATE_FILE: $(if ($stateInitialized) { Join-Path (Get-SessionDir $SessionId) "state.json" } else { "not initialized for /$Mode" })

@@ -66,14 +66,28 @@ if (Test-Path $sectionsDir) {
     $sections = @(Get-ChildItem -Path $sectionsDir -Filter "*.md" -File)
 }
 
+# Load index.md early -- it's emitted even when no section pages exist yet
+# (newly-bootstrapped wikis or wikis where sections aren't authored).
+$indexPath = Join-Path $wikiDir "index.md"
+$indexContent = $null
+if (Test-Path $indexPath) {
+    $indexContent = Get-Content $indexPath -Raw -Encoding UTF8
+}
+
 if ($sections.Count -eq 0) {
+    $promptBlock = ""
+    if ($indexContent) {
+        $relIndex = ($indexPath.Substring($RepoRoot.Length + 1) -replace '\\', '/')
+        $promptBlock = "## Wiki context`n`n### Wiki index -- $relIndex`n(always loaded: TOC + cross-cutting links; no section pages exist yet)`n`n$indexContent`n"
+    }
     Out-Json @{
         ok = $true
         wiki_present = $true
+        index_present = ($indexContent -ne $null)
         matched_sections = @()
-        prompt_block = ""
+        prompt_block = $promptBlock
         suggestion = "No section pages in .wiki/sections/. Re-run /wiki-init or add pages manually."
-        stats = @{ total_sections = 0; matched = 0 }
+        stats = @{ total_sections = 0; matched = 0; index_lines = if ($indexContent) { ($indexContent -split "`r?`n").Count } else { 0 } }
     } 0
 }
 
@@ -150,17 +164,34 @@ foreach ($s in $sections) {
 # Cap to MaxSections (highest priority by reason quality: file matches first)
 $matches = $matches | Sort-Object @{ Expression = { if ($_.reason -match '^files:') { 0 } else { 1 } } } | Select-Object -First $MaxSections
 
-# Build the prompt block
+# Build the prompt block (index.md was loaded earlier; use that)
 $promptBlock = ""
-if ($matches.Count -gt 0) {
+if ($indexContent -or $matches.Count -gt 0) {
     $sb = New-Object System.Text.StringBuilder
-    [void]$sb.AppendLine("## Wiki context (relevant sections only)")
+    [void]$sb.AppendLine("## Wiki context")
     [void]$sb.AppendLine("")
-    foreach ($m in $matches) {
-        [void]$sb.AppendLine("### $($m.name) -- $($m.path)")
-        [void]$sb.AppendLine("(matched: $($m.reason))")
+
+    if ($indexContent) {
+        $relIndex = ($indexPath.Substring($RepoRoot.Length + 1) -replace '\\', '/')
+        [void]$sb.AppendLine("### Wiki index -- $relIndex")
+        [void]$sb.AppendLine("(always loaded: TOC + cross-cutting links)")
         [void]$sb.AppendLine("")
-        [void]$sb.AppendLine($m.excerpt)
+        [void]$sb.AppendLine($indexContent)
+        [void]$sb.AppendLine("")
+    }
+
+    if ($matches.Count -gt 0) {
+        [void]$sb.AppendLine("### Relevant sections (matched to your task)")
+        [void]$sb.AppendLine("")
+        foreach ($m in $matches) {
+            [void]$sb.AppendLine("#### $($m.name) -- $($m.path)")
+            [void]$sb.AppendLine("(matched: $($m.reason))")
+            [void]$sb.AppendLine("")
+            [void]$sb.AppendLine($m.excerpt)
+            [void]$sb.AppendLine("")
+        }
+    } else {
+        [void]$sb.AppendLine("(No section pages matched the current task. The index above lists what exists in the wiki -- if a relevant section isn't surfacing, check the section's `Key files` against your changed-file set.)")
         [void]$sb.AppendLine("")
     }
     $promptBlock = $sb.ToString()
@@ -169,7 +200,8 @@ if ($matches.Count -gt 0) {
 Out-Json @{
     ok = $true
     wiki_present = $true
+    index_present = ($indexContent -ne $null)
     matched_sections = @($matches | ForEach-Object { @{ name = $_.name; path = $_.path; reason = $_.reason; lines = $_.lines } })
     prompt_block = $promptBlock
-    stats = @{ total_sections = $sections.Count; matched = $matches.Count }
+    stats = @{ total_sections = $sections.Count; matched = $matches.Count; index_lines = if ($indexContent) { ($indexContent -split "`r?`n").Count } else { 0 } }
 }
