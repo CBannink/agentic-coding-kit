@@ -18,7 +18,7 @@ Do not import Claude-specific runtime instructions.
 **Read this file first**, then apply its full instructional content (skip the `## Preamble` bash block):
 
 ```
-~/.codex/global-workflows/plugins/gstack/office-hours/SKILL.md
+~/.agents/workflows/plugins/gstack/office-hours/SKILL.md
 ```
 
 The baked-in questions below are the distilled version. The source file has the full Startup vs Builder mode branching, forcing question depth, and design-doc output format. If readable, prefer the source file.
@@ -63,4 +63,4 @@ When any product decision, feature design, or "what should we build" question ar
 ## Source
 
 Reference layer only (no runtime import):
-- `~/.codex/global-workflows/plugins/gstack/office-hours/SKILL.md`
+- `~/.agents/workflows/plugins/gstack/office-hours/SKILL.md`

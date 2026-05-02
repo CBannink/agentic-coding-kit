@@ -19,9 +19,9 @@ The orchestrator does NOT read these files into its own context. Pass the releva
 
 | Plugin | Purpose | Pass to which sub-agent |
 |--------|---------|------------------------|
-| `~/.codex/global-workflows/plugins/gstack/review/SKILL.md` | Full adversarial posture, specialist decomposition, severity framing | `adversarial-reviewer` — always |
-| `~/.codex/global-workflows/plugins/superpowers/skills/verification-before-completion/SKILL.md` | Iron Law: no completion claims without fresh evidence | `false-positive-verifier` sub-agent |
-| `~/.codex/global-workflows/plugins/caspar-workflows/skills/review-workflow/SKILL.md` | Full role roster, extended workflow steps, writeback rules | Only if baked-in content below is insufficient |
+| `~/.agents/workflows/plugins/gstack/review/SKILL.md` | Full adversarial posture, specialist decomposition, severity framing | `adversarial-reviewer` — always |
+| `~/.agents/workflows/plugins/superpowers/skills/verification-before-completion/SKILL.md` | Iron Law: no completion claims without fresh evidence | `false-positive-verifier` sub-agent |
+| `~/.agents/workflows/plugins/caspar-workflows/skills/review-workflow/SKILL.md` | Full role roster, extended workflow steps, writeback rules | Only if baked-in content below is insufficient |
 
 **How to pass a plugin to a sub-agent:**
 In the sub-agent prompt include: `"Read [path] before executing your role. Skip any ## Preamble bash blocks."`

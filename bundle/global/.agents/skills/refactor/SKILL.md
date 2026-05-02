@@ -8,7 +8,7 @@ description: >
   Compares each module to the project's architectural principles. Produces a prioritised
   refactor plan, pressure-tests it with gstack-plan-eng-review, then executes with
   sequential subagent-driven-development discipline.
-  Plugin index: ~/.codex/global-workflows/plugins/PLUGIN_INDEX.md
+  Plugin index: ~/.agents/workflows/plugins/PLUGIN_INDEX.md
 ---
 
 # Refactor Workflow
@@ -19,10 +19,10 @@ The orchestrator does NOT read these files into its own context. Pass the releva
 
 | Plugin | Purpose | Pass to which sub-agent |
 |--------|---------|------------------------|
-| `~/.codex/global-workflows/plugins/gstack/plan-eng-review/SKILL.md` | Architecture pressure questions | `eng-plan-reviewer` — Phase 5 pressure testing |
-| `~/.codex/global-workflows/plugins/superpowers/skills/subagent-driven-development/SKILL.md` | Fresh-context subagent discipline | `implementer` sub-agents — Phase 6 execution |
-| `~/.codex/global-workflows/plugins/superpowers/skills/verification-before-completion/SKILL.md` | Iron Law — no completion claims without fresh evidence | `completion-verifier` — Phase 7 verification |
-| `~/.codex/global-workflows/plugins/PLUGIN_INDEX.md` | Index of all available agents/prompts | Scan inline only if a specific plugin is needed beyond the registry above |
+| `~/.agents/workflows/plugins/gstack/plan-eng-review/SKILL.md` | Architecture pressure questions | `eng-plan-reviewer` — Phase 5 pressure testing |
+| `~/.agents/workflows/plugins/superpowers/skills/subagent-driven-development/SKILL.md` | Fresh-context subagent discipline | `implementer` sub-agents — Phase 6 execution |
+| `~/.agents/workflows/plugins/superpowers/skills/verification-before-completion/SKILL.md` | Iron Law — no completion claims without fresh evidence | `completion-verifier` — Phase 7 verification |
+| `~/.agents/workflows/plugins/PLUGIN_INDEX.md` | Index of all available agents/prompts | Scan inline only if a specific plugin is needed beyond the registry above |
 
 **How to pass a plugin to a sub-agent:**
 In the sub-agent prompt include: `"Read [path] before executing your role. Skip any ## Preamble bash blocks."`

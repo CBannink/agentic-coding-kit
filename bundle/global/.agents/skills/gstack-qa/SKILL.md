@@ -18,7 +18,7 @@ Do not adopt Claude-specific bootstrap, telemetry, or `~/.claude/skills/...` com
 **Read this file first**, then apply its full instructional content (skip the `## Preamble` bash block):
 
 ```
-~/.codex/global-workflows/plugins/gstack/qa/SKILL.md
+~/.agents/workflows/plugins/gstack/qa/SKILL.md
 ```
 
 The baked-in pass structure below is the distilled version. The source file has the full tier definitions (Quick / Standard / Exhaustive), fix-loop discipline, and health score guidance. If readable, prefer the source file.
@@ -66,4 +66,4 @@ The baked-in pass structure below is the distilled version. The source file has 
 ## Source
 
 Reference layer only (no runtime import):
-- `~/.codex/global-workflows/plugins/gstack/qa/SKILL.md`
+- `~/.agents/workflows/plugins/gstack/qa/SKILL.md`

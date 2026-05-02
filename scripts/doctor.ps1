@@ -78,13 +78,13 @@ if (-not (Test-Path $agentsRoot)) {
     }
 }
 
-# 3. ~/.codex/ populated
-$codexRoot = Join-Path $HOME ".codex"
-$workflowsDir = Join-Path $codexRoot "global-workflows"
+# 3. ~/.agents/workflows/ populated (kit-shared workflow plugins)
+$workflowsDir = Join-Path $agentsRoot "workflows"
 if (Test-Path $workflowsDir) {
-    Add-Check "~/.codex/global-workflows/ present" "PASS" ""
+    $pluginCount = @(Get-ChildItem $workflowsDir -Directory -ErrorAction SilentlyContinue).Count
+    Add-Check "~/.agents/workflows/ present" "PASS" "$pluginCount plugin tree(s)"
 } else {
-    Add-Check "~/.codex/global-workflows/ present" "WARN" "Plugins missing; some skills won't reference correctly"
+    Add-Check "~/.agents/workflows/ present" "WARN" "Plugins missing; some skill references won't resolve"
 }
 
 # 4. Env var overrides (optional, just report)

@@ -18,7 +18,7 @@ Do not import Claude-specific runtime or telemetry behavior.
 **Read this file first**, then apply its full instructional content (skip the `## Preamble` bash block):
 
 ```
-~/.codex/global-workflows/plugins/gstack/investigate/SKILL.md
+~/.agents/workflows/plugins/gstack/investigate/SKILL.md
 ```
 
 The baked-in loop below is the distilled version. The source file has the complete investigation phases, phase gates, and tool guidance. If readable, prefer the source file.
@@ -82,4 +82,4 @@ Never run the same failing test and hope it passes differently.
 ## Source
 
 Reference layer only (no runtime import):
-- `~/.codex/global-workflows/plugins/gstack/investigate/SKILL.md`
+- `~/.agents/workflows/plugins/gstack/investigate/SKILL.md`

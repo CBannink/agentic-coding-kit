@@ -7,8 +7,8 @@ description: >
   .codex/workflows/analyze.md + memory.md + handoffs.md. Runs multi-role explore→synthesize→verify
   loop using gstack investigate/office-hours/plan-eng-review and Superpowers discipline.
   Orchestrator model: gpt-5.4. Explorer sub-agents: gpt-5.4-mini (0.33x cost, GitHub-recommended for agentic exploration).
-  gstack source: ~/.codex/global-workflows/plugins/gstack/
-  Superpowers source: ~/.codex/global-workflows/plugins/superpowers/skills/
+  gstack source: ~/.agents/workflows/plugins/gstack/
+  Superpowers source: ~/.agents/workflows/plugins/superpowers/skills/
 ---
 
 # Analyze Workflow
@@ -19,10 +19,10 @@ The orchestrator does NOT read these files into its own context. Pass the releva
 
 | Plugin | Purpose | Pass to which sub-agent |
 |--------|---------|------------------------|
-| `~/.codex/global-workflows/plugins/gstack/investigate/SKILL.md` | Root-cause investigation discipline | `hypothesis-generator` or `evidence-explorer` — only when analysis task is genuinely a debugging/ops investigation |
-| `~/.codex/global-workflows/plugins/gstack/office-hours/SKILL.md` | Office-hours product-wedge questions | `product-wedge` theorize agent — only for product direction or build-vs-buy analysis |
-| `~/.codex/global-workflows/plugins/gstack/plan-eng-review/SKILL.md` | Architecture pressure questions | `claim-verifier` or synthesis agent — only when analysis is about architecture readiness |
-| `~/.codex/global-workflows/plugins/caspar-workflows/skills/analyze-workflow/SKILL.md` | Extended role prompts and workflow steps | Only if baked-in content below is insufficient for the specific task |
+| `~/.agents/workflows/plugins/gstack/investigate/SKILL.md` | Root-cause investigation discipline | `hypothesis-generator` or `evidence-explorer` — only when analysis task is genuinely a debugging/ops investigation |
+| `~/.agents/workflows/plugins/gstack/office-hours/SKILL.md` | Office-hours product-wedge questions | `product-wedge` theorize agent — only for product direction or build-vs-buy analysis |
+| `~/.agents/workflows/plugins/gstack/plan-eng-review/SKILL.md` | Architecture pressure questions | `claim-verifier` or synthesis agent — only when analysis is about architecture readiness |
+| `~/.agents/workflows/plugins/caspar-workflows/skills/analyze-workflow/SKILL.md` | Extended role prompts and workflow steps | Only if baked-in content below is insufficient for the specific task |
 
 **How to pass a plugin to a sub-agent:**
 In the sub-agent prompt include: `"Read [path] before executing your role. Skip any ## Preamble bash blocks."`

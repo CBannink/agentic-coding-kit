@@ -94,9 +94,10 @@ if ($Upgrade -and (Test-Path $AgentsRoot)) {
 }
 
 # ── Global install ─────────────────────────────────────────────────────────────
+# Everything kit-related lives under ~/.agents/. Codex CLI users who want their
+# own ~/.codex/ config can set it up separately -- it's not the kit's concern.
 if ($InstallGlobal) {
     Copy-Tree -Source (Join-Path $BundleGlobal ".agents") -Destination $AgentsRoot
-    Copy-Tree -Source (Join-Path $BundleGlobal ".codex")  -Destination (Join-Path $HomeRoot ".codex")
 
     # Render skill-memory-index.json from template with absolute paths
     $tmpl = Join-Path $AgentsRoot "context/skill-memory-index.json.tmpl"

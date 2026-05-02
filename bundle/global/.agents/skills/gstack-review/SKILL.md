@@ -18,7 +18,7 @@ Do not import gstack telemetry, update checks, `~/.claude/skills/...` shell plum
 **Read this file first**, then apply its full instructional content (skip the `## Preamble` bash block):
 
 ```
-~/.codex/global-workflows/plugins/gstack/review/SKILL.md
+~/.agents/workflows/plugins/gstack/review/SKILL.md
 ```
 
 The baked-in posture below is the distilled version. The source file has the complete specialist role definitions, adversarial patterns, and severity tables. If readable, prefer the source file — it may be newer.
@@ -68,4 +68,4 @@ The baked-in posture below is the distilled version. The source file has the com
 ## Source
 
 Reference layer only (no runtime import):
-- `~/.codex/global-workflows/plugins/gstack/review/SKILL.md`
+- `~/.agents/workflows/plugins/gstack/review/SKILL.md`

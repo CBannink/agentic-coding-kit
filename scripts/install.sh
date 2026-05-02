@@ -72,9 +72,8 @@ resolve_adapter() {
     esac
 }
 
-# Global install
+# Global install -- everything kit-related lives under ~/.agents/.
 copy_tree "$BUNDLE_GLOBAL/.agents" "$AGENTS_ROOT"
-copy_tree "$BUNDLE_GLOBAL/.codex"  "$HOME_ROOT/.codex"
 
 # Render skill-memory-index.json from template with absolute paths
 TMPL="$AGENTS_ROOT/context/skill-memory-index.json.tmpl"

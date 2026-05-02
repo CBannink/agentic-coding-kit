@@ -8,7 +8,7 @@ description: >
   unknown. Runs hypothesis-driven investigation with evidence capture.
   NO automatic memory mutation. NO workflow rule changes. Evidence only.
   Orchestrator: gpt-5.4. Explorers: gpt-5.4-mini (0.33x cost).
-  gstack source: ~/.codex/global-workflows/plugins/gstack/investigate/SKILL.md
+  gstack source: ~/.agents/workflows/plugins/gstack/investigate/SKILL.md
 ---
 
 # Investigate Workflow

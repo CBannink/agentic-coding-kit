@@ -31,7 +31,7 @@ pwsh ./scripts/install.ps1            # any platform with pwsh
 ./scripts/install.sh                  # Mac/Linux/WSL
 ```
 
-This populates `~/.agents/` (skills, tools, protocols) and `~/.codex/` (workflow plugins). Renders `skill-memory-index.json` from a template with your absolute paths. Pre-flight runs `validate-bundle.ps1` and refuses to install a broken kit (override with `-Force`).
+This populates `~/.agents/` with everything: skills, tools, protocols, and workflow plugins (gstack/superpowers/caspar-workflows referenced by skills). Renders `skill-memory-index.json` from a template with your absolute paths. Pre-flight runs `validate-bundle.ps1` and refuses to install a broken kit (override with `-Force`).
 
 ### 2. Bootstrap a target repo
 
@@ -232,7 +232,7 @@ pwsh ~/.agents/tools/detect-slop.ps1 -Json                      # machine-readab
 | `bundle/global/.agents/skills/` | 24 cross-repo skills (build, review, analyze, swarm, redesign, security-review, design-driver, playwright-explorer, etc.) |
 | `bundle/global/.agents/tools/` | 23 PowerShell tools + 1 Python — classifiers, hooks, resolvers, runner, validator, **test-loop, edit-with-lint, detect-slop, compress-memory, harness-propose, harness-review, auto-consolidate, reflect-trigger** |
 | `bundle/global/.agents/context/` | Protocol files (writeback, reflection, repo-specialist-memory, workflow-evidence) + skill-memory-index template |
-| `bundle/global/.codex/global-workflows/` | gstack + superpowers + caspar-workflows plugin trees |
+| `bundle/global/.agents/workflows/` | gstack + superpowers + caspar-workflows plugin trees (referenced by skills regardless of which CLI you use) |
 | `bundle/repo-template/` | What gets dropped into each target repo (`.codex/context/`, `.codex/workflows/`, `.codex/skills/`, `.wiki/`, `.agents/screen-flows.yaml`) |
 | `bundle/adapters/{claude-code,codex-cli,copilot-cli,opencode,kilocode,generic}/` | Per-CLI instruction files + lifecycle wiring |
 | `bundle/adapters/_shared/` | Canonical instruction body referenced by all adapters |

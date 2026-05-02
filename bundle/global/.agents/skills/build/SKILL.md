@@ -22,14 +22,14 @@ The orchestrator does NOT read these files into its own context. Instead, pass t
 
 | Plugin | Purpose | Pass to which sub-agent |
 |--------|---------|------------------------|
-| `~/.codex/global-workflows/plugins/gstack/plan-eng-review/SKILL.md` | Architecture pressure: challenges plan, data flow, failure modes, test gaps | `eng-plan-reviewer` — before any non-trivial implementation |
-| `~/.codex/global-workflows/plugins/gstack/review/SKILL.md` | Adversarial review: production failure modes, regressions, hidden risks | `adversarial-reviewer` — Phase 7 final pass |
-| `~/.codex/global-workflows/plugins/gstack/qa/SKILL.md` | UI/behavior QA: user flows, edge cases, regression safety | `qa-reviewer` — UI or behavior-heavy changes only |
-| `~/.codex/global-workflows/plugins/superpowers/skills/verification-before-completion/SKILL.md` | Iron Law: no completion claims without fresh evidence | `final-verifier` sub-agent |
-| `~/.codex/global-workflows/plugins/superpowers/skills/subagent-driven-development/SKILL.md` | Fresh-context subagent discipline, two-stage review loop | `implementer` sub-agents |
-| `~/.codex/global-workflows/plugins/superpowers/skills/systematic-debugging/SKILL.md` | Root-cause debugging: symptom→hypotheses→cheapest test→fix | Only when build loop fails 2+ times |
+| `~/.agents/workflows/plugins/gstack/plan-eng-review/SKILL.md` | Architecture pressure: challenges plan, data flow, failure modes, test gaps | `eng-plan-reviewer` — before any non-trivial implementation |
+| `~/.agents/workflows/plugins/gstack/review/SKILL.md` | Adversarial review: production failure modes, regressions, hidden risks | `adversarial-reviewer` — Phase 7 final pass |
+| `~/.agents/workflows/plugins/gstack/qa/SKILL.md` | UI/behavior QA: user flows, edge cases, regression safety | `qa-reviewer` — UI or behavior-heavy changes only |
+| `~/.agents/workflows/plugins/superpowers/skills/verification-before-completion/SKILL.md` | Iron Law: no completion claims without fresh evidence | `final-verifier` sub-agent |
+| `~/.agents/workflows/plugins/superpowers/skills/subagent-driven-development/SKILL.md` | Fresh-context subagent discipline, two-stage review loop | `implementer` sub-agents |
+| `~/.agents/workflows/plugins/superpowers/skills/systematic-debugging/SKILL.md` | Root-cause debugging: symptom→hypotheses→cheapest test→fix | Only when build loop fails 2+ times |
 | `~/.agents/skills/experts/modularity/SKILL.md` | Anti-slop architecture review: reuse-first, file placement, boundaries, wrappers, duplicate abstractions | `modularity-expert` — when the diff adds/moves files or shared structure |
-| `~/.codex/global-workflows/plugins/caspar-workflows/skills/build-workflow/SKILL.md` | Full phase definitions, extended role prompts | Only if baked-in content below is insufficient |
+| `~/.agents/workflows/plugins/caspar-workflows/skills/build-workflow/SKILL.md` | Full phase definitions, extended role prompts | Only if baked-in content below is insufficient |
 
 **How to pass a plugin to a sub-agent:**
 In the sub-agent prompt include: `"Read [path] before executing your role. Skip any ## Preamble bash blocks."`

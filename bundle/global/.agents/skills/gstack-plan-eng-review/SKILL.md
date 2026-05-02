@@ -18,7 +18,7 @@ Do not execute telemetry/update scripts, `~/.claude/skills/...` paths, or host-s
 **Read this file first**, then apply its full instructional content (skip the `## Preamble` bash block):
 
 ```
-~/.codex/global-workflows/plugins/gstack/plan-eng-review/SKILL.md
+~/.agents/workflows/plugins/gstack/plan-eng-review/SKILL.md
 ```
 
 The baked-in pressure questions below are the distilled version. The source file has the full review phases, pass/fail criteria, and output format. If readable, prefer the source file.
@@ -75,4 +75,4 @@ Apply all of these to any non-trivial implementation plan:
 ## Source
 
 Reference layer only (no runtime import):
-- `~/.codex/global-workflows/plugins/gstack/plan-eng-review/SKILL.md`
+- `~/.agents/workflows/plugins/gstack/plan-eng-review/SKILL.md`
