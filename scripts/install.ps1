@@ -86,6 +86,32 @@ function Install-Adapter {
     }
     Copy-Tree -Source $src -Destination $TargetRepo
     Write-Host "  Installed '$Name' adapter into $TargetRepo"
+}
+
+# Copies slash command markdown files from an adapter's commands dir into the
+# CLI's device-wide commands dir. Both Claude (~/.claude/commands/) and
+# OpenCode (~/.config/opencode/commands/) auto-mount commands from these
+# locations into every session in every repo.
+function Install-DeviceWideCommands {
+    param(
+        [string]$SourceDir,        # bundle/adapters/<cli>/.../commands
+        [string]$DestDir,          # ~/.claude/commands or ~/.config/opencode/commands
+        [string]$Label
+    )
+    if (-not (Test-Path $SourceDir)) { return }
+    New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+    $count = 0
+    foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
+        $dst = Join-Path $DestDir $f.Name
+        if ((Test-Path $dst) -and (-not $Force)) {
+            # Skip if user has a custom command at this name. Tell them.
+            Write-Host "  $Label command: $($f.Name) already exists at $dst (skipped, pass -Force to overwrite)"
+            continue
+        }
+        Copy-Item -Force $f.FullName $dst
+        $count++
+    }
+    if ($count -gt 0) { Write-Host "  $Label commands: $count installed at $DestDir" }
 
     # Claude Code: additively merge SessionEnd hooks into ~/.claude/settings.json
     if ($Name -eq "claude-code") {
@@ -278,6 +304,13 @@ $endMarker
                     -ExistingPath  (Join-Path $HomeRoot ".claude/CLAUDE.md") `
                     -Label "Claude Code"
 
+                # Install slash commands -- ~/.claude/commands/<name>.md is
+                # auto-mounted by Claude Code in every session.
+                Install-DeviceWideCommands `
+                    -SourceDir (Join-Path $AdaptersRoot "claude-code/.claude/commands") `
+                    -DestDir   (Join-Path $HomeRoot ".claude/commands") `
+                    -Label     "Claude Code"
+
                 # Wire SessionEnd hooks via the merger (honor HomeRoot)
                 $merger  = Join-Path $AgentsRoot "tools/merge-claude-settings.ps1"
                 $snippet = Join-Path $AdaptersRoot "claude-code/.claude/settings.snippet.json"
@@ -299,6 +332,13 @@ $endMarker
                     -CompanionPath (Join-Path $HomeRoot ".config/opencode/agentic-kit.md") `
                     -ExistingPath  (Join-Path $HomeRoot ".config/opencode/prompt.md") `
                     -Label "OpenCode"
+
+                # Install slash commands -- ~/.config/opencode/commands/<name>.md
+                # is auto-mounted by OpenCode in every session.
+                Install-DeviceWideCommands `
+                    -SourceDir (Join-Path $AdaptersRoot "opencode/.config/opencode/commands") `
+                    -DestDir   (Join-Path $HomeRoot ".config/opencode/commands") `
+                    -Label     "OpenCode"
 
                 # Drop the lifecycle plugin into the user-level plugins dir
                 $pluginSrc = Join-Path $AdaptersRoot "opencode/.opencode/plugins/agentic-kit.ts"
