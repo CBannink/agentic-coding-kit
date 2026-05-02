@@ -292,10 +292,8 @@ The kit is **opinionated by design**: hardcoded layout, explicit session artifac
 ## License
 
 MIT — see [LICENSE](./LICENSE). The kit packages or references patterns from
-upstream projects (GStack, Superpowers, Autoresearch) — their respective
-licenses apply to material sourced from those projects. See the individual
-SKILL.md files under `bundle/global/.codex/global-workflows/plugins/` for
-upstream attribution.
+upstream projects (GStack, Superpowers, Autoresearch); see [NOTICE.md](./NOTICE.md)
+for third-party attribution.
 
 ## Contributing
 

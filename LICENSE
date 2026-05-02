@@ -12,12 +12,6 @@ furnished to do so, subject to the following conditions:
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
-This kit packages, references, or is inspired by patterns from upstream projects
-including (non-exhaustive): GStack (garrytan/gstack), Superpowers (obra/superpowers),
-and Autoresearch (uditgoenka/autoresearch). Their respective licenses apply to
-content sourced from those repos. See the individual SKILL.md files under
-bundle/global/.codex/global-workflows/plugins/ for upstream attribution.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
