@@ -185,6 +185,20 @@ Specialist reviewers exist for genuine blind spots — not for delegation of obv
 
 ---
 
+**Step 0 — Wiki context pre-flight** (BEFORE any reviewer spawn — load-bearing):
+
+If `.wiki/` exists, run `wiki-resolver.ps1` FIRST and embed the returned `prompt_block` in EVERY reviewer prompt. The resolver returns `index.md` (always) + sections matched by changed-file overlap with section `Key files`. Pass it verbatim into every surface / interaction / synthesis / adversarial reviewer prompt. **Never** spawn a reviewer without first running the resolver.
+
+```powershell
+pwsh ~/.agents/tools/wiki-resolver.ps1 -Task "{review desc}" -ChangedFiles "{diff files}" -RepoRoot .
+```
+
+If `.wiki/` is missing, recommend `/wiki-init` and continue only with user opt-in.
+
+**Stage evidence (mandatory)**: at the end of each review stage (surface / interaction / synthesis / adversarial / verifier), record the stage as run via `pwsh ~/.agents/tools/review-evidence.ps1 -SessionId "{session_id}" -Stage <name> -AgentsRun "{comma-sep agent names}"`. `post-session.ps1` cross-references the recorded stages against the chosen tier; tier-vs-stages mismatches surface as workflow reflections so recurring shortcuts can be detected by the self-improvement loop.
+
+**Step 1 — Sequential workflow** (after Step 0):
+
 1. Load repo-local context files(listed above) when they exist.
 2. Define review scope: diff, files, module, or branch.
 3. Launch surface reviewers **per tier** (see tier table below — not all reviewers run in all tiers):

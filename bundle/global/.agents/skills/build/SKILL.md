@@ -194,7 +194,19 @@ If lifecycle callbacks are available in the host or harness, use these scripts a
 
 ## Workflow
 
-**Step 0 — Scope Classification** (always, before anything else — machine-enforced):
+**Step 0a — Wiki context pre-flight** (BEFORE any reviewer / explorer / implementer spawn — load-bearing):
+
+If `.wiki/` exists, run `wiki-resolver.ps1` FIRST and embed the returned `prompt_block` in EVERY downstream subagent prompt:
+
+```powershell
+pwsh ~/.agents/tools/wiki-resolver.ps1 -Task "{task slug}" -ChangedFiles "{comma-sep diff list}" -RepoRoot .
+```
+
+The resolver returns `index.md` (always) plus matched sections (changed-file overlap or task-name match). Pass its `prompt_block` field verbatim into each implementer / reviewer prompt. **Never** bulk-read `.wiki/sections/`. **Never** spawn a subagent without first checking the resolver — even if you think the task doesn't touch the wiki.
+
+If `.wiki/` is missing, surface the warning from `pre-session.ps1` and recommend the user run `/wiki-init` before non-trivial work. Continue without wiki context only if the user opts in explicitly.
+
+**Step 0b — Scope Classification** (always, before anything else — machine-enforced):
 
 Run the scope classifier script to get an objective scope reading:
 ```powershell

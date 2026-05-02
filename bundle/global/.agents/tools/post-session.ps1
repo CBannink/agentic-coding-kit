@@ -632,6 +632,33 @@ if ($state -and @($state.agents_run).Count -gt 0) {
     }
 }
 
+# Detector 5b: review-tier-vs-stages mismatch (skill-protocol shortcut detection)
+# Catches the "FULL tier picked but only TARGETED-style work executed" pattern.
+# Fires only when review-evidence.json exists for this session (i.e., /review
+# was the active mode and the agent recorded at least one stage).
+$reviewEvPath = Join-Path (Get-SessionDir $SessionId) "review-evidence.json"
+if (Test-Path $reviewEvPath) {
+    try {
+        $reviewEv = Get-Content $reviewEvPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($reviewEv.tier -and $reviewEv.stages_run -and $reviewEv.stages_run.Count -gt 0) {
+            $expected = @{
+                "INLINE"   = @("verifier")
+                "TARGETED" = @("wiki-resolver", "surface", "verifier")
+                "FULL"     = @("wiki-resolver", "surface", "consequence", "interaction", "synthesis", "adversarial", "verifier")
+            }
+            if ($expected.ContainsKey($reviewEv.tier)) {
+                $stagesRun = @($reviewEv.stages_run | ForEach-Object { $_.stage } | Select-Object -Unique)
+                $missing = @($expected[$reviewEv.tier] | Where-Object { $stagesRun -notcontains $_ })
+                if ($missing.Count -gt 0) {
+                    Append-ReflectionEntry -Path $globalReflectionsPath -Class "gating" `
+                        -Pattern "review tier=$($reviewEv.tier) missing stages [$($missing -join ', ')] -- agent shortcut the protocol" `
+                        -Evidence "session=$SessionId task=$Task tier=$($reviewEv.tier) stages_run=[$($stagesRun -join ',')] missing=[$($missing -join ',')]"
+                }
+            }
+        }
+    } catch {}
+}
+
 # Detector 6: repeated task slug across recent sessions (possible thrashing)
 if ($Task) {
     $taskSlug = ($Task -replace '[^a-zA-Z0-9\s]', '' -replace '\s+', '-').ToLower()

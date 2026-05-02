@@ -89,6 +89,7 @@ tool/run-packet
 tool/handoff-register
 tool/wiki-resolver
 tool/wiki-compress
+tool/review-evidence
 tool/merge-claude-settings
 tool/validate-repo-skills-index
 tool/derive-repo-skills

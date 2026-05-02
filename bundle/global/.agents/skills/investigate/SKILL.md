@@ -12,6 +12,18 @@ description: >
 
 # Investigate Workflow
 
+## Step 0 — Wiki context pre-flight (BEFORE any hypothesis-generator / evidence-explorer spawn)
+
+If `.wiki/` exists, run `wiki-resolver.ps1` FIRST and embed its `prompt_block` in EVERY agent prompt. The wiki tells you which subsystems exist, what they interact with, and where the boundaries are -- exactly the context an investigation needs to narrow hypotheses.
+
+```powershell
+pwsh ~/.agents/tools/wiki-resolver.ps1 -Task "{symptom or hypothesis subject}" -ChangedFiles "{relevant files if known}" -RepoRoot .
+```
+
+The resolver returns `index.md` (always) + sections matched by your task description or any files you suspect. **Never** spawn an investigation agent without first running the resolver -- you'll waste agent budget re-deriving what's documented.
+
+If `.wiki/` is missing, recommend `/wiki-init`. Continue without wiki context only if the user opts in.
+
 ## What this skill is for
 
 Debugging and ops work that doesn't fit /build, /analyze, or /review:

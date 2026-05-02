@@ -202,6 +202,18 @@ Questions to answer before finalizing:
 
 ## Workflow
 
+**Step 0 — Wiki context pre-flight** (BEFORE any explorer spawn — load-bearing):
+
+If `.wiki/` exists, run `wiki-resolver.ps1` FIRST and embed its `prompt_block` in EVERY explorer prompt. The resolver returns `index.md` (always) + sections matched by likely-changed files or task name. **Never** spawn an explorer without first running the resolver — the wiki replaces most explorer work for documented surfaces.
+
+```powershell
+pwsh ~/.agents/tools/wiki-resolver.ps1 -Task "{task slug}" -ChangedFiles "{likely files}" -RepoRoot .
+```
+
+If `.wiki/` is missing, recommend `/wiki-init` before non-trivial planning.
+
+**Step 1 — Sequential workflow** (after Step 0):
+
 1. Load repo-local context files when they exist.
 2. Decide planning tier.
 3. Run explorers only for gaps that matter to the plan:
