@@ -227,9 +227,12 @@ elseif ($Auto) {
 }
 
 # ── Device-wide install ──────────────────────────────────────────────────────
-# Writes companion files (~/.claude/agentic-kit.md etc.) so the kit applies to
-# ANY repo on this device, not just one. Appends a single include marker to
-# existing CLAUDE.md / AGENTS.md / prompt.md so user instructions are preserved.
+# Industry-standard pattern (matches autoresearch / cc-sdd / superpowers /
+# agentic-stack): drop self-contained skills/commands/agents at each CLI's
+# native auto-discovery dirs. Do NOT modify user-owned auto-loaded rules
+# files (CLAUDE.md / prompt.md / AGENTS.md) -- those are the user's surface,
+# not the kit's. Skills with strong `description:` frontmatter self-route via
+# the host CLI's skill loader.
 if ($resolvedFor) {
     $DeviceWide = $resolvedFor
     $sharedBody = Join-Path $AdaptersRoot "_shared/AGENT-INSTRUCTIONS.md"
@@ -238,6 +241,62 @@ if ($resolvedFor) {
         exit 1
     }
     $kitContent = Get-Content $sharedBody -Raw -Encoding UTF8
+
+    # Writes the kit body as a STANDALONE reference doc at ~/.claude/agentic-kit.md
+    # (or the equivalent for other CLIs). Does NOT append anything to user's
+    # auto-loaded rules file -- that is user surface. Anyone curious can read
+    # the standalone doc; auto-discovery handles routing through skills.
+    function Install-DeviceWideRulesDoc {
+        param(
+            [string]$DocPath,    # where to write the standalone reference
+            [string]$Label
+        )
+        New-Item -ItemType Directory -Path (Split-Path -Parent $DocPath) -Force | Out-Null
+        Set-Content -Path $DocPath -Value $kitContent -Encoding UTF8
+        Write-Host "  $Label rules doc: $DocPath (standalone reference; not auto-loaded)"
+    }
+
+    # Copies kit skills to a CLI's native auto-discovery skills dir.
+    # Each kit skill at bundle/global/.agents/skills/<name>/SKILL.md (plus any
+    # sibling files) lands at <dest>/<name>/SKILL.md. Auto-discovery picks
+    # them up via the description: frontmatter.
+    function Install-DeviceWideSkills {
+        param(
+            [string]$SourceRoot, # bundle/global/.agents/skills
+            [string]$DestRoot,   # ~/.claude/skills or ~/.config/opencode/skills
+            [string]$Label
+        )
+        if (-not (Test-Path $SourceRoot)) { return }
+        New-Item -ItemType Directory -Path $DestRoot -Force | Out-Null
+        $count = 0
+        foreach ($dir in (Get-ChildItem -Path $SourceRoot -Directory)) {
+            $skillFile = Join-Path $dir.FullName "SKILL.md"
+            if (-not (Test-Path $skillFile)) { continue }
+            $destDir = Join-Path $DestRoot $dir.Name
+            New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+            Copy-Item -Force "$($dir.FullName)/*" $destDir -Recurse
+            $count++
+        }
+        if ($count -gt 0) { Write-Host "  $Label skills: $count installed at $DestRoot" }
+    }
+
+    # Copies bundled agent definition files to a CLI's native auto-mount agents dir.
+    function Install-DeviceWideAgents {
+        param(
+            [string]$SourceDir,  # bundle/adapters/<cli>/.claude/agents or equivalent
+            [string]$DestDir,    # ~/.claude/agents or ~/.config/opencode/agents
+            [string]$Label
+        )
+        if (-not (Test-Path $SourceDir)) { return }
+        New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+        $count = 0
+        foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
+            $dst = Join-Path $DestDir $f.Name
+            Copy-Item -Force $f.FullName $dst
+            $count++
+        }
+        if ($count -gt 0) { Write-Host "  $Label agents: $count installed at $DestDir" }
+    }
 
     function Install-DeviceWideCompanion {
         param(
@@ -394,22 +453,38 @@ $endMarker
     Write-Host ""
     Write-Host "Device-wide install ($($targets -join ', ')):"
 
+    $kitSkillsRoot = Join-Path $BundleGlobal ".agents/skills"
+
     foreach ($t in $targets) {
         switch ($t) {
             "claude" {
-                Install-DeviceWideCompanion `
-                    -CompanionPath (Join-Path $HomeRoot ".claude/agentic-kit.md") `
-                    -ExistingPath  (Join-Path $HomeRoot ".claude/CLAUDE.md") `
-                    -Label "Claude Code"
+                # Standalone reference doc (not auto-loaded; for browsing).
+                Install-DeviceWideRulesDoc `
+                    -DocPath (Join-Path $HomeRoot ".claude/agentic-kit.md") `
+                    -Label   "Claude Code"
 
-                # Install slash commands -- ~/.claude/commands/<name>.md is
-                # auto-mounted by Claude Code in every session.
+                # Slash commands -- ~/.claude/commands/<name>.md is auto-mounted.
                 Install-DeviceWideCommands `
                     -SourceDir (Join-Path $AdaptersRoot "claude-code/.claude/commands") `
                     -DestDir   (Join-Path $HomeRoot ".claude/commands") `
                     -Label     "Claude Code"
 
-                # Wire SessionEnd hooks via the merger (honor HomeRoot)
+                # Skills -- ~/.claude/skills/<name>/SKILL.md is auto-discovered
+                # via the `description:` frontmatter. This is THE canonical
+                # routing surface; no CLAUDE.md edit needed.
+                Install-DeviceWideSkills `
+                    -SourceRoot $kitSkillsRoot `
+                    -DestRoot   (Join-Path $HomeRoot ".claude/skills") `
+                    -Label      "Claude Code"
+
+                # Subagents -- ~/.claude/agents/<name>.md is auto-mounted as
+                # `subagent_type` options for the Task tool.
+                Install-DeviceWideAgents `
+                    -SourceDir (Join-Path $AdaptersRoot "claude-code/.claude/agents") `
+                    -DestDir   (Join-Path $HomeRoot ".claude/agents") `
+                    -Label     "Claude Code"
+
+                # Wire SessionStart/End hooks via the merger (honor HomeRoot)
                 $merger  = Join-Path $AgentsRoot "tools/merge-claude-settings.ps1"
                 $snippet = Join-Path $AdaptersRoot "claude-code/.claude/settings.snippet.json"
                 $settingsPath = Join-Path $HomeRoot ".claude/settings.json"
@@ -420,25 +495,42 @@ $endMarker
                 }
             }
             "codex" {
-                Install-DeviceWideCompanion `
-                    -CompanionPath (Join-Path $HomeRoot ".codex/agentic-kit.md") `
-                    -ExistingPath  (Join-Path $HomeRoot ".codex/AGENTS.md") `
-                    -Label "Codex CLI"
+                # Codex auto-loads ~/.codex/AGENTS.md but has no skills/commands/
+                # agents auto-discovery. Just drop the standalone reference doc.
+                # The user can manually add an @-import in their AGENTS.md if
+                # they want kit awareness baked in -- we do NOT modify it.
+                Install-DeviceWideRulesDoc `
+                    -DocPath (Join-Path $HomeRoot ".codex/agentic-kit.md") `
+                    -Label   "Codex CLI"
+                Write-Host "  (Codex has no native skill/command/agent discovery."
+                Write-Host "   To enable kit awareness in every session, add to ~/.codex/AGENTS.md:"
+                Write-Host "     ``@~/.codex/agentic-kit.md`` )"
             }
             "opencode" {
-                Install-DeviceWideCompanion `
-                    -CompanionPath (Join-Path $HomeRoot ".config/opencode/agentic-kit.md") `
-                    -ExistingPath  (Join-Path $HomeRoot ".config/opencode/prompt.md") `
-                    -Label "OpenCode"
+                # Standalone reference doc.
+                Install-DeviceWideRulesDoc `
+                    -DocPath (Join-Path $HomeRoot ".config/opencode/agentic-kit.md") `
+                    -Label   "OpenCode"
 
-                # Install slash commands -- ~/.config/opencode/commands/<name>.md
-                # is auto-mounted by OpenCode in every session.
+                # Slash commands -- ~/.config/opencode/commands/<name>.md auto-mounts.
                 Install-DeviceWideCommands `
                     -SourceDir (Join-Path $AdaptersRoot "opencode/.config/opencode/commands") `
                     -DestDir   (Join-Path $HomeRoot ".config/opencode/commands") `
                     -Label     "OpenCode"
 
-                # Drop the lifecycle plugin into the user-level plugins dir
+                # Skills -- ~/.config/opencode/skills/<name>/SKILL.md auto-discovers.
+                Install-DeviceWideSkills `
+                    -SourceRoot $kitSkillsRoot `
+                    -DestRoot   (Join-Path $HomeRoot ".config/opencode/skills") `
+                    -Label      "OpenCode"
+
+                # Subagents -- ~/.config/opencode/agents/<name>.md auto-mounts.
+                Install-DeviceWideAgents `
+                    -SourceDir (Join-Path $AdaptersRoot "opencode/.config/opencode/agents") `
+                    -DestDir   (Join-Path $HomeRoot ".config/opencode/agents") `
+                    -Label     "OpenCode"
+
+                # Lifecycle plugin
                 $pluginSrc = Join-Path $AdaptersRoot "opencode/.opencode/plugins/agentic-kit.ts"
                 $pluginDst = Join-Path $HomeRoot ".config/opencode/plugins/agentic-kit.ts"
                 if (Test-Path $pluginSrc) {
@@ -448,12 +540,16 @@ $endMarker
                 }
             }
             "generic" {
-                # Tool-neutral AGENTS.md. Aider, Cline, Cursor (via .cursorrules
-                # link), and most "agentic" CLIs check this canonical home file.
-                Install-DeviceWideCompanion `
-                    -CompanionPath (Join-Path $HomeRoot ".agentic-kit/AGENTS.md") `
-                    -ExistingPath  (Join-Path $HomeRoot "AGENTS.md") `
-                    -Label "Generic AGENTS.md"
+                # No standard auto-discovery for generic CLIs (Aider, Cline,
+                # Cursor each have their own conventions). Just drop the
+                # standalone reference doc -- user opts in by referencing it
+                # from their tool's config if they want.
+                Install-DeviceWideRulesDoc `
+                    -DocPath (Join-Path $HomeRoot ".agentic-kit/AGENTS.md") `
+                    -Label   "Generic"
+                Write-Host "  (Generic CLIs have no standard discovery."
+                Write-Host "   To enable kit awareness, point your tool's config at:"
+                Write-Host "     ``$(Join-Path $HomeRoot '.agentic-kit/AGENTS.md')`` )"
             }
             "copilot" {
                 Write-Host "  GitHub Copilot has no device-wide config -- it reads"
