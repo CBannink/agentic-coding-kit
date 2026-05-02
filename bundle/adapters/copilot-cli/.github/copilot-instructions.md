@@ -8,7 +8,7 @@ self-improvement loop closed under Copilot.
 
 ## Core operating rules
 
-1. Respect the `.codex` layout (`.codex/context/`, `.codex/workflows/`).
+1. Respect the `.codex` layout (`.kit/context/`, `.kit/workflows/`).
 2. `.wiki/features.md` + `.wiki/.features` carry user-visible capabilities.
 3. Session handoffs are session-private; repo memory is durable.
 4. Default sequential. Swarms require parallel-safe verb + fan-out-able
@@ -58,8 +58,8 @@ lifecycle. Lifecycle is for sessions that produce a handoff worth registering.
 
 | Bucket | Target |
 |---|---|
-| Durable repo facts | `.codex/context/memory.md` |
-| Role-specific guidance | `.codex/context/agent-memory/{role}.md` |
+| Durable repo facts | `.kit/context/memory.md` |
+| Role-specific guidance | `.kit/context/agent-memory/{role}.md` |
 | Cross-repo skill patterns | `~/.agents/skills/{skill}/memory.md` |
 | Session work | `${AGENTS_SESSION_ROOT}/{id}/handoffs.md` |
 

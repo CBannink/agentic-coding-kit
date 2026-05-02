@@ -3,7 +3,7 @@ name: spec
 description: >
   Lightweight spec-first workflow for complex features. Five phases before any code is written:
   Requirements clarification → Spec document → Technical plan → Task breakdown → Validation.
-  Creates .codex/specs/NNN-feature-name.md as a durable spec artifact. Use /spec before /build
+  Creates .kit/specs/NNN-feature-name.md as a durable spec artifact. Use /spec before /build
   on any feature that touches multiple files, has ambiguous requirements, or affects shared contracts.
   Prevents the most common class of build failures: implementing the wrong thing.
 ---
@@ -12,7 +12,7 @@ description: >
 
 Spec-first development prevents the most expensive kind of rework: implementing the wrong thing correctly.
 
-Use `/plan` for targeted coding tasks that need an approval-ready build plan but do **not** need a durable repo spec. Use `/spec` when the output should live in `.codex/specs/` as a cross-session requirements artifact.
+Use `/plan` for targeted coding tasks that need an approval-ready build plan but do **not** need a durable repo spec. Use `/spec` when the output should live in `.kit/specs/` as a cross-session requirements artifact.
 
 Use `/spec` before `/build` whenever:
 - Requirements are ambiguous or could be interpreted multiple ways
@@ -53,7 +53,7 @@ Key questions to answer:
 
 ### Phase 2: Spec Document
 
-Create `.codex/specs/NNN-feature-name.md` (increment NNN from last spec, or start at 001).
+Create `.kit/specs/NNN-feature-name.md` (increment NNN from last spec, or start at 001).
 
 ```markdown
 # Spec: [Feature Name]
@@ -126,8 +126,8 @@ Generate SQL todos from the spec. Each task must have enough context to be execu
 
 ```sql
 INSERT INTO todos (id, title, description) VALUES
-  ('spec-001-db', 'Create subscription table', 'Add subscriptions table in supabase/migrations/004_subscriptions.sql with columns: id, user_id, stripe_customer_id, status, tier. Enable RLS. See spec: .codex/specs/001-subscriptions.md'),
-  ('spec-001-api', 'Create checkout route', 'New POST /api/checkout — creates Stripe Checkout session. Requires auth. Returns {url: string}. See spec: .codex/specs/001-subscriptions.md#Phase-2'),
+  ('spec-001-db', 'Create subscription table', 'Add subscriptions table in supabase/migrations/004_subscriptions.sql with columns: id, user_id, stripe_customer_id, status, tier. Enable RLS. See spec: .kit/specs/001-subscriptions.md'),
+  ('spec-001-api', 'Create checkout route', 'New POST /api/checkout — creates Stripe Checkout session. Requires auth. Returns {url: string}. See spec: .kit/specs/001-subscriptions.md#Phase-2'),
   ...
 ```
 
@@ -168,9 +168,9 @@ Open questions remaining: [list or "none"]
 ## Spec File Naming
 
 ```
-.codex/specs/001-jwt-auth.md
-.codex/specs/002-subscription-billing.md
-.codex/specs/003-onboarding-wizard.md
+.kit/specs/001-jwt-auth.md
+.kit/specs/002-subscription-billing.md
+.kit/specs/003-onboarding-wizard.md
 ```
 
 Increment from the last existing spec. Use kebab-case slug matching the feature name.

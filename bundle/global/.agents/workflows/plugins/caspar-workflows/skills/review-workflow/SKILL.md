@@ -1,6 +1,6 @@
 ---
 name: review-workflow
-description: Use when the user says /review or asks for a code review, audit, or quality check of existing code or a diff. Supports repo-local augmentation from AGENTS.md, CLAUDE.md, GEMINI.md, and .codex/workflows/review.md.
+description: Use when the user says /review or asks for a code review, audit, or quality check of existing code or a diff. Supports repo-local augmentation from AGENTS.md, CLAUDE.md, GEMINI.md, and .kit/workflows/review.md.
 ---
 
 # Review Workflow
@@ -11,11 +11,11 @@ Before reviewing, read these files when they exist:
 - `AGENTS.md`
 - `CLAUDE.md`
 - `GEMINI.md`
-- `.codex/workflows/shared.md`
-- `.codex/workflows/review.md`
-- `.codex/context/memory.md`
-- `.codex/context/handoffs.md`
-- `.codex/context/reflections.md`
+- `.kit/workflows/shared.md`
+- `.kit/workflows/review.md`
+- `.kit/context/memory.md`
+- `.kit/context/handoffs.md`
+- `.kit/context/reflections.md`
 
 ## Default Agent Matrix
 
@@ -65,9 +65,9 @@ Default role prompts live under:
 6. Report findings ordered by severity with file:line references.
 7. If the user asks for fixes, apply them and re-run relevant checks.
 8. Write back review memory:
-   - append active findings, attempted verifications, and next actions to `.codex/context/handoffs.md`
-   - promote confirmed recurring patterns, repo-specific traps, and durable reviewer guidance to `.codex/context/memory.md`
-   - append workflow or prompt improvement candidates to `.codex/context/reflections.md` when repeated review failures or false-positive patterns are detected
+   - append active findings, attempted verifications, and next actions to `.kit/context/handoffs.md`
+   - promote confirmed recurring patterns, repo-specific traps, and durable reviewer guidance to `.kit/context/memory.md`
+   - append workflow or prompt improvement candidates to `.kit/context/reflections.md` when repeated review failures or false-positive patterns are detected
 
 ## Rules
 

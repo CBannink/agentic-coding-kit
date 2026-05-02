@@ -95,7 +95,7 @@ backend), `visual-diff.ps1`, `design-fetcher.ps1`,
 
 - `-For <cli-list>` — install for specific CLIs (e.g., `claude`, `opencode`, `claude,opencode`, `all`)
 - `-Auto` — detect CLIs on PATH and install for those
-- `-TargetRepo <path>` — per-repo install (writes `.codex/`, `.wiki/`, etc. into target)
+- `-TargetRepo <path>` — per-repo install (writes `.kit/`, `.wiki/`, etc. into target)
 - `-InstallRepoTemplate` — drop the repo template into target
 - `-InstallAdapter <name|all>` — install per-CLI adapter into target
 - `-Upgrade` — backup `~/.agents/` before re-install
@@ -158,8 +158,8 @@ rejects / defers each. Decisions persist in `~/.agents/proposals/decisions.jsonl
 
 | Bucket | Target file | Use when |
 |---|---|---|
-| REPO-FACT | `.codex/context/memory.md` | Durable repo architecture, schema, verified commands |
-| REPO-SPECIALIST | `.codex/context/agent-memory/{role}.md` | Repo-local guidance for one specialist role |
+| REPO-FACT | `.kit/context/memory.md` | Durable repo architecture, schema, verified commands |
+| REPO-SPECIALIST | `.kit/context/agent-memory/{role}.md` | Repo-local guidance for one specialist role |
 | SKILL-PATTERN | `~/.agents/skills/{skill}/memory.md` | Cross-repo workflow pattern with recurring evidence |
 | SESSION-ONLY | `${AGENTS_SESSION_ROOT}/{id}/handoffs.md` | Task progress, scratch, session-private notes |
 

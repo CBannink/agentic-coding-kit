@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 
 param(
     [Parameter(Mandatory = $true)]
@@ -41,7 +41,7 @@ $sessionDir = Get-SessionDir $SessionId
 $resolvedDir = Join-Path $sessionDir "resolved-specialist-memory"
 New-Item -ItemType Directory -Path $resolvedDir -Force | Out-Null
 
-$memoryDir = Join-Path $RepoRoot ".codex\context\agent-memory"
+$memoryDir = Join-Path $RepoRoot ".kit\context\agent-memory"
 $sharedPath = Join-Path $memoryDir "shared.md"
 $rolePath = Join-Path $memoryDir "$Role.md"
 

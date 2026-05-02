@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 # post-session.ps1
 # Run AFTER a /plan, /build, /review, /analyze, /investigate, or /refactor session ends.
 # Checks which gates were completed, warns on required-but-missed gates,
@@ -104,7 +104,7 @@ if (Test-Path $metaPath) {
     if (-not $Mode)       { $Mode = $meta.mode }
     if (-not $MemoryPath) { $MemoryPath = $meta.memory_path }
 }
-if (-not $MemoryPath) { $MemoryPath = ".codex/context/memory.md" }
+if (-not $MemoryPath) { $MemoryPath = ".kit/context/memory.md" }
 $workflowEvidencePath = Join-Path (Get-SessionDir $SessionId) "workflow-evidence.json"
 
 Write-Host "  Session:  $SessionId"
@@ -333,7 +333,7 @@ Add-Content -Path $globalIndex -Value $row -Encoding utf8
 Write-Host "${DIM}  Appended to global INDEX.md ($globalIndex)${RESET}"
 
 # ── Step 6: Append one-liner to shared handoffs index ────────────────────────
-$sharedHandoffs = ".codex/context/handoffs.md"
+$sharedHandoffs = ".kit/context/handoffs.md"
 if (Test-Path $sharedHandoffs) {
     $tag = "## [SESSION: $SessionId | Task: $Task | Mode: /$Mode | Status: complete"
     if ($workflowEvidence -and $workflowEvidence.tier) { $tag += " | Tier: $($workflowEvidence.tier)" }
@@ -443,7 +443,7 @@ if ((Test-Path $wikiFeatures) -or (Test-Path $wikiManifest)) {
 $historyPath = if ($MemoryPath) {
     Join-Path (Split-Path $MemoryPath) "history.md"
 } else {
-    ".codex/context/history.md"
+    ".kit/context/history.md"
 }
 
 if (Test-Path $historyPath) {

@@ -2,7 +2,7 @@
 
 Cross-repo patterns confirmed across multiple /build sessions.
 **Scope**: global skill-level (not repo-specific).
-- Repo facts → `.codex/context/memory.md`
+- Repo facts → `.kit/context/memory.md`
 - Session progress → `~/.agents/session-state/{id}/handoffs.md`
 - Workflow improvement proposals → `~/.agents/context/reflections.md`
 

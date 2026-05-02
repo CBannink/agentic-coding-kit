@@ -2,7 +2,7 @@
 
 Cross-repo patterns confirmed across multiple /review sessions.
 **Scope**: global skill-level (not repo-specific).
-- Repo review traps → `.codex/context/memory.md`
+- Repo review traps → `.kit/context/memory.md`
 - Session findings → `~/.agents/session-state/{id}/handoffs.md`
 - Workflow gaps → `~/.agents/context/reflections.md`
 

@@ -1,6 +1,6 @@
 ---
 name: build-workflow
-description: Use when the user says /build or asks to build, implement, fix, refactor, or change code with a full multi-agent loop. Supports repo-local augmentation from AGENTS.md, CLAUDE.md, GEMINI.md, and .codex/workflows/build.md.
+description: Use when the user says /build or asks to build, implement, fix, refactor, or change code with a full multi-agent loop. Supports repo-local augmentation from AGENTS.md, CLAUDE.md, GEMINI.md, and .kit/workflows/build.md.
 ---
 
 # Build Workflow
@@ -11,10 +11,10 @@ Before planning or coding, read these files when they exist:
 - `AGENTS.md`
 - `CLAUDE.md`
 - `GEMINI.md`
-- `.codex/workflows/shared.md`
-- `.codex/workflows/build.md`
-- `.codex/context/memory.md`
-- `.codex/context/handoffs.md`
+- `.kit/workflows/shared.md`
+- `.kit/workflows/build.md`
+- `.kit/context/memory.md`
+- `.kit/context/handoffs.md`
 
 Treat those files as repo-local overrides on top of this workflow.
 
@@ -113,8 +113,8 @@ Use this workflow when the user explicitly says `/build` or when the request is 
    - Agent reads: git diff summary, current `docs/wiki/INDEX.md`, current `memory.md`, current `handoffs.md`
    - Agent updates:
      - `docs/wiki/INDEX.md` — add/update/remove rows for any exports, hooks, services, or utilities that changed
-     - `.codex/context/memory.md` — promote newly confirmed facts, constraints, or verified commands
-     - `.codex/context/handoffs.md` — append current status, what was built, what tests passed, next steps
+     - `.kit/context/memory.md` — promote newly confirmed facts, constraints, or verified commands
+     - `.kit/context/handoffs.md` — append current status, what was built, what tests passed, next steps
    - Agent prompt key rules: only durable facts to memory.md, no session chatter; only actionable continuity to handoffs.md; update INDEX.md rows precisely, do not rewrite the whole file
    - If the build **failed**, the docs-updater still runs but only updates handoffs.md with what was attempted and what blocked it
 

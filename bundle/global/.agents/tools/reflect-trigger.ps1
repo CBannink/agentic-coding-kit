@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 # reflect-trigger.ps1
 # Reads global + repo-local reflections.md, returns the unaddressed count and
 # a JSON payload the orchestrator can act on. This is the self-improvement
@@ -34,7 +34,7 @@ param(
 
 if (-not $RepoRoot) { $RepoRoot = (Get-Location).Path }
 
-$repoPath   = Join-Path $RepoRoot ".codex/context/reflections.md"
+$repoPath   = Join-Path $RepoRoot ".kit/context/reflections.md"
 $globalPath = Join-Path $script:AgentsRoot "context/reflections.md"
 
 function Parse-Reflections([string]$path, [string]$scope) {

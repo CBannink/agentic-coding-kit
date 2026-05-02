@@ -30,8 +30,8 @@ single line is implemented.
 
 Read these when they exist:
 ```
-.codex/context/memory.md       — durable repo facts, confirmed dependency patterns
-.codex/context/handoffs.md     — current state, open work, known fragile areas
+.kit/context/memory.md       — durable repo facts, confirmed dependency patterns
+.kit/context/handoffs.md     — current state, open work, known fragile areas
 docs/wiki/INDEX.md             — all public exports, services, endpoints (blast-radius map)
 ```
 

@@ -1,6 +1,6 @@
 # Repo Skills Profile
 
-This file pairs with `.codex/skills/index.json`. It carries the human-readable
+This file pairs with `.kit/skills/index.json`. It carries the human-readable
 evidence summary that the routing index points at: caveats, scoped patterns,
 evidence gaps, and any rules the validator should warn about.
 

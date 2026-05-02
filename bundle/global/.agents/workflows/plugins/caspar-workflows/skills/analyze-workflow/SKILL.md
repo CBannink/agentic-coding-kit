@@ -1,6 +1,6 @@
 ---
 name: analyze-workflow
-description: Use when the user says /analyze or asks to research, compare, investigate, or evaluate with multiple perspectives. Supports repo-local augmentation from AGENTS.md, CLAUDE.md, GEMINI.md, and .codex/workflows/analyze.md.
+description: Use when the user says /analyze or asks to research, compare, investigate, or evaluate with multiple perspectives. Supports repo-local augmentation from AGENTS.md, CLAUDE.md, GEMINI.md, and .kit/workflows/analyze.md.
 ---
 
 # Analyze Workflow
@@ -11,10 +11,10 @@ Before analysis, read these files when they exist:
 - `AGENTS.md`
 - `CLAUDE.md`
 - `GEMINI.md`
-- `.codex/workflows/shared.md`
-- `.codex/workflows/analyze.md`
-- `.codex/context/memory.md`
-- `.codex/context/handoffs.md`
+- `.kit/workflows/shared.md`
+- `.kit/workflows/analyze.md`
+- `.kit/context/memory.md`
+- `.kit/context/handoffs.md`
 
 ## Default Agent Matrix
 
@@ -63,8 +63,8 @@ Default role prompts live under:
 5. If the topic is product direction, architecture before coding, or wedge selection, include `product-wedge` and use gstack `office-hours` style pressure.
 6. If blind spots are material, run targeted exploration and re-synthesize.
 7. Verify testable claims against code, docs, or direct evidence when needed.
-8. If the analysis confirms stable repo facts, update `.codex/context/memory.md`.
-9. If the analysis changes what the next session should do, update `.codex/context/handoffs.md`.
+8. If the analysis confirms stable repo facts, update `.kit/context/memory.md`.
+9. If the analysis changes what the next session should do, update `.kit/context/handoffs.md`.
 
 ## Rules
 

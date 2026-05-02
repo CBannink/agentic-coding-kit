@@ -30,7 +30,7 @@ Only objective failures belong here. Subjective prompt ideas still require sessi
 
 ## Promotion rules
 
-- Repo-specific patterns → `.codex/workflows/*.md`
+- Repo-specific patterns → `.kit/workflows/*.md`
 - Global workflow/skill patterns → `~/.agents/skills/*/SKILL.md`
 - Global routing/mechanism patterns → `~/.agents/instructions.md`
 

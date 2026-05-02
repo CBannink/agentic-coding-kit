@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 
 [CmdletBinding()]
 param(
@@ -95,16 +95,16 @@ function Test-PathUnderCodexSkills {
         [string]$TargetPath
     )
 
-    $skillsRoot = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot ".codex\skills"))
+    $skillsRoot = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot ".kit\skills"))
     return $TargetPath.StartsWith($skillsRoot, [System.StringComparison]::OrdinalIgnoreCase)
 }
 
 $RepoRoot = [System.IO.Path]::GetFullPath($RepoRoot)
 if (-not $IndexPath) {
-    $IndexPath = Join-Path $RepoRoot ".codex\skills\index.json"
+    $IndexPath = Join-Path $RepoRoot ".kit\skills\index.json"
 }
 if (-not $ProfilePath) {
-    $ProfilePath = Join-Path $RepoRoot ".codex\skills\profile.md"
+    $ProfilePath = Join-Path $RepoRoot ".kit\skills\profile.md"
 }
 
 $result = New-ValidationResult -RepoRoot $RepoRoot -IndexPath $IndexPath -ProfilePath $ProfilePath

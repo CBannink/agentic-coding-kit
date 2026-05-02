@@ -6,7 +6,7 @@ for the canonical body.
 
 ## Core operating rules
 
-1. Respect the `.codex` layout (`.codex/context/`, `.codex/workflows/`).
+1. Respect the `.codex` layout (`.kit/context/`, `.kit/workflows/`).
 2. `.wiki/features.md` + `.wiki/.features` carry user-visible capabilities.
 3. Session handoffs are session-private; repo memory is durable.
 4. Prefer the sequenced commands: `/plan` → `/build` → `/review` →
@@ -31,8 +31,8 @@ for the canonical body.
 
 | Bucket | Target |
 |---|---|
-| Durable repo facts | `.codex/context/memory.md` |
-| Repo-local specialist guidance | `.codex/context/agent-memory/{role}.md` |
+| Durable repo facts | `.kit/context/memory.md` |
+| Repo-local specialist guidance | `.kit/context/agent-memory/{role}.md` |
 | Cross-repo skill patterns | `~/.agents/skills/{skill}/memory.md` |
 | Session-only | `${AGENTS_SESSION_ROOT}/{id}/handoffs.md` |
 

@@ -1,29 +1,29 @@
 ---
-name: codex-init
-description: Bootstraps the .codex/ tree (durable repo memory, agent-memory, repo-local workflow overrides) for a repo that doesn't have one. Surveys real code for durable architectural facts, writes .codex/context/memory.md + handoffs.md + history.md + reflections.md + agent-memory/shared.md + .codex/workflows/{shared,build,review}.md as appropriate. Use when .codex/ is missing, when /build / /plan / /review reports memory files aren't found, or when the user says "set up the kit's repo memory" / "we don't have .codex/ yet".
+name: kit-init
+description: Bootstraps the .kit/ tree (durable repo memory, agent-memory, repo-local workflow overrides) for a repo that doesn't have one. Surveys real code for durable architectural facts, writes .kit/context/memory.md + handoffs.md + history.md + reflections.md + agent-memory/shared.md + .kit/workflows/{shared,build,review}.md as appropriate. Use when .kit/ is missing, when /build / /plan / /review reports memory files aren't found, or when the user says "set up the kit's repo memory" / "we don't have .kit/ yet".
 ---
 
-# Codex Init Skill
+# Kit Init Skill
 
-Bootstrap the `.codex/` directory from REAL code evidence in this repo.
+Bootstrap the `.kit/` directory from REAL code evidence in this repo.
 Parallel to `/wiki-init` -- but for the kit's runtime memory artifacts
 (durable repo facts, repo-local workflow overrides, agent-memory) instead
 of the user-visible wiki.
 
 ## When to run
 
-- `.codex/` does not exist in the repo
-- `pre-session.ps1` emitted `CODEX: MISSING` in the BRIEF block
+- `.kit/` does not exist in the repo
+- `pre-session.ps1` emitted `KIT: MISSING` in the BRIEF block
 - `/build` / `/review` / `/plan` skills report "memory.md not found" or
   silently skip their context-load step
-- User asks to "bootstrap the kit's repo memory", "set up `.codex/`",
+- User asks to "bootstrap the kit's repo memory", "set up `.kit/`",
   "init the repo for the agentic kit"
 
 ## What this skill does NOT do
 
-- It does NOT generate `.codex/skills/index.json` or `.codex/skills/profile.md`.
+- It does NOT generate `.kit/skills/index.json` or `.kit/skills/profile.md`.
   Those are the output of the separate `derive-repo-skills` workflow. Run
-  `/derive-repo-skills` (or the underlying skill) AFTER `/codex-init` if you
+  `/derive-repo-skills` (or the underlying skill) AFTER `/kit-init` if you
   want repo-local skill routing.
 - It does NOT touch `.wiki/` -- run `/wiki-init` for that surface.
 - It does NOT auto-create per-role agent memory files (`agent-memory/<role>.md`).
@@ -35,25 +35,25 @@ of the user-visible wiki.
 1. **Evidence-grounded only.** Every entry in `memory.md` and `agent-memory/shared.md`
    MUST trace to a real file or convention in THIS repo. No generic advice.
 2. **Surgical writes.** Skip artifacts that don't apply. A repo with no
-   non-obvious build steps does NOT need `.codex/workflows/build.md` --
+   non-obvious build steps does NOT need `.kit/workflows/build.md` --
    omit it. A library with no shared types may not need a memory entry on
    schema patterns.
 3. **Size budgets**:
    - `memory.md`: **≤40 entries** (kit convention -- enforced by post-session
      compress). Aim for the highest-leverage facts.
    - `agent-memory/shared.md`: **≤200 lines**.
-   - `.codex/workflows/{name}.md`: **≤150 lines** each.
+   - `.kit/workflows/{name}.md`: **≤150 lines** each.
    - Use bullets. No essays.
 4. **Coverage report at the end.** List facts you considered but didn't
    record (with reason: too obvious, not stable enough, etc.). User decides
    gaps.
-5. **Idempotent re-run.** If `.codex/` exists, AUDIT each file: surgical
+5. **Idempotent re-run.** If `.kit/` exists, AUDIT each file: surgical
    updates only, ask before regenerating.
 
 ## Output structure
 
 ```
-.codex/
+.kit/
 ├── context/
 │   ├── memory.md            # durable repo architectural facts (≤40 entries)
 │   ├── handoffs.md          # cross-session shared handoff index (header only at init)
@@ -69,7 +69,7 @@ of the user-visible wiki.
 
 ## What goes in each file
 
-### `.codex/context/memory.md` -- durable architectural facts
+### `.kit/context/memory.md` -- durable architectural facts
 
 Highest-leverage. Read by every `/build`, `/plan`, `/review` session. Each
 entry is a fact a future agent should know without re-deriving from the
@@ -92,7 +92,7 @@ Format each entry with:
 - a `cite:` line pointing at the file:line that proves it
 - optional `why:` line for non-obvious rationale
 
-### `.codex/context/handoffs.md` -- cross-session shared index
+### `.kit/context/handoffs.md` -- cross-session shared index
 
 At init: just write the canonical header so post-session.ps1 knows where
 to append. Do NOT seed any handoff content.
@@ -106,7 +106,7 @@ Append-only. One row per shared session tag emitted by post-session.ps1.
 |------------|----------------------------|-------------------------------|----------------------------------|
 ```
 
-### `.codex/context/history.md` -- decision log header
+### `.kit/context/history.md` -- decision log header
 
 ```markdown
 # Repo History
@@ -118,7 +118,7 @@ history.archive.md.
 
 Empty body at init.
 
-### `.codex/context/reflections.md` -- workflow improvements
+### `.kit/context/reflections.md` -- workflow improvements
 
 Empty file with header. Populated by `/reflect` skill.
 
@@ -130,7 +130,7 @@ annotated). 5+ unaddressed entries gates the next session via
 reflect-trigger.ps1.
 ```
 
-### `.codex/context/agent-memory/shared.md` -- cross-role guidance
+### `.kit/context/agent-memory/shared.md` -- cross-role guidance
 
 Patterns / conventions that apply to ALL specialist sub-agents working in
 this repo. Embedded in subagent prompts via `specialist-memory-resolver.ps1`.
@@ -145,7 +145,7 @@ Examples grounded in repo evidence:
 Skip if the repo has no non-obvious cross-role patterns. Many repos don't
 need this file.
 
-### `.codex/workflows/*.md` -- repo-specific workflow overrides
+### `.kit/workflows/*.md` -- repo-specific workflow overrides
 
 Only write these when the kit's global skill needs repo-specific augmentation:
 
@@ -179,7 +179,7 @@ Sources to check:
 
 Cap at 40 entries. Pick the 40 most-load-bearing.
 
-### Step 3 -- write `.codex/context/memory.md`
+### Step 3 -- write `.kit/context/memory.md`
 
 Use the format above. Cite file:line for every entry.
 
@@ -191,7 +191,7 @@ Headers only. Empty bodies.
 
 Only if you can find ≥3 cross-role patterns from real evidence. Otherwise skip.
 
-### Step 6 -- write `.codex/workflows/*.md` overrides
+### Step 6 -- write `.kit/workflows/*.md` overrides
 
 Only if the kit's global skills need augmentation. For most repos, the
 global skills are sufficient -- skip these.
@@ -218,9 +218,9 @@ separate workflow with its own evidence requirements.
 - workflows/review.md: skipped (no repo-specific review policy)
 ```
 
-## Re-run mode (existing .codex/)
+## Re-run mode (existing .kit/)
 
-If `.codex/` already exists:
+If `.kit/` already exists:
 1. Read every existing file.
 2. Diff against current code: which entries are stale, missing, or no
    longer reflect reality?
@@ -240,11 +240,11 @@ If `.codex/` already exists:
 
 ## Integration with other skills
 
-- **`/build`**: step 1 reads `.codex/context/memory.md` + handoffs.md + agent-memory/. After `/codex-init`, these resolve.
+- **`/build`**: step 1 reads `.kit/context/memory.md` + handoffs.md + agent-memory/. After `/kit-init`, these resolve.
 - **`/plan`**: same.
-- **`/review`**: reads `.codex/context/reflections.md` + memory.md.
+- **`/review`**: reads `.kit/context/reflections.md` + memory.md.
 - **`/reflect`**: appends to reflections.md.
-- **`pre-session.ps1`**: reports `CODEX: MISSING` and recommends running this
-  skill when `.codex/` is absent.
-- **`derive-repo-skills`**: complementary -- run AFTER codex-init if repo
+- **`pre-session.ps1`**: reports `KIT: MISSING` and recommends running this
+  skill when `.kit/` is absent.
+- **`derive-repo-skills`**: complementary -- run AFTER kit-init if repo
   conventions are stable enough to extract repo-local skills.

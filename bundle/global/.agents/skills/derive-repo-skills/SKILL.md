@@ -32,7 +32,7 @@ Generated skill files are secondary and should be rarer.
 ## When to Invoke
 
 - First serious session in an unfamiliar repo
-- When `.codex/skills/index.json` is missing
+- When `.kit/skills/index.json` is missing
 - When repo conventions are unclear or spread across history + current code
 - After major architecture or stack changes that may invalidate old repo-local guidance
 - Before repeated `/build` or `/review` work in the same repo when onboarding cost is high
@@ -65,11 +65,11 @@ Read these when they exist:
 - `CLAUDE.md`
 - `GEMINI.md`
 - `.wiki/features.md`
-- `.codex/context/memory.md`
-- `.codex/context/history.md`
-- `.codex/context/handoffs.md`
-- existing `.codex/skills/index.json`
-- existing `.codex/skills/profile.md`
+- `.kit/context/memory.md`
+- `.kit/context/history.md`
+- `.kit/context/handoffs.md`
+- existing `.kit/skills/index.json`
+- existing `.kit/skills/profile.md`
 
 Use them as evidence sources, not as unquestioned truth.
 
@@ -163,9 +163,9 @@ For each `claim_id`, capture:
 ### Consumer Handoff (durable)
 
 Downstream workflows consume only these durable repo-local artifacts:
-1. `.codex/skills/index.json` — canonical machine-readable router
-2. `.codex/skills/profile.md` — canonical human-readable evidence summary
-3. `.codex/skills/generated/*.md` — optional generated skills referenced by the index
+1. `.kit/skills/index.json` — canonical machine-readable router
+2. `.kit/skills/profile.md` — canonical human-readable evidence summary
+3. `.kit/skills/generated/*.md` — optional generated skills referenced by the index
 
 Consumers load the index first, then the profile, then only the referenced generated skills that are both relevant and high-confidence.
 
@@ -306,9 +306,9 @@ The no-op form is:
 
 Write these repo-local artifacts:
 
-1. **Required** — `.codex/skills/index.json`
-2. **Required** — `.codex/skills/profile.md`
-3. **Optional** — `.codex/skills/generated/*.md` for each promoted high-confidence repo-local skill
+1. **Required** — `.kit/skills/index.json`
+2. **Required** — `.kit/skills/profile.md`
+3. **Optional** — `.kit/skills/generated/*.md` for each promoted high-confidence repo-local skill
 
 Prefer narrow skills such as:
 - `repo-frontend-patterns`
@@ -354,7 +354,7 @@ Before completion, verify:
 
 ## Output Contracts
 
-### 1. `.codex/skills/index.json`
+### 1. `.kit/skills/index.json`
 
 Machine-readable routing file for later agents.
 
@@ -419,7 +419,7 @@ Suggested shape:
   "repo_local_skills": [
     {
       "name": "repo-frontend-patterns",
-      "path": ".codex/skills/generated/repo-frontend-patterns.md",
+      "path": ".kit/skills/generated/repo-frontend-patterns.md",
       "load_when": [
         "touching React routes/components/hooks",
         "changing user-visible frontend behavior"
@@ -436,7 +436,7 @@ Suggested shape:
       ]
     }
   ],
-  "profile_path": ".codex/skills/profile.md",
+  "profile_path": ".kit/skills/profile.md",
   "notes": [
     "Routing is advisory in v1; agents may fall back to global skills when evidence is weak."
   ]
@@ -466,7 +466,7 @@ Rerun hint:
 
 Consumer note: wall-clock age is consumer-owned. `/build` and `/review` should also treat `generated_at` older than 30 days as stale even if the producer last wrote `fresh`.
 
-### 2. `.codex/skills/profile.md`
+### 2. `.kit/skills/profile.md`
 
 Human-readable conventions summary:
 - derive mode and target surfaces
@@ -478,7 +478,7 @@ Human-readable conventions summary:
 - generated repo-local skills
 - evidence gaps
 
-### 3. `.codex/skills/generated/*.md`
+### 3. `.kit/skills/generated/*.md`
 
 Each generated skill must include:
 - what work it applies to
@@ -523,7 +523,7 @@ Recommended headings:
 Use this skill as a **repo bootstrap**.
 
 Then let later workflows consume its outputs:
-- `/build` Phase 0 checks `.codex/skills/index.json` first, then `.codex/skills/profile.md`, then relevant generated skill files when the index points to them
+- `/build` Phase 0 checks `.kit/skills/index.json` first, then `.kit/skills/profile.md`, then relevant generated skill files when the index points to them
 - `/review` uses the same index-first handoff and treats `profile.md` as the source of caveats and uncertainty
 - `/analyze` uses the profile as an evidence source and may load relevant high-confidence generated skills when the index points to them and the current question overlaps their scope
 

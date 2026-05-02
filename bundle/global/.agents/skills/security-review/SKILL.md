@@ -68,7 +68,7 @@ The synthesizer agent reads all verified findings and produces:
 Security findings are sensitive. They go to:
 `${AGENTS_SESSION_ROOT}/{session_id}/handoffs.md`
 
-NOT to `.codex/context/memory.md` or `.wiki/features.md`. Sharing tag in
+NOT to `.kit/context/memory.md` or `.wiki/features.md`. Sharing tag in
 `handoffs.md` should NOT include sensitive details — only "security review
 completed, see private handoff at <path>".
 

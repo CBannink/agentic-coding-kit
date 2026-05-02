@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 # auto-consolidate.ps1
 # Mechanical pass over reflections.md (repo + global) that runs the agent-less
 # parts of /reflect. Closes the self-improvement loop without requiring an
@@ -30,9 +30,9 @@ param(
 
 if (-not $RepoRoot) { $RepoRoot = (Get-Location).Path }
 
-$repoPath   = Join-Path $RepoRoot ".codex/context/reflections.md"
+$repoPath   = Join-Path $RepoRoot ".kit/context/reflections.md"
 $globalPath = Join-Path $script:AgentsRoot "context/reflections.md"
-$memoryPath = Join-Path $RepoRoot ".codex/context/memory.md"
+$memoryPath = Join-Path $RepoRoot ".kit/context/memory.md"
 
 $summary = [ordered]@{
     started_with    = 0

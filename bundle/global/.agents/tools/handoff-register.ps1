@@ -1,11 +1,11 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 # handoff-register.ps1
 # Appends a row to the Session Handoff Index in memory.md.
 # Called at the end of every build/review/analyze session.
 # Enforces max-20-row limit by dropping the oldest entry.
 #
 # Usage:
-#   handoff-register.ps1 -SessionId "abc123" -Task "build-auth" -Summary "JWT middleware, routes, token refresh, tests" [-MemoryPath ".codex/context/memory.md"]
+#   handoff-register.ps1 -SessionId "abc123" -Task "build-auth" -Summary "JWT middleware, routes, token refresh, tests" [-MemoryPath ".kit/context/memory.md"]
 #
 # The Summary should answer: "if you're working on X, you'll find Y here"
 # Keep it ≤15 words. It is the ONLY thing an agent reads before deciding to load the full handoff.
@@ -14,7 +14,7 @@ param(
     [Parameter(Mandatory)][string]$SessionId,
     [Parameter(Mandatory)][string]$Task,
     [Parameter(Mandatory)][string]$Summary,
-    [string]$MemoryPath = ".codex/context/memory.md"
+    [string]$MemoryPath = ".kit/context/memory.md"
 )
 
 . (Join-Path $PSScriptRoot "_paths.ps1")

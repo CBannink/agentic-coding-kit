@@ -47,7 +47,7 @@ If something is intentionally skipped, record the skip explicitly. "No-op with r
 ```powershell
 pwsh ~/.agents/tools/workflow-evidence.ps1 -SessionId "{id}" -Mode "build" -Scope "SHARED" -ScopeReason "touches 3 files across src+test"
 pwsh ~/.agents/tools/workflow-evidence.ps1 -SessionId "{id}" -Tier "TARGETED" -TierReason "3-file scoped fix; wiki already maps feature"
-pwsh ~/.agents/tools/workflow-evidence.ps1 -SessionId "{id}" -AddRepoContext ".codex/context/memory.md"
+pwsh ~/.agents/tools/workflow-evidence.ps1 -SessionId "{id}" -AddRepoContext ".kit/context/memory.md"
 pwsh ~/.agents/tools/workflow-evidence.ps1 -SessionId "{id}" -BuildBrief "no same-day brief found"
 pwsh ~/.agents/tools/workflow-evidence.ps1 -SessionId "{id}" -AddAgent "spec-reviewer|scope verification on changed diff"
 pwsh ~/.agents/tools/workflow-evidence.ps1 -SessionId "{id}" -AddSkippedAgent "implementer|mechanical two-file fix handled inline"

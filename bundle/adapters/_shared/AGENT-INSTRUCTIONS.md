@@ -6,7 +6,7 @@ AGENTS.md / system-prompt files).
 
 ## Core operating rules
 
-1. Respect the `.codex` layout in this repo (`.codex/context/`, `.codex/workflows/`).
+1. Respect the `.codex` layout in this repo (`.kit/context/`, `.kit/workflows/`).
 2. Use `.wiki/features.md` and `.wiki/.features` for user-visible capabilities.
 3. Treat session handoffs as session-private; repo memory as durable.
 4. Prefer:
@@ -86,16 +86,16 @@ decide and implement manually. No auto-modification of kit files.
 
 | Bucket | Target |
 |---|---|
-| Durable repo facts | `.codex/context/memory.md` |
-| Repo-local specialist guidance | `.codex/context/agent-memory/{role}.md` or `shared.md` |
+| Durable repo facts | `.kit/context/memory.md` |
+| Repo-local specialist guidance | `.kit/context/agent-memory/{role}.md` or `shared.md` |
 | Cross-repo skill patterns | `~/.agents/skills/{skill}/memory.md` |
 | Session-only | `${AGENTS_SESSION_ROOT}/{id}/handoffs.md` (default `~/.agents/session-state`) |
 
 ## File layout to respect
 
 ```text
-.codex/context/         # repo memory + role memory + handoffs index
-.codex/workflows/       # repo-specific workflow overrides
+.kit/context/         # repo memory + role memory + handoffs index
+.kit/workflows/       # repo-specific workflow overrides
 .wiki/                  # user-visible feature docs
 ```
 

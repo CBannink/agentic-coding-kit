@@ -998,7 +998,7 @@ Then add the context block and mode-appropriate instructions:
 
 **Builder mode instructions:** "You are an independent technical advisor reading a transcript of a builder brainstorming session. [CONTEXT BLOCK HERE]. Your job: 1) What is the COOLEST version of this they haven't considered? 2) What's the ONE thing from their answers that reveals what excites them most? Quote it. 3) What existing open source project or tool gets them 50% of the way there — and what's the 50% they'd need to build? 4) If you had a weekend to build this, what would you build first? Be specific. Be direct. No preamble."
 
-3. Run Codex:
+3. Run KIT:
 
 ```bash
 TMPERR_OH=$(mktemp /tmp/codex-oh-err-XXXXXXXX)

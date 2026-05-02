@@ -1363,7 +1363,7 @@ Produce this markdown table:
 
 Below the table, add these lines (omit any that are empty/not applicable):
 
-- **CODEX:** (only if codex-review ran) — one-line summary of codex fixes
+- **KIT:** (only if codex-review ran) — one-line summary of codex fixes
 - **CROSS-MODEL:** (only if both Claude and Codex reviews exist) — overlap analysis
 - **UNRESOLVED:** total unresolved decisions across all reviews
 - **VERDICT:** list reviews that are CLEAR (e.g., "CEO + ENG CLEARED — ready to implement").

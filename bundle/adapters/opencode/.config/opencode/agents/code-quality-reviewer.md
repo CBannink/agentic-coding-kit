@@ -11,7 +11,7 @@ and `~/.agents/skills/review/SKILL.md` for the review hierarchy.
 Cover:
 - maintainability + correctness
 - naming and structure
-- convention adherence (read repo `.codex/context/memory.md` for repo patterns)
+- convention adherence (read repo `.kit/context/memory.md` for repo patterns)
 - test quality: are new behaviors specifically tested by name? Are mocks accurate?
 - observability: errors logged with context, trace context forwarded
 - error/edge case coverage

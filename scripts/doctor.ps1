@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 # doctor.ps1 -- self-diagnostic for the Caspar Bannink Agentic Coding Kit.
 # One command tells you whether the kit is correctly installed and ready to run.
 #
@@ -120,7 +120,7 @@ if (Test-Path $ocPlugin) {
 # 7. Companion files (device-wide install)
 foreach ($spec in @(
     @{ Path = Join-Path $HOME ".claude/agentic-kit.md"; Label = "Claude" },
-    @{ Path = Join-Path $HOME ".codex/agentic-kit.md"; Label = "Codex" },
+    @{ Path = Join-Path $HOME ".kit/agentic-kit.md"; Label = "Codex" },
     @{ Path = Join-Path $HOME ".config/opencode/agentic-kit.md"; Label = "OpenCode" }
 )) {
     if (Test-Path $spec.Path) {
@@ -134,7 +134,7 @@ foreach ($spec in @(
 # 8. Include markers in host-CLI config files
 foreach ($spec in @(
     @{ Path = Join-Path $HOME ".claude/CLAUDE.md"; Label = "Claude CLAUDE.md" },
-    @{ Path = Join-Path $HOME ".codex/AGENTS.md"; Label = "Codex AGENTS.md" },
+    @{ Path = Join-Path $HOME ".kit/AGENTS.md"; Label = "Codex AGENTS.md" },
     @{ Path = Join-Path $HOME ".config/opencode/prompt.md"; Label = "OpenCode prompt.md" }
 )) {
     if (Test-Path $spec.Path) {

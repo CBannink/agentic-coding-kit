@@ -17,7 +17,7 @@ Use `/plan` when you want the Claude Code-style planning experience before any c
 - stop for approval before coding
 
 Use `/plan` for targeted coding tasks that need a strong execution plan but do **not** need a durable repo spec.
-Use `/spec` instead when the change needs a formal cross-session requirements document in `.codex/specs/`.
+Use `/spec` instead when the change needs a formal cross-session requirements document in `.kit/specs/`.
 
 ---
 
@@ -28,11 +28,11 @@ When these files exist in the current repo, read them before planning:
 - `AGENTS.md`
 - `CLAUDE.md`
 - `GEMINI.md`
-- `.codex/workflows/shared.md`
-- `.codex/workflows/build.md`
-- `.codex/context/memory.md`
-- `.codex/context/history.md`
-- `.codex/context/handoffs.md`
+- `.kit/workflows/shared.md`
+- `.kit/workflows/build.md`
+- `.kit/context/memory.md`
+- `.kit/context/history.md`
+- `.kit/context/handoffs.md`
 - `.wiki/index.md` *(read FIRST when the wiki exists -- canonical TOC, ≤100 lines, lists all sections + cross-cutting links. Cheaper than guessing what's in the wiki.)*
 - `.wiki/features.md` *(only when user-visible behavior or feature discovery is relevant)*
 - `.wiki/.features` *(only when `.wiki/features.md` is relevant and a machine-readable manifest helps)*
@@ -51,8 +51,8 @@ before non-trivial planning (per the kit's always-on rules).
 Treat repo-local files as overrides.
 
 Repo-local specialist memory is **lazy-loaded**, not startup-loaded:
-- `.codex/context/agent-memory/shared.md`
-- `.codex/context/agent-memory/{role}.md`
+- `.kit/context/agent-memory/shared.md`
+- `.kit/context/agent-memory/{role}.md`
 
 Before spawning any planning-role sub-agent that might benefit from repo-local specialist context, resolve it mechanically with:
 

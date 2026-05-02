@@ -6,7 +6,7 @@ Same operating rules as the rest of the kit. See
 
 ## Core operating rules
 
-1. Respect the `.codex` layout (`.codex/context/`, `.codex/workflows/`).
+1. Respect the `.codex` layout (`.kit/context/`, `.kit/workflows/`).
 2. `.wiki/features.md` + `.wiki/.features` carry user-visible capabilities.
 3. Session handoffs are session-private; repo memory is durable.
 4. Prefer the sequenced commands: `/plan` → `/build` → `/review` →

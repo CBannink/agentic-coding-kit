@@ -3,7 +3,7 @@
 Cross-repo planning patterns confirmed across multiple planning sessions.
 **Scope**: global skill-level (not repo-specific).
 
-- Repo facts → `.codex/context/memory.md`
+- Repo facts → `.kit/context/memory.md`
 - Session plans → `~/.agents/session-state/{id}/plan.md`
 - Workflow improvement proposals → `~/.agents/context/reflections.md`
 

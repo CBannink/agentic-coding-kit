@@ -26,8 +26,8 @@ Read these files before running the consolidation:
 
 ```
 ~/.agents/context/reflections.md     (global cross-repo proposals — always read)
-.codex/context/reflections.md        (repo-local proposals — read when exists)
-.codex/context/memory.md             (confirmed patterns already promoted)
+.kit/context/reflections.md        (repo-local proposals — read when exists)
+.kit/context/memory.md             (confirmed patterns already promoted)
 ~/.agents/instructions.md
 ```
 
@@ -90,8 +90,8 @@ Apply improvements to the narrowest scope that fixes the problem:
 
 | Scope | File(s) | When to use | Confirmation |
 |-------|---------|-------------|-------------|
-| 1. Repo-local workflow | `.codex/workflows/analyze.md` / `build.md` / `review.md` | Issue is repo-specific | Auto — apply directly |
-| 2. Repo-local shared | `.codex/workflows/shared.md` | Applies across all modes in this repo | Auto — apply directly |
+| 1. Repo-local workflow | `.kit/workflows/analyze.md` / `build.md` / `review.md` | Issue is repo-specific | Auto — apply directly |
+| 2. Repo-local shared | `.kit/workflows/shared.md` | Applies across all modes in this repo | Auto — apply directly |
 | 3. Global skill | `~/.agents/skills/<name>/SKILL.md` | Universal role/phase issue | Ask user first |
 | 4. Global instructions | `~/.agents/instructions.md` | Global routing issue | Ask user first |
 
@@ -103,7 +103,7 @@ Apply improvements to the narrowest scope that fixes the problem:
 
 ### Step 1 — Read and triage
 
-Read `.codex/context/reflections.md`. For each entry, classify:
+Read `.kit/context/reflections.md`. For each entry, classify:
 
 | Class | Action |
 |-------|--------|
@@ -118,9 +118,9 @@ Read `.codex/context/reflections.md`. For each entry, classify:
 
 For each confirmed pattern, identify the narrowest target:
 
-- False positive about a repo-specific shape → `.codex/workflows/review.md`
-- Missing review category for this domain → `.codex/workflows/review.md`
-- Workflow step that consistently fails in this repo → `.codex/workflows/build.md` or `shared.md`
+- False positive about a repo-specific shape → `.kit/workflows/review.md`
+- Missing review category for this domain → `.kit/workflows/review.md`
+- Workflow step that consistently fails in this repo → `.kit/workflows/build.md` or `shared.md`
 - Role behavior wrong in general (any repo) → `~/.agents/skills/<skill>/SKILL.md`
 - Routing rule wrong globally → `~/.agents/instructions.md` (user confirmation required)
 
@@ -140,7 +140,7 @@ For each confirmed pattern:
 
 After promoting a pattern:
 - **Delete the entry** from `reflections.md` — do not annotate it as "→ promoted". The file should only ever contain unaddressed entries.
-- Add a single dated line to `.codex/context/memory.md`: `[DATE] Promoted: [pattern summary] → [target file]`
+- Add a single dated line to `.kit/context/memory.md`: `[DATE] Promoted: [pattern summary] → [target file]`
 - This keeps reflections.md lean and memory.md as the audit trail.
 
 ### Automatic Trigger
@@ -193,7 +193,7 @@ Write a **Session Learning Summary** to the session-private file with these sect
 |-------------|----------|
 | Cross-repo skill pattern | `~/.agents/skills/{skill}/memory.md` |
 | Universal workflow gap | `~/.agents/context/reflections.md` |
-| Repo-specific architectural fact | `.codex/context/memory.md` |
+| Repo-specific architectural fact | `.kit/context/memory.md` |
 | User preference (workflow style) | `~/.agents/context/reflections.md` with `[user-preference]` tag |
 | One-off session note | Session private handoff only — do not promote |
 

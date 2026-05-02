@@ -5,7 +5,7 @@ Same operating rules as the rest of the kit; see
 
 ## Core operating rules
 
-1. Respect the `.codex` layout (`.codex/context/`, `.codex/workflows/`).
+1. Respect the `.kit/` layout (`.kit/context/`, `.kit/workflows/`).
 2. Use `.wiki/features.md` and `.wiki/.features` for user-visible capabilities.
 3. Treat session handoffs as session-private and repo memory as durable.
 4. Prefer:
@@ -36,8 +36,8 @@ Same operating rules as the rest of the kit; see
 ## File layout to respect
 
 ```text
-.codex/context/         # repo memory + role memory + handoffs index
-.codex/workflows/       # repo-specific workflow overrides
+.kit/context/         # repo memory + role memory + handoffs index
+.kit/workflows/       # repo-specific workflow overrides
 .wiki/                  # user-visible feature docs
 ```
 

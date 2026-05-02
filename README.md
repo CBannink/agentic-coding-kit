@@ -149,7 +149,7 @@ pwsh ./scripts/doctor.ps1   # 17-check health report
 
 ### Per-repo bootstrap (advanced — usually you don't need this)
 
-If you want the kit's repo-template (`.codex/context/`, `.codex/workflows/`, `.wiki/`) dropped into a specific repo:
+If you want the kit's repo-template (`.kit/context/`, `.kit/workflows/`, `.wiki/`) dropped into a specific repo:
 
 ```powershell
 pwsh ./scripts/install.ps1 -TargetRepo /path/to/repo -InstallRepoTemplate -InstallAdapter claude
@@ -231,8 +231,8 @@ Bad decomposition kills swarms. The skill at `~/.agents/skills/swarm/SKILL.md` d
 
 | Bucket | Target | Use when |
 |---|---|---|
-| `REPO-FACT` | `.codex/context/memory.md` | Durable repo architecture, schema, verified commands, constraints |
-| `REPO-SPECIALIST` | `.codex/context/agent-memory/{role}.md` or `shared.md` | Repo-local guidance only useful to one specialist role |
+| `REPO-FACT` | `.kit/context/memory.md` | Durable repo architecture, schema, verified commands, constraints |
+| `REPO-SPECIALIST` | `.kit/context/agent-memory/{role}.md` or `shared.md` | Repo-local guidance only useful to one specialist role |
 | `SKILL-PATTERN` | `~/.agents/skills/{skill}/memory.md` | Cross-repo workflow pattern with recurring evidence |
 | `SESSION-ONLY` | `${AGENTS_SESSION_ROOT}/{id}/handoffs.md` | Task progress, scratch, session-private notes |
 
@@ -341,7 +341,7 @@ pwsh ~/.agents/tools/detect-slop.ps1 -Json                      # machine-readab
 | `bundle/global/.agents/tools/` | 23 PowerShell tools + 1 Python — classifiers, hooks, resolvers, runner, validator, **test-loop, edit-with-lint, detect-slop, compress-memory, harness-propose, harness-review, auto-consolidate, reflect-trigger** |
 | `bundle/global/.agents/context/` | Protocol files (writeback, reflection, repo-specialist-memory, workflow-evidence) + skill-memory-index template |
 | `bundle/global/.agents/workflows/` | gstack + superpowers + caspar-workflows plugin trees (referenced by skills regardless of which CLI you use) |
-| `bundle/repo-template/` | What gets dropped into each target repo (`.codex/context/`, `.codex/workflows/`, `.codex/skills/`, `.wiki/`, `.agents/screen-flows.yaml`) |
+| `bundle/repo-template/` | What gets dropped into each target repo (`.kit/context/`, `.kit/workflows/`, `.kit/skills/`, `.wiki/`, `.agents/screen-flows.yaml`) |
 | `bundle/adapters/{claude-code,codex-cli,copilot-cli,opencode,kilocode,generic}/` | Per-CLI instruction files + lifecycle wiring |
 | `bundle/adapters/_shared/` | Canonical instruction body referenced by all adapters |
 | `scripts/install.ps1` | Installer with adapter selection + template rendering + pre-flight validation |

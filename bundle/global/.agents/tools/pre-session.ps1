@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 # pre-session.ps1
 # Run BEFORE opening a /plan, /build, /review, /analyze, /investigate, or /refactor session.
 # Does scope classification, state initialization, handoff index scan,
@@ -16,7 +16,7 @@ param(
     [ValidateSet("plan","build","review","analyze","refactor","investigate")][string]$Mode = "build",
     [string]$Task = "",
     [string]$SessionId = "",
-    [string]$MemoryPath = ".codex/context/memory.md"
+    [string]$MemoryPath = ".kit/context/memory.md"
 )
 
 . (Join-Path $PSScriptRoot "_paths.ps1")
@@ -186,7 +186,7 @@ if (Test-Path $globalIndex) {
 }
 
 # ── Step 3.5: Recent History ─────────────────────────────────────────────────
-$historyPath = if ($MemoryPath) { Join-Path (Split-Path $MemoryPath) "history.md" } else { ".codex/context/history.md" }
+$historyPath = if ($MemoryPath) { Join-Path (Split-Path $MemoryPath) "history.md" } else { ".kit/context/history.md" }
 $recentHistoryEntries = @()
 
 if (Test-Path $historyPath) {
@@ -246,7 +246,7 @@ Write-Host ""
 # ── Step 3.7: Reflections Gate ─────────────────────────────────────────────────
 # Scans BOTH repo-local and global reflections. 5+ unaddressed = mandatory /reflect
 # before this session can ship. This is the self-improvement loop hard gate.
-$repoReflectionsPath   = ".codex/context/reflections.md"
+$repoReflectionsPath   = ".kit/context/reflections.md"
 $globalReflectionsPath = Join-Path $script:AgentsRoot "context/reflections.md"
 $reflectCountRepo = 0
 $reflectCountGlobal = 0
@@ -274,7 +274,7 @@ $wikiExists = Test-Path ".wiki/features.md"
 $buildBriefPath = ""
 $buildBriefSource = ""
 if ($Mode -eq "build") {
-    $briefJson = & $script:AgentsShell -NoProfile -File "$TOOLS/brief-resolver.ps1" -Date (Get-Date -Format "yyyy-MM-dd") -SharedHandoffsPath ".codex/context/handoffs.md" 2>$null
+    $briefJson = & $script:AgentsShell -NoProfile -File "$TOOLS/brief-resolver.ps1" -Date (Get-Date -Format "yyyy-MM-dd") -SharedHandoffsPath ".kit/context/handoffs.md" 2>$null
     if ($briefJson) {
         try {
             $brief = $briefJson | ConvertFrom-Json
@@ -295,22 +295,22 @@ if ($wikiExists) {
 }
 
 # Codex tree detection -- the kit's runtime memory artifacts. Skills assume
-# .codex/context/memory.md and friends exist; without them they no-op.
-$codexExists = Test-Path ".codex/context/memory.md"
+# .kit/context/memory.md and friends exist; without them they no-op.
+$codexExists = Test-Path ".kit/context/memory.md"
 if ($codexExists) {
-    Write-Host "  Codex: .codex/context/memory.md exists"
+    Write-Host "  KIT: .kit/context/memory.md exists"
 } else {
-    Write-Host "${YELLOW}  CODEX: MISSING -- .codex/ runtime memory tree not initialized in this repo.${RESET}"
+    Write-Host "${YELLOW}  KIT: MISSING -- .kit/ runtime memory tree not initialized in this repo.${RESET}"
     Write-Host "${YELLOW}         Skills (/build, /plan, /review) will silently skip context-load steps.${RESET}"
-    Write-Host "${YELLOW}         Run /codex-init to bootstrap memory.md + handoffs.md + agent-memory/.${RESET}"
+    Write-Host "${YELLOW}         Run /kit-init to bootstrap memory.md + handoffs.md + agent-memory/.${RESET}"
 }
 if ($buildBriefPath)    { Write-Host "  Prior build brief from today ($buildBriefSource): $buildBriefPath" }
 
 # ── Step 3.9: Parallel Instance Check ───────────────────────────────────────────
 $parallelWarning = ""
-if (Test-Path ".codex/context/handoffs.md") {
+if (Test-Path ".kit/context/handoffs.md") {
     $nowPt = Get-Date
-    foreach ($hLine in (Get-Content ".codex/context/handoffs.md")) {
+    foreach ($hLine in (Get-Content ".kit/context/handoffs.md")) {
         if ($hLine -match "SESSION: (\d{4}-\d{2}-\d{2}--\d{6}).*Task: ([^|]+)\|") {
             try {
                 $sDt = [datetime]::ParseExact($Matches[1].Trim(), "yyyy-MM-dd--HHmmss", $null)
@@ -339,7 +339,7 @@ $brief = @"
 - TIER_REC: $tierRec ($tierReason -- orchestrator may override UPWARD only)
 - REFLECT_NEEDED: $(if ($reflectNeeded) { "YES ($reflectCount unaddressed entries -- run /reflect first)" } else { "no ($reflectCount entries)" })
 - WIKI: $(if ($wikiExists) { "yes -- read .wiki/index.md FIRST (TOC, ≤100 lines), then use wiki-resolver.ps1 for on-demand section loading. NEVER bulk-read .wiki/sections/." } else { "MISSING -- run /wiki-init to bootstrap (mandatory per global rules)" })
-- CODEX: $(if ($codexExists) { "yes -- read .codex/context/memory.md + handoffs.md + agent-memory/shared.md per skill 'Load Context First' steps. Use specialist-memory-resolver.ps1 for per-role memory." } else { "MISSING -- run /codex-init to bootstrap repo memory tree (memory.md + handoffs index + agent-memory/)" })
+- KIT: $(if ($codexExists) { "yes -- read .kit/context/memory.md + handoffs.md + agent-memory/shared.md per skill 'Load Context First' steps. Use specialist-memory-resolver.ps1 for per-role memory." } else { "MISSING -- run /kit-init to bootstrap repo memory tree (memory.md + handoffs index + agent-memory/)" })
 - BUILD_BRIEF: $(if ($buildBriefPath) { "YES -- read handoff at $buildBriefPath BEFORE planning (source: $buildBriefSource)" } else { "none" })
 - PARALLEL_INSTANCE: $(if ($parallelWarning) { $parallelWarning } else { "none detected" })
 - STATE_FILE: $(if ($stateInitialized) { Join-Path (Get-SessionDir $SessionId) "state.json" } else { "not initialized for /$Mode" })
@@ -392,7 +392,7 @@ $brief += @"
 - REFLECT_NEEDED in brief: if YES, run /reflect before starting implementation. This is mandatory.
 - WIKI in brief: if yes, read .wiki/features.md as your first read -- it replaces most explore-phase work.
 - BUILD_BRIEF in brief: if YES, read the handoff at the path given immediately. Use it as the primary prior-session brief.
-- PARALLEL_INSTANCE in brief: if detected, treat .codex/context/ files as append-only for this session.
+- PARALLEL_INSTANCE in brief: if detected, treat .kit/context/ files as append-only for this session.
 "@
 
 if ($Mode -eq "build" -or $Mode -eq "refactor") {

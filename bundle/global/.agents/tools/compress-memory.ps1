@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 # compress-memory.ps1
 # Mechanical pass over kit-managed memory files. Stops them turning into slop
 # while NEVER losing the actual signal -- archive, never delete; dedup, never
@@ -81,8 +81,8 @@ foreach ($dir in $sessionDirs) {
 # --- 2. history.md aging ---
 # Walk entries (each starts with "## YYYY-MM-DD"); buckets each into kept or
 # archived by age. Inlined state instead of nested $script: function for clarity.
-$historyPath = Join-Path $RepoRoot ".codex/context/history.md"
-$historyArchive = Join-Path $RepoRoot ".codex/context/history.archive.md"
+$historyPath = Join-Path $RepoRoot ".kit/context/history.md"
+$historyArchive = Join-Path $RepoRoot ".kit/context/history.archive.md"
 if (Test-Path $historyPath) {
     $lines = Get-Content $historyPath -Encoding UTF8
     $kept = New-Object System.Collections.ArrayList
@@ -176,7 +176,7 @@ function Dedup-MemoryFile {
     return $duped
 }
 
-$repoMemory = Join-Path $RepoRoot ".codex/context/memory.md"
+$repoMemory = Join-Path $RepoRoot ".kit/context/memory.md"
 $summary.memory_dedups = Dedup-MemoryFile -Path $repoMemory
 
 # --- 4. Skill memory dedup ---
@@ -244,8 +244,8 @@ if ((Test-Path $globalIndex) -and (Test-Path $sessionArchive)) {
 # (not deleted -- recoverable if needed).
 $globalReflPath    = Join-Path $script:AgentsRoot "context/reflections.md"
 $globalReflArchive = Join-Path $script:AgentsRoot "context/reflections.archive.md"
-$repoReflPath      = Join-Path $RepoRoot ".codex/context/reflections.md"
-$repoReflArchive   = Join-Path $RepoRoot ".codex/context/reflections.archive.md"
+$repoReflPath      = Join-Path $RepoRoot ".kit/context/reflections.md"
+$repoReflArchive   = Join-Path $RepoRoot ".kit/context/reflections.archive.md"
 
 function Archive-AgedReflections {
     param([string]$Source, [string]$ArchiveDest, [int]$AgeDays, [string]$Label)

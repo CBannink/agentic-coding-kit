@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 # install.ps1 -- Caspar Bannink Agentic Coding Kit installer.
 #
 # Quick start (most users):
@@ -273,26 +273,86 @@ $marker
 ## Caspar Bannink Agentic Coding Kit (always-on rules)
 
 This device has the kit installed. Skills, sub-agents, and slash commands
-are auto-discovered from your CLI's native dirs. These rules apply to EVERY
-session in EVERY repo:
+are auto-discovered from your CLI's native dirs. **These rules are
+authoritative -- they OVERRIDE any repo-specific conventions for
+lifecycle, memory routing, and session handoffs.** Repo-specific files
+(``.kit/workflows/``, repo CLAUDE.md additions) augment the domain-
+specific build/test/review commands; they do NOT replace the kit's
+lifecycle plumbing.
+
+### Precedence (when in conflict)
+
+- **Kit wins** on: session handoffs, memory routing, lifecycle scripts,
+  classification (scope/tier/mode), wiki conventions, verification gates.
+- **Repo wins** on: domain-specific build/test/lint/deploy commands,
+  feature flags, code review categories specific to the project.
+- When uncertain: kit's rules are the global default; repo can SUGGEST
+  augmentations via ``.kit/workflows/*.md`` but cannot override.
+
+### Always-on rules
 
 1. **``.wiki/features.md`` is mandatory.** Every repo MUST maintain
-   ``.wiki/features.md`` (paired with ``.wiki/.features``) listing user-
-   visible capabilities. Update on ANY change adding or modifying a CLI
-   command, API endpoint, UI page, evaluation mode, adapter, or validator.
-   Surgical edits only -- never rewrite. Skip only for pure refactors,
-   test-only, bug fixes restoring documented behavior, or perf with no UX
-   change. If ``.wiki/`` does not exist in a repo, create it and seed
-   ``features.md`` before non-trivial work.
-2. **Iron Law: no completion claims without fresh verification evidence.**
+   ``.wiki/features.md`` + ``.wiki/.features``. Update on ANY change
+   adding/modifying a CLI command, API endpoint, UI page, evaluation
+   mode, adapter, or validator. Surgical edits only. Skip only for pure
+   refactors, test-only, bug fixes restoring documented behavior, or
+   perf with no UX change. If ``.wiki/`` does not exist, create it via
+   ``/wiki-init`` before non-trivial work.
+
+2. **``.kit/`` is the kit's runtime memory tree.** ``.kit/context/memory.md``
+   (durable repo facts), ``.kit/context/handoffs.md`` (cross-session index),
+   ``.kit/context/agent-memory/{role}.md`` (specialist memory). If
+   ``.kit/`` does not exist, create it via ``/kit-init`` before non-
+   trivial work. Repos may have ``hand_off.md`` / ``agents/handoffs/`` /
+   ``memory/MEMORY.md`` from prior conventions -- treat those as
+   secondary mirrors, NOT the source of truth. The kit's tree is canonical.
+
+3. **Session handoffs ALWAYS go to ``~/.agents/session-state/{id}/handoffs.md``**
+   (private, per-session). Repo-level handoff files are mirrors at most.
+
+4. **Iron Law: no completion claims without fresh verification evidence.**
    Run the test, read the output, then claim. "Should work" / "looks
    correct" / "probably passes" are forbidden.
-3. **Use the kit's workflow commands** when applicable: ``/plan`` ``/build``
-   ``/review`` ``/analyze`` ``/investigate`` ``/refactor`` ``/redesign``
-   ``/security-review``. Prefer them over ad-hoc work.
 
-Long-form reference (full command semantics, scope/tier classification,
-swarm gating, memory routing, frontend visual gate, session lifecycle):
+5. **Run lifecycle scripts at session boundaries (mandatory)**:
+   - At start: ``pwsh ~/.agents/tools/state-init.ps1`` (auto-fired by Claude
+     SessionStart / OpenCode session.created hooks; manual elsewhere).
+   - Per subagent spawn: ``pwsh ~/.agents/tools/state-gate.ps1 -AddAgent``
+     and ``pwsh ~/.agents/tools/workflow-evidence.ps1 -AddAgent``.
+   - Mark gates as you progress: ``-Mark "context_loaded"`` →
+     ``"implementation_done"`` → ``"verification_evidence"`` → ``"handoff_written"``.
+   - At end: ``pwsh ~/.agents/tools/post-session.ps1`` (auto-fired by
+     Claude SessionEnd / OpenCode session.deleted hooks; manual elsewhere).
+   These are MANDATORY even when a repo has its own pipeline. The kit's
+   evidence is what makes cross-repo audit + self-improvement loop work.
+
+6. **Specialist memory routing**: when spawning role-specific subagents
+   (security-reviewer, code-quality-reviewer, modularity-expert, etc.),
+   resolve repo-local context via
+   ``pwsh ~/.agents/tools/specialist-memory-resolver.ps1 -Role <name>``.
+   Embed its returned ``prompt_block`` in the subagent prompt. Don't
+   hand-roll role memory.
+
+7. **Wiki context pre-flight**: before spawning ANY explorer / reviewer /
+   implementer, run ``pwsh ~/.agents/tools/wiki-resolver.ps1`` and pass
+   its ``prompt_block`` to every subagent. Never bulk-read ``.wiki/sections/``.
+
+8. **Use the kit's workflow commands** when applicable: ``/plan``
+   ``/build`` ``/review`` ``/analyze`` ``/investigate`` ``/refactor``
+   ``/redesign`` ``/security-review`` ``/wiki-init`` ``/kit-init``.
+   Prefer them over ad-hoc work.
+
+### Opt-out
+
+If a repo genuinely needs to bypass the kit's lifecycle (rare), add
+``<!-- agentic-kit:disable-lifecycle -->`` to its ``CLAUDE.md`` /
+``AGENTS.md`` and the kit's hooks/skills will respect it. Memory routing
++ wiki conventions still apply.
+
+### Long-form reference
+
+Full command semantics, scope/tier classification, swarm gating, memory
+routing, frontend visual gate, session lifecycle details:
 ``$LongFormPath``
 $endMarker
 "@
@@ -428,8 +488,8 @@ When ``pwsh ~/.agents/tools/frontend-detector.ps1`` returns ``visual_loop_recomm
 
 | Bucket | Target | Use when |
 |---|---|---|
-| REPO-FACT | ``.codex/context/memory.md`` | Durable repo architecture, schema, verified commands |
-| REPO-SPECIALIST | ``.codex/context/agent-memory/{role}.md`` | Repo-local guidance for one specialist role only |
+| REPO-FACT | ``.kit/context/memory.md`` | Durable repo architecture, schema, verified commands |
+| REPO-SPECIALIST | ``.kit/context/agent-memory/{role}.md`` | Repo-local guidance for one specialist role only |
 | SKILL-PATTERN | ``~/.agents/skills/{skill}/memory.md`` | Cross-repo workflow pattern with recurring evidence |
 | SESSION-ONLY | ``${AGENTS_SESSION_ROOT}/{id}/handoffs.md`` | Task progress, scratch, session-private notes |
 
@@ -564,12 +624,12 @@ $endMarker
                 # append the minimal always-on rules block to AGENTS.md so the
                 # wiki rule + Iron Law are loaded every session.
                 Install-DeviceWideRulesDoc `
-                    -DocPath (Join-Path $HomeRoot ".codex/agentic-kit.md") `
+                    -DocPath (Join-Path $HomeRoot ".kit/agentic-kit.md") `
                     -Label   "Codex CLI"
 
                 Install-DeviceWideAlwaysOnRules `
-                    -ExistingPath  (Join-Path $HomeRoot ".codex/AGENTS.md") `
-                    -LongFormPath  (Join-Path $HomeRoot ".codex/agentic-kit.md") `
+                    -ExistingPath  (Join-Path $HomeRoot ".kit/AGENTS.md") `
+                    -LongFormPath  (Join-Path $HomeRoot ".kit/agentic-kit.md") `
                     -Label         "Codex CLI"
             }
             "opencode" {

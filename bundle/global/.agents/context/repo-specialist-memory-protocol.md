@@ -6,7 +6,7 @@ Canonical rules for repo-specific agent memory.
 
 Use this repo-local directory:
 
-`.codex/context/agent-memory/`
+`.kit/context/agent-memory/`
 
 Supported files:
 - `shared.md`
@@ -21,7 +21,7 @@ Supported files:
 ## Loading
 
 - Never auto-load this directory on session start.
-- Load `shared.md` only when the spawned role needs repo-local specialist context that is not broad enough for `.codex/context/memory.md`.
+- Load `shared.md` only when the spawned role needs repo-local specialist context that is not broad enough for `.kit/context/memory.md`.
 - Load `{role}.md` only for the matching role.
 - Pass only the relevant excerpt into the subagent prompt when possible.
 - If the content is broad repo architecture, keep it in `memory.md` instead.
@@ -66,7 +66,7 @@ Bad examples:
 
 Use `shared.md` when:
 - 2 or more specialist roles need the same repo-local guidance
-- the guidance is still too narrow for `.codex/context/memory.md`
+- the guidance is still too narrow for `.kit/context/memory.md`
 
 Use `{role}.md` when:
 - the rule is only relevant to one role

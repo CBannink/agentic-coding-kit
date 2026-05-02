@@ -29,10 +29,10 @@ In the sub-agent prompt include: `"Read [path] before executing your role. Skip 
 ## Load Repo Context First (graceful — skip missing)
 
 - `AGENTS.md`
-- `.codex/workflows/shared.md`
-- `.codex/workflows/refactor.md`     ← repo-specific refactor overrides
-- `.codex/context/memory.md`         ← architectural decisions already locked
-- `.codex/context/handoffs.md`       ← what changed recently
+- `.kit/workflows/shared.md`
+- `.kit/workflows/refactor.md`     ← repo-specific refactor overrides
+- `.kit/context/memory.md`         ← architectural decisions already locked
+- `.kit/context/handoffs.md`       ← what changed recently
 - `docs/wiki/INDEX.md`               ← master inventory of all reusable exports
 
 ---
@@ -44,7 +44,7 @@ In the sub-agent prompt include: `"Read [path] before executing your role. Skip 
 Read the architectural principles from:
 1. `docs/wiki/INDEX.md` — inventory of what currently exists
 2. `AGENTS.md` — repo-level architectural rules
-3. `.codex/context/memory.md` — locked decisions and principles
+3. `.kit/context/memory.md` — locked decisions and principles
 4. The refactor request itself — what specific concern triggered this?
 
 Extract the **active principles** as a numbered list. These are the yardstick every module will be measured against. Example principles for this project:
@@ -234,13 +234,13 @@ You are the DOCS UPDATER. The /refactor workflow just completed.
 Read:
 1. The git diff of what changed: `git diff HEAD~N HEAD --name-only` (or the change summary provided)
 2. The current docs/wiki/INDEX.md
-3. The current .codex/context/memory.md
-4. The current .codex/context/handoffs.md
+3. The current .kit/context/memory.md
+4. The current .kit/context/handoffs.md
 
 Update:
 1. docs/wiki/INDEX.md — add/remove/update rows for any exports, services, hooks, components, or utilities that changed
-2. .codex/context/memory.md — add newly confirmed architectural facts, updated constraints, or verified commands
-3. .codex/context/handoffs.md — add a new section: "Refactor complete [DATE]" with: what changed, what principle violations were fixed, what remains, what next
+2. .kit/context/memory.md — add newly confirmed architectural facts, updated constraints, or verified commands
+3. .kit/context/handoffs.md — add a new section: "Refactor complete [DATE]" with: what changed, what principle violations were fixed, what remains, what next
 
 Rules:
 - Only write durable facts to memory.md (no session chatter)
@@ -272,7 +272,7 @@ Same logic as /build Phase 10 and /review Step 10.
 
 ## Repo-Local Augmentation
 
-Repo-local `.codex/workflows/refactor.md` may define:
+Repo-local `.kit/workflows/refactor.md` may define:
 - Additional principles beyond the global 8
 - Additional chunk decomposition for project-specific directories
 - Mandatory verification commands

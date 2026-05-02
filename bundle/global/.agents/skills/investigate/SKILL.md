@@ -77,9 +77,9 @@ Never skip step 2 (listing hypotheses) — the cheapest test only exists relativ
 
 - `~/.agents/skills/investigate/memory.md` — cross-repo root-cause patterns; read before generating hypotheses
 - `AGENTS.md`
-- `.codex/workflows/shared.md`
-- `.codex/context/memory.md` — known patterns, architecture constraints, verified commands
-- `.codex/context/handoffs.md` — recent changes that may have caused this
+- `.kit/workflows/shared.md`
+- `.kit/context/memory.md` — known patterns, architecture constraints, verified commands
+- `.kit/context/handoffs.md` — recent changes that may have caused this
 
 ---
 

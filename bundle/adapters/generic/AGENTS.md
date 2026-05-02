@@ -5,7 +5,7 @@ Aider, Cline, Cursor, Continue, etc.) gets the right behavior from this file.
 
 ## Core operating rules
 
-1. Respect the `.codex` layout (`.codex/context/`, `.codex/workflows/`).
+1. Respect the `.codex` layout (`.kit/context/`, `.kit/workflows/`).
 2. Use `.wiki/features.md` and `.wiki/.features` for user-visible capabilities.
 3. Treat session handoffs as session-private; repo memory is durable.
 4. Prefer:
@@ -27,16 +27,16 @@ Aider, Cline, Cursor, Continue, etc.) gets the right behavior from this file.
 
 | Bucket | Target |
 |---|---|
-| Durable repo facts | `.codex/context/memory.md` |
-| Repo-local specialist guidance | `.codex/context/agent-memory/{role}.md` or `shared.md` |
+| Durable repo facts | `.kit/context/memory.md` |
+| Repo-local specialist guidance | `.kit/context/agent-memory/{role}.md` or `shared.md` |
 | Cross-repo skill patterns | `~/.agents/skills/{skill}/memory.md` |
 | Session-only | `${AGENTS_SESSION_ROOT}/{id}/handoffs.md` (default `~/.agents/session-state`) |
 
 ## File layout to respect
 
 ```text
-.codex/context/
-.codex/workflows/
+.kit/context/
+.kit/workflows/
 .wiki/
 ```
 

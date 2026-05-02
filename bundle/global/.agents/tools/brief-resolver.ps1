@@ -1,10 +1,10 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 # brief-resolver.ps1
 # Resolves the newest same-day build brief from analyze/investigate sessions.
 
 param(
     [string]$Date = "",
-    [string]$SharedHandoffsPath = ".codex/context/handoffs.md",
+    [string]$SharedHandoffsPath = ".kit/context/handoffs.md",
     [string]$SharedIndexPath = ""
 )
 
