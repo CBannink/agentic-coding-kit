@@ -1,9 +1,29 @@
 ---
 name: design-driver
-description: Judges UI screenshots against design system, accessibility, hierarchy, and AI-slop patterns; emits one concrete change at a time and verifies before/after with playwright-explorer. Sequential by default for targeted polish; parallelizable per-component for /redesign.
+description: Lightweight solo design critic for INLINE/TARGETED polish (single screen, single concern). For /redesign and frontend /build gates, prefer the ux-driver -> ui-driver pair which separates structural from visual critique. This skill remains for one-off small polish where spawning two agents is overkill.
 ---
 
-# Design Driver Skill
+# Design Driver Skill (solo / lightweight)
+
+> **Heads-up**: this is the **solo** lightweight critic. For real design work
+> (redesigns, frontend feature gates, multi-screen swarms), use the split
+> pair instead:
+>
+> 1. **`ux-driver`** runs first — judges structure (hierarchy, flow, density, a11y).
+> 2. **`ui-driver`** runs after — judges visuals (typography, color, spacing, slop).
+>
+> The split exists because UX failures invalidate UI polish; bundling both
+> into one agent produces worse output for both. See:
+> - `~/.agents/skills/ux-driver/SKILL.md`
+> - `~/.agents/skills/ui-driver/SKILL.md`
+> - `~/.agents/context/design-references.md` (read by both)
+>
+> Use *this* solo design-driver only when:
+> - one screen, one change is wanted (e.g., "fix the spacing on this card")
+> - INLINE/TARGETED tier
+> - structure is known to be correct (no UX critique needed)
+>
+> Otherwise spawn the pair.
 
 The agent that **looks at a screenshot and decides what to change next**.
 Pairs with `playwright-explorer` (which provides screenshots) and the visual

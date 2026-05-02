@@ -24,13 +24,21 @@ If only one component / one screen is in scope → use `/build` with the
 ### 1. Capture current state
 
 ```powershell
+# Auto-start dev server if not already running (returns pid + port)
+pwsh ~/.agents/tools/dev-server-runner.ps1 -RepoRoot .
+
+# Then capture every screen in screen-flows.yaml
 pwsh ~/.agents/tools/playwright-runner.ps1 -ConfigPath .agents/screen-flows.yaml -OutDir ${session_dir}/screenshots/before
 ```
 
 `playwright-explorer` skill drives the runner to navigate every screen in
 `.agents/screen-flows.yaml` and capture stable, full-page screenshots at
-2x DPI. If `screen-flows.yaml` doesn't exist, generate one by exploring the
-local dev server (see `playwright-explorer` skill).
+2x DPI. If `screen-flows.yaml` doesn't exist or a screen is missing, spawn
+`playwright-navigator` (skill: `~/.agents/skills/playwright-navigator/SKILL.md`)
+to discover the route, auth, and selectors and emit the YAML block. Then
+re-run the runner.
+
+When done, stop the dev server: `pwsh ~/.agents/tools/dev-server-runner.ps1 -Stop -ProcessId <pid>`.
 
 ### 2. Read existing design system
 
@@ -49,15 +57,37 @@ Bad decomposition example: ["fix the typography" "fix the colors" "fix the layou
 Good decomposition example: ["dashboard" "settings" "profile" "onboarding flow"]
 — each agent owns one surface end-to-end.
 
-### 4. Fan out — one design-driver per item
+### 4. Fan out — UX pass first, UI pass second
 
-Each `design-driver` agent receives:
+For each screen, spawn the agent pair sequentially (UX first, then UI):
+
+**4a. UX pass (parallel across screens, sequential per screen)**
+
+One `ux-driver` per screen, all in parallel. Each receives:
 - the screen's current screenshot(s)
-- the design system constraints
+- `~/.agents/context/design-references.md`
+- `.wiki/features.md`
 - the user's brief
-- one concrete change at a time policy
 
-See `design-driver/SKILL.md` for the agent contract.
+Each ux-driver returns a structural verdict: `structure_ok=<true|false>`.
+
+If ANY screen returns `structure_ok=false`: stop the swarm. The
+synthesizer reconciles the structural changes across screens, the user
+approves, the structural changes are implemented, then re-screenshot and
+re-run UX pass before proceeding.
+
+**4b. UI pass (parallel across screens, only on structure_ok screens)**
+
+For each screen with `structure_ok=true`, spawn one `ui-driver` agent.
+All run in parallel. Each receives:
+- the screen's screenshot(s)
+- the upstream `UX-VERDICT` block (so it doesn't re-litigate structure)
+- design system constraints
+- `~/.agents/context/design-references.md`
+- the user's brief
+- one-concrete-change-at-a-time policy
+
+See `ux-driver/SKILL.md` and `ui-driver/SKILL.md` for the agent contracts.
 
 ### 5. Capture after-state
 

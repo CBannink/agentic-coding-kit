@@ -13,6 +13,85 @@ It gives you:
 - **Design + Playwright loop** — capture current UI state, fan out a `design-driver` agent per screen, apply changes, visual-diff before/after.
 - **Validator + tests** — `validate-bundle.ps1` blocks broken kits at install; Pester suite covers the load-bearing scripts.
 
+## How it works (the 5-minute overview)
+
+The kit is one shared brain (`~/.agents/`) that any AI coding CLI can talk to.
+You install it once, point your CLI at it, and from then on every session
+follows the same disciplined loop regardless of which CLI you're using.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Your CLI (Claude Code / OpenCode / Codex / Copilot / Kilo / etc.) │
+│         │                                                           │
+│         │ reads ~/.<cli>/agentic-kit.md (companion file)           │
+│         │ + include marker in CLAUDE.md / AGENTS.md / prompt.md    │
+│         ▼                                                           │
+│  ╔══════════════════════════════════════════════════════════════╗  │
+│  ║  Shared brain: ~/.agents/                                    ║  │
+│  ║  ├── skills/      24 cross-CLI skills (build/review/swarm…)  ║  │
+│  ║  ├── tools/       23 PS scripts (classifiers, gates, hooks)  ║  │
+│  ║  ├── workflows/   gstack / superpowers / caspar plugins      ║  │
+│  ║  ├── context/     protocols, skill-memory-index              ║  │
+│  ║  └── session-state/<id>/  per-session gates + handoffs       ║  │
+│  ╚══════════════════════════════════════════════════════════════╝  │
+│         ▲                            ▲                              │
+│         │                            │                              │
+│  Lifecycle hooks fire           Tools called inline                │
+│  (Claude settings.json,         (state-gate, edit-with-lint,       │
+│   OpenCode plugin,              test-loop, scope-classifier,       │
+│   Copilot baked instructions)   pre/post-session, …)               │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### What happens in one session
+
+1. **Pre-session** (auto via hook, or called by the agent at start of `/build`):
+   `scope-classifier` reads changed files → returns `ISOLATED` / `SHARED` / `CRITICAL`.
+   `pre-session.ps1` recommends a tier (`INLINE` / `TARGETED` / `FULL` / `SWARM`) and
+   `swarm-classifier` decides if fan-out is allowed (verb parallel-safe + scope
+   fan-out-able + opt-in). A BRIEF block is emitted listing scope, tier, swarm
+   mode, and unaddressed reflections. The agent pastes/reads it.
+
+2. **During work**, the agent marks gates as it progresses:
+   `context_loaded` → `implementation_done` → `verification_evidence`.
+   Edits go through `edit-with-lint.ps1` (refuses to write syntax-broken files).
+   Tests go through `test-loop.ps1` (marks the verification gate on pass,
+   detects 3 same-signature failures = `stuck` and forces escalation).
+
+3. **Post-session** (auto via hook, or final step of `/build`):
+   `post-session.ps1` checks all required gates fired. Failure detectors emit
+   structured reflections. Then **auto-consolidate** runs mechanically — dedup,
+   archive promoted patterns, drop stale single-occurrence entries, promote
+   recurring additive patterns to the repo workflow file. Then **compress-memory**
+   ages out old session dirs and dedups skill memory. Then **harness-propose**
+   checks for kit-level patterns recurring 5+ times in 30 days and writes a
+   proposal to `~/.agents/proposals/` (never auto-applies). Then **reflect-trigger**
+   gates the next session if 5+ unaddressed reflections accumulate.
+
+The result: most cleanup happens with zero human input. You only see the
+self-improvement loop when something genuinely needs your judgment.
+
+### The 4 axes that decide behavior
+
+| Axis | Values | Decided by |
+|---|---|---|
+| **Scope** | ISOLATED / SHARED / CRITICAL | `scope-classifier.ps1` reading changed files |
+| **Tier** | INLINE / TARGETED / FULL / SWARM | `pre-session.ps1` from scope + file count |
+| **Mode** | sequential / swarm-review / swarm-fanout | `swarm-classifier.ps1` from verb + scope + opt-in |
+| **Memory** | REPO-FACT / REPO-SPECIALIST / SKILL-PATTERN / SESSION-ONLY | Explicit routing rules in writeback protocol |
+
+You don't pick these. The harness picks them and the BRIEF block tells you
+what it picked. You can override, but the default is the right answer.
+
+### Why one shared brain across CLIs
+
+Every CLI has its own config conventions (`CLAUDE.md`, `AGENTS.md`, `prompt.md`,
+`.github/copilot-instructions.md`, `.kilocode/rules/`). Rather than fork the
+kit per CLI, the kit's logic lives in `~/.agents/` once, and a thin **adapter**
+per CLI writes a tiny include-marker into that CLI's home config pointing back
+at the shared content. Switch CLIs at any time — the workflows, gates, memory,
+and self-improvement loop are identical.
+
 ## Requirements
 
 - **PowerShell 7+ (`pwsh`)** — the runtime tools are designed for pwsh. Windows PowerShell 5.1 will fail on UTF-8 emoji glyphs in the scripts. Install via `winget install Microsoft.PowerShell` or https://aka.ms/PSWindows.
@@ -39,7 +118,8 @@ pwsh ./scripts/install.ps1 -For codex
 # Use multiple
 pwsh ./scripts/install.ps1 -For "claude,opencode"
 
-# Or just install for everything supported (Claude, Codex, Copilot, OpenCode, Kilo Code)
+# Or install for every CLI that has a meaningful device-wide config
+# (Claude, Codex, OpenCode, plus a generic ~/AGENTS.md for Aider/Cline/Cursor/etc.)
 pwsh ./scripts/install.ps1 -For all
 
 # Or auto-detect what's on your PATH and install for those
@@ -49,8 +129,15 @@ pwsh ./scripts/install.ps1 -Auto
 Each `-For <cli>` does three things:
 
 1. **Populates `~/.agents/`** with skills, tools, protocols, and the workflow plugins skills reference (gstack / superpowers / caspar-workflows). Renders `skill-memory-index.json` with absolute paths.
-2. **Writes the kit instructions companion** to that CLI's config dir (e.g. `~/.claude/agentic-kit.md`, `~/.config/opencode/agentic-kit.md`).
-3. **Wires lifecycle automation** — for Claude Code merges hooks into `~/.claude/settings.json`; for OpenCode installs the plugin at `~/.config/opencode/plugins/agentic-kit.ts`; for Copilot the lifecycle is baked into the instructions file.
+2. **Writes the kit instructions companion** to that CLI's config dir (e.g. `~/.claude/agentic-kit.md`, `~/.config/opencode/agentic-kit.md`, `~/.codex/agentic-kit.md`, or `~/.agentic-kit/AGENTS.md` for the generic case).
+3. **Wires lifecycle automation** — for Claude Code merges hooks into `~/.claude/settings.json`; for OpenCode installs the plugin at `~/.config/opencode/plugins/agentic-kit.ts`; for Copilot the lifecycle is baked into the per-repo instructions file.
+
+**A note on `copilot` and `kilocode`:** these tools have no useful device-wide
+config — Copilot only reads `.github/copilot-instructions.md` from each
+workspace, and Kilo Code only reads `.kilocode/rules/*.md` from each workspace.
+Passing `-For copilot` or `-For kilocode` prints a one-line message pointing
+you at the per-repo install instead. `-For all` therefore expands to
+`claude, codex, opencode, generic`.
 
 Pre-flight runs `validate-bundle.ps1` and refuses to install a broken kit (override with `-Force`).
 
@@ -81,7 +168,7 @@ The `-Upgrade` flag moves your existing `~/.agents/` to a timestamped backup bef
 | Adapter | Surface | Lifecycle automation |
 |---|---|---|
 | **Claude Code** | `CLAUDE.md` + `.claude/commands/*.md` (8 commands) | ✅ `~/.claude/settings.json` hooks fire `pre-session` / `post-session` / `subagent-stop` / `pre-compact` automatically |
-| **OpenCode** | `AGENTS.md` + `.opencode/plugins/agentic-kit.ts` | ✅ TypeScript plugin wires `onSessionStart` / `onSessionEnd` / `onSubagentStop` / `onPreCompact` |
+| **OpenCode** | `prompt.md` + `~/.config/opencode/plugins/agentic-kit.ts` | ✅ TypeScript plugin wires `session.created` / `session.deleted` / `session.idle` / `session.compacted` |
 | **Copilot CLI** | `.github/copilot-instructions.md` | ✅ Lifecycle baked into instructions — agent calls `pre-session.ps1` at start of `/build`, `post-session.ps1` at end (no native hooks) |
 | **Codex CLI** | `AGENTS.md` | Manual — Codex hook surface varies by version, no fabricated config shipped |
 | **Kilo Code** | `AGENTS.md` + `.kilocode/rules/*.md` (5 modes) | Manual or via VSCode tasks.json |

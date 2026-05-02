@@ -254,10 +254,17 @@ $endMarker
         }
     }
 
+    # `all` covers every CLI that has a meaningful device-wide install location,
+    # plus the generic AGENTS.md for any tool that reads the canonical home file.
+    # copilot and kilocode have no device-wide config (Copilot reads
+    # `.github/copilot-instructions.md` from the workspace; Kilo Code reads
+    # `.kilocode/rules/*.md` from the workspace) -- they short-circuit with a
+    # message pointing at -TargetRepo.
     $targets = if ($DeviceWide -eq "all") {
-        @("claude", "codex", "opencode")
+        @("claude", "codex", "opencode", "generic")
     } else {
-        @($DeviceWide)
+        # Allow comma-separated lists too: "claude,opencode"
+        @(($DeviceWide -split '[,;]' | ForEach-Object { $_.Trim() } | Where-Object { $_ }))
     }
 
     Write-Host ""
@@ -271,13 +278,14 @@ $endMarker
                     -ExistingPath  (Join-Path $HomeRoot ".claude/CLAUDE.md") `
                     -Label "Claude Code"
 
-                # Wire SessionEnd hooks via the merger
+                # Wire SessionEnd hooks via the merger (honor HomeRoot)
                 $merger  = Join-Path $AgentsRoot "tools/merge-claude-settings.ps1"
                 $snippet = Join-Path $AdaptersRoot "claude-code/.claude/settings.snippet.json"
+                $settingsPath = Join-Path $HomeRoot ".claude/settings.json"
                 if ((Test-Path $merger) -and (Test-Path $snippet)) {
                     Write-Host "  Claude Code hooks: wiring..."
                     $shell = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh" } else { "powershell" }
-                    & $shell -NoProfile -File $merger -SnippetPath $snippet
+                    & $shell -NoProfile -File $merger -SnippetPath $snippet -SettingsPath $settingsPath
                 }
             }
             "codex" {
@@ -301,8 +309,34 @@ $endMarker
                     Write-Host "  OpenCode plugin: $pluginDst"
                 }
             }
+            "generic" {
+                # Tool-neutral AGENTS.md. Aider, Cline, Cursor (via .cursorrules
+                # link), and most "agentic" CLIs check this canonical home file.
+                Install-DeviceWideCompanion `
+                    -CompanionPath (Join-Path $HomeRoot ".agentic-kit/AGENTS.md") `
+                    -ExistingPath  (Join-Path $HomeRoot "AGENTS.md") `
+                    -Label "Generic AGENTS.md"
+            }
+            "copilot" {
+                Write-Host "  GitHub Copilot has no device-wide config -- it reads"
+                Write-Host "  .github/copilot-instructions.md from each workspace."
+                Write-Host "  Per-repo install:"
+                Write-Host "    pwsh ./install.ps1 -TargetRepo <path> -InstallAdapter copilot"
+            }
+            "kilocode" {
+                Write-Host "  Kilo Code has no device-wide config -- it reads"
+                Write-Host "  .kilocode/rules/*.md from each workspace."
+                Write-Host "  Per-repo install:"
+                Write-Host "    pwsh ./install.ps1 -TargetRepo <path> -InstallAdapter kilocode"
+            }
+            "kilo" {
+                Write-Host "  Kilo Code has no device-wide config -- it reads"
+                Write-Host "  .kilocode/rules/*.md from each workspace."
+                Write-Host "  Per-repo install:"
+                Write-Host "    pwsh ./install.ps1 -TargetRepo <path> -InstallAdapter kilocode"
+            }
             default {
-                Write-Host "  Unknown device-wide target: $t (use claude, codex, opencode, or all)"
+                Write-Host "  Unknown target: $t (use claude, codex, opencode, copilot, kilocode, generic, or all)"
             }
         }
     }

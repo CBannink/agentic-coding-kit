@@ -115,7 +115,8 @@ $requiredTools = @(
     "auto-consolidate.ps1", "compress-memory.ps1", "test-loop.ps1", "edit-with-lint.ps1",
     "detect-slop.ps1", "harness-propose.ps1", "harness-review.ps1",
     "handoff-register.ps1", "run-packet.ps1", "workflow-evidence.ps1",
-    "playwright-runner.ps1", "playwright-runner.py", "visual-diff.ps1"
+    "playwright-runner.ps1", "playwright-runner.py", "visual-diff.ps1",
+    "dev-server-runner.ps1", "frontend-detector.ps1", "design-fetcher.ps1"
 )
 $missingTools = 0
 foreach ($t in $requiredTools) {

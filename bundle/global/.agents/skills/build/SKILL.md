@@ -153,9 +153,22 @@ If lifecycle callbacks are available in the host or harness, use these scripts a
   Source bias: gstack-qa.
 
 - `ui-ux-expert` *(invoke when diff introduces or changes any user-visible flow, component, onboarding step, error state, navigation, or information hierarchy — not limited to .tsx files)*
-  Purpose: UX flow + component structure review from a design perspective.
+  Purpose: UX flow + component structure **code review** (props, boundaries, Tailwind consistency). Does NOT use screenshots — use the visual gate below for that.
   Source: `~/.agents/skills/experts/ui-ux/SKILL.md`
   Models: GPT-5.4 (UX/design critique — Gemini unavailable in CLI) + Claude Sonnet 4.6 (UI implementation review)
+
+- `visual-gate` *(invoke when `frontend-detector.ps1` returns `visual_loop_recommended=true`)*
+  Purpose: screenshot-based design review with UX→UI agent split. Distinct from `ui-ux-expert` (code review) — this is **pixel review**.
+  Sequence:
+  1. `pwsh ~/.agents/tools/dev-server-runner.ps1 -RepoRoot .` — auto-start dev server
+  2. For any new screen in the diff that's not in `.agents/screen-flows.yaml`: spawn `playwright-navigator` to emit the YAML block
+  3. `pwsh ~/.agents/tools/playwright-runner.ps1` — capture before/after shots
+  4. `ux-driver` — structural critique (hierarchy, flow, density, a11y); blocks if `structure_ok=false`
+  5. `ui-driver` — visual critique (typography, color, spacing, slop), only if UX passed
+  6. `pwsh ~/.agents/tools/visual-diff.ps1` — confirm changes were intentional, no regressions elsewhere
+  7. Stop dev server when done
+  Source: `~/.agents/skills/ux-driver/SKILL.md` + `~/.agents/skills/ui-driver/SKILL.md` + `~/.agents/skills/playwright-navigator/SKILL.md`
+  References: `~/.agents/context/design-references.md` (read by ux-driver and ui-driver)
 
 - `adversarial-reviewer`
   Purpose: attack the diff for production failure modes, regressions, and hidden risks. In the prompt include: "Also check observability: are errors logged with context (not swallowed)? Is trace context forwarded across service boundaries? Are key user actions logged?"
@@ -223,6 +236,7 @@ Use this as the authoritative "which agents run" reference — not the scattered
 | `performance-adviser` | skip | ✅ conditional (DB/React/hot loops) | ✅ conditional |
 | `qa-reviewer` | skip | ✅ conditional (UI/behavior changes) | ✅ conditional |
 | `ui-ux-expert` | skip | ✅ conditional (user-visible flow) | ✅ conditional |
+| `visual-gate` *(ux-driver + ui-driver, screenshot-based)* | skip | ✅ conditional (frontend-detector says `visual_loop_recommended=true`) | ✅ conditional (same trigger) |
 | `final-verifier` | inline check | ✅ | ✅ |
 
 **Counting rule**: when approaching the tier's max-agent limit, stop and ask: "Is there a conditional agent I'm about to spawn that the already-running agents will cover?" If yes → skip. If TARGETED is at 6 and you need more — escalate to FULL or narrow scope.
@@ -343,6 +357,9 @@ pwsh ~/.agents/tools/workflow-evidence.ps1 -SessionId "{session_id}" -AddModeDec
      - For thin local UIs or control panels over scripts/CLI flows, explicitly check that preselected defaults and allowed option sets match the underlying script/backend contract, and that artifact-derived strings are rendered as text rather than injected as HTML.
    - run `adversarial-reviewer` for final failure-mode review — **`model: "gpt-5.4"`** — **INLINE**: skip. **TARGETED**: run only when diff touches a shared surface (routes, services, providers, packages). **FULL**: always run.
    - run conditional experts: `performance-adviser`, `ui-ux-expert` per their trigger conditions
+   - **Frontend visual gate** (run before `final-verifier`):
+     - `pwsh ~/.agents/tools/frontend-detector.ps1` — if `visual_loop_recommended=true`, fire the visual gate from the agent matrix above (dev-server-runner → playwright-navigator if needed → playwright-runner → ux-driver → ui-driver → visual-diff). Skip otherwise.
+     - The visual gate can return `structure_ok=false` from `ux-driver`. Treat this like a blocking review finding: stop, surface to user, do NOT proceed to `final-verifier` until structure is corrected and re-screenshotted.
    - **Context budget guard**: use the global ≤200-word-per-agent rule — read each agent's result, extract a summary, then read the next. No separate summarizer agent.
    - `final-verifier` — **BLOCKING GATE** (`model: "claude-sonnet-4.6"`): verify expert findings have file:line evidence AND enforce fresh test/build evidence before completion. For INLINE/TARGETED: single merged pass. For FULL: two distinct passes (expert findings first, then completion evidence).
 10. Completion gate:
