@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 # post-session.ps1
 # Run AFTER a /plan, /build, /review, /analyze, /investigate, or /refactor session ends.
 # Checks which gates were completed, warns on required-but-missed gates,
@@ -540,7 +540,7 @@ if ($workflowEvidence) {
         if ($tierOrder.ContainsKey($workflowEvidence.tier) -and $tierOrder.ContainsKey($meta.tier_rec)) {
             if ($tierOrder[$workflowEvidence.tier] -lt $tierOrder[$meta.tier_rec]) {
                 Append-ReflectionEntry -Path $globalReflectionsPath -Class "gating" `
-                    -Pattern "Tier overridden DOWNWARD ($($meta.tier_rec) -> $($workflowEvidence.tier)) -- orchestrator may only override upward" `
+                    -Pattern "Tier overridden DOWNWARD ($($meta.tier_rec) --> $($workflowEvidence.tier)) -- orchestrator may only override upward" `
                     -Evidence "session=$SessionId task=$Task tier_rec=$($meta.tier_rec) tier_actual=$($workflowEvidence.tier) reason=$($workflowEvidence.tier_reason)"
             }
         }
@@ -689,6 +689,45 @@ if ($Task) {
     }
 }
 
+# Detector 7: memory-writes audit (memory drift detection)
+# A field reflection identified the failure mode: agent spawns N agents,
+# learns user preferences / feedback patterns / domain facts during the
+# session, but writes ZERO entries to the kit's memory locations. Memory
+# saving is voluntary; without enforcement it gets skipped under
+# conversational pressure. Detector fires a soft reflection when:
+#   - state.agents_run.Count >= 3 (real session, not trivial)
+#   - AND no files modified under ~/.agents/memory/ since session start
+#     OR no entries appended to .codex/context/memory.md (now .kit/...)
+# Soft because some sessions legitimately have nothing to save (mechanical
+# refactor, doc edit). Recurring fires across many sessions = real pattern
+# that auto-consolidate will surface to harness-propose.
+if ($state -and @($state.agents_run).Count -ge 3) {
+    $memoryDir = Join-Path $HOME ".agents/memory"
+    $sessStartTime = if (Test-Path (Get-SessionDir $SessionId)) {
+        (Get-Item (Get-SessionDir $SessionId)).CreationTime
+    } else {
+        (Get-Date).AddHours(-1)
+    }
+
+    $memoryWriteCount = 0
+    if (Test-Path $memoryDir) {
+        $memoryWriteCount = @(Get-ChildItem $memoryDir -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -gt $sessStartTime }).Count
+    }
+    # Also check repo's .kit/context/memory.md for new appends
+    $repoMemPath = ".kit/context/memory.md"
+    if (Test-Path $repoMemPath) {
+        $repoMemMtime = (Get-Item $repoMemPath).LastWriteTime
+        if ($repoMemMtime -gt $sessStartTime) { $memoryWriteCount++ }
+    }
+
+    if ($memoryWriteCount -eq 0) {
+        $agentList = (@($state.agents_run) -join ',')
+        Append-ReflectionEntry -Path $globalReflectionsPath -Class "routing" `
+            -Pattern "Spawned $(@($state.agents_run).Count) agent(s) but 0 memory writes -- did the session learn user prefs / feedback patterns / repo facts that should have been saved?" `
+            -Evidence "session=$SessionId task=$Task agents=[$agentList] memory_writes=0"
+    }
+}
+
 # ── Self-improvement loop enforcement ─────────────────────────────────────────
 # Three phases: consolidate, compress, gate-check. Each handles a different
 # axis of slop/noise; together they close the loop without requiring /reflect
@@ -708,7 +747,7 @@ if (Test-Path $autoConsolidate) {
             $cs = $consolidateRaw | ConvertFrom-Json
             $changed = $cs.deduped + $cs.archived + $cs.stale_dropped + $cs.auto_promoted
             if ($changed -gt 0) {
-                Write-Host "  ${GREEN}auto-consolidated: $($cs.started_with) -> $($cs.remaining) (deduped=$($cs.deduped) archived=$($cs.archived) stale=$($cs.stale_dropped) promoted=$($cs.auto_promoted))${RESET}"
+                Write-Host "  ${GREEN}auto-consolidated: $($cs.started_with) --> $($cs.remaining) (deduped=$($cs.deduped) archived=$($cs.archived) stale=$($cs.stale_dropped) promoted=$($cs.auto_promoted))${RESET}"
             } else {
                 Write-Host "  ${DIM}no consolidation needed${RESET}"
             }
@@ -796,6 +835,61 @@ if (Test-Path $reflectTrigger) {
             Write-Host "${DIM}   (reflect-trigger output unparseable -- skipping gate)${RESET}"
         }
     }
+}
+
+# ── Auto-compliance check (closes the empirical loop) ────────────────────────
+# Runs test-compliance.ps1 against the session that just ended, logs the
+# score to ~/.agents/compliance-history.jsonl, and emits a reflection entry
+# if there are CRITICAL/HIGH fails. Without this, compliance data only
+# exists when the user manually runs the harness -- which means it doesn't.
+$complianceScript = $null
+foreach ($candidate in @(
+    (Join-Path $HOME "Downloads/caspar_bannink_agentic_coding/caspar_bannink_agentic_coding/scripts/test-compliance.ps1"),
+    (Resolve-Path -Path "scripts/test-compliance.ps1" -ErrorAction SilentlyContinue),
+    (Join-Path (Split-Path -Parent $TOOLS) "../../scripts/test-compliance.ps1")
+)) {
+    if ($candidate -and (Test-Path $candidate)) { $complianceScript = $candidate; break }
+}
+
+if ($complianceScript -and (Test-Path $complianceScript)) {
+    Write-Host ""
+    Write-Host "${DIM}Auto-compliance check...${RESET}"
+    try {
+        $complianceJson = & $script:AgentsShell -NoProfile -File $complianceScript -SessionId $SessionId -Json 2>$null
+        if ($complianceJson) {
+            $cr = $complianceJson | ConvertFrom-Json
+            $score = $cr.compliance_pct
+            $critFails = $cr.critical_fails
+
+            # Append to history
+            $historyJsonl = Join-Path $HOME ".agents/compliance-history.jsonl"
+            $record = @{
+                ts = (Get-Date).ToString("o")
+                session_id = $SessionId
+                task = $Task
+                mode = $Mode
+                score_pct = $score
+                pass = $cr.score
+                critical_fails = $critFails
+            } | ConvertTo-Json -Compress
+            Add-Content -Path $historyJsonl -Value $record -Encoding UTF8
+
+            $color = if ($critFails -eq 0) { $GREEN } elseif ($critFails -le 2) { $YELLOW } else { $RED }
+            Write-Host "  ${color}Compliance: $score% ($($cr.score) passed, $critFails critical/high fails)${RESET}"
+
+            # Reflection on critical fails -- feeds harness-propose for kit-level patterns
+            if ($critFails -gt 0) {
+                $failNames = @($cr.results | Where-Object { $_.status -eq "FAIL" -and $_.severity -in @("CRITICAL","HIGH") } | ForEach-Object { $_.name })
+                Append-ReflectionEntry -Path $globalReflectionsPath -Class "gating" `
+                    -Pattern "Session compliance below bar: $critFails critical/high assertion(s) failed: $($failNames -join ', ')" `
+                    -Evidence "session=$SessionId task=$Task score=$score% fails=[$($failNames -join ',')]"
+            }
+        }
+    } catch {
+        Write-Host "  ${DIM}(compliance check failed: $($_.Exception.Message))${RESET}"
+    }
+} else {
+    Write-Host "${DIM}(compliance script not on disk -- skipping auto-check)${RESET}"
 }
 
 # ── Done ──────────────────────────────────────────────────────────────────────
