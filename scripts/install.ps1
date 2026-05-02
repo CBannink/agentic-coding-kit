@@ -243,9 +243,7 @@ if ($resolvedFor) {
     $kitContent = Get-Content $sharedBody -Raw -Encoding UTF8
 
     # Writes the kit body as a STANDALONE reference doc at ~/.claude/agentic-kit.md
-    # (or the equivalent for other CLIs). Does NOT append anything to user's
-    # auto-loaded rules file -- that is user surface. Anyone curious can read
-    # the standalone doc; auto-discovery handles routing through skills.
+    # (or the equivalent for other CLIs). For long-form reference; not auto-loaded.
     function Install-DeviceWideRulesDoc {
         param(
             [string]$DocPath,    # where to write the standalone reference
@@ -253,7 +251,67 @@ if ($resolvedFor) {
         )
         New-Item -ItemType Directory -Path (Split-Path -Parent $DocPath) -Force | Out-Null
         Set-Content -Path $DocPath -Value $kitContent -Encoding UTF8
-        Write-Host "  $Label rules doc: $DocPath (standalone reference; not auto-loaded)"
+        Write-Host "  $Label rules doc: $DocPath (standalone long-form reference)"
+    }
+
+    # Appends a MINIMAL (~12 line) always-on rules block to the user's
+    # auto-loaded rules file (CLAUDE.md / prompt.md / AGENTS.md). Only the
+    # truly global rules go here -- workflow-specific content stays in skills
+    # at native auto-discovery dirs. Idempotent: skips if marker already
+    # present. Backs up before appending.
+    function Install-DeviceWideAlwaysOnRules {
+        param(
+            [string]$ExistingPath,    # user's auto-loaded rules file
+            [string]$LongFormPath,    # path to standalone agentic-kit.md (referenced from block)
+            [string]$Label
+        )
+        $marker = "<!-- agentic-kit:include -->"
+        $endMarker = "<!-- /agentic-kit:include -->"
+        $block = @"
+
+$marker
+## Caspar Bannink Agentic Coding Kit (always-on rules)
+
+This device has the kit installed. Skills, sub-agents, and slash commands
+are auto-discovered from your CLI's native dirs. These rules apply to EVERY
+session in EVERY repo:
+
+1. **``.wiki/features.md`` is mandatory.** Every repo MUST maintain
+   ``.wiki/features.md`` (paired with ``.wiki/.features``) listing user-
+   visible capabilities. Update on ANY change adding or modifying a CLI
+   command, API endpoint, UI page, evaluation mode, adapter, or validator.
+   Surgical edits only -- never rewrite. Skip only for pure refactors,
+   test-only, bug fixes restoring documented behavior, or perf with no UX
+   change. If ``.wiki/`` does not exist in a repo, create it and seed
+   ``features.md`` before non-trivial work.
+2. **Iron Law: no completion claims without fresh verification evidence.**
+   Run the test, read the output, then claim. "Should work" / "looks
+   correct" / "probably passes" are forbidden.
+3. **Use the kit's workflow commands** when applicable: ``/plan`` ``/build``
+   ``/review`` ``/analyze`` ``/investigate`` ``/refactor`` ``/redesign``
+   ``/security-review``. Prefer them over ad-hoc work.
+
+Long-form reference (full command semantics, scope/tier classification,
+swarm gating, memory routing, frontend visual gate, session lifecycle):
+``$LongFormPath``
+$endMarker
+"@
+
+        if (Test-Path $ExistingPath) {
+            $existing = Get-Content $ExistingPath -Raw -Encoding UTF8
+            if ($existing -match [regex]::Escape($marker)) {
+                Write-Host "  $Label always-on rules: already present (skipped)"
+                return
+            }
+            $backup = "$ExistingPath.before-agentic-kit-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+            Copy-Item -Force $ExistingPath $backup
+            Add-Content -Path $ExistingPath -Value $block -Encoding UTF8
+            Write-Host "  $Label always-on rules: appended to $ExistingPath (backup: $backup)"
+        } else {
+            New-Item -ItemType Directory -Path (Split-Path -Parent $ExistingPath) -Force | Out-Null
+            Set-Content -Path $ExistingPath -Value $block.TrimStart() -Encoding UTF8
+            Write-Host "  $Label always-on rules: created $ExistingPath"
+        }
     }
 
     # Copies kit skills to a CLI's native auto-discovery skills dir.
@@ -463,6 +521,12 @@ $endMarker
                     -DocPath (Join-Path $HomeRoot ".claude/agentic-kit.md") `
                     -Label   "Claude Code"
 
+                # Minimal always-on rules block (wiki + Iron Law + commands)
+                Install-DeviceWideAlwaysOnRules `
+                    -ExistingPath  (Join-Path $HomeRoot ".claude/CLAUDE.md") `
+                    -LongFormPath  (Join-Path $HomeRoot ".claude/agentic-kit.md") `
+                    -Label         "Claude Code"
+
                 # Slash commands -- ~/.claude/commands/<name>.md is auto-mounted.
                 Install-DeviceWideCommands `
                     -SourceDir (Join-Path $AdaptersRoot "claude-code/.claude/commands") `
@@ -496,21 +560,29 @@ $endMarker
             }
             "codex" {
                 # Codex auto-loads ~/.codex/AGENTS.md but has no skills/commands/
-                # agents auto-discovery. Just drop the standalone reference doc.
-                # The user can manually add an @-import in their AGENTS.md if
-                # they want kit awareness baked in -- we do NOT modify it.
+                # agents auto-discovery. Drop the standalone reference doc and
+                # append the minimal always-on rules block to AGENTS.md so the
+                # wiki rule + Iron Law are loaded every session.
                 Install-DeviceWideRulesDoc `
                     -DocPath (Join-Path $HomeRoot ".codex/agentic-kit.md") `
                     -Label   "Codex CLI"
-                Write-Host "  (Codex has no native skill/command/agent discovery."
-                Write-Host "   To enable kit awareness in every session, add to ~/.codex/AGENTS.md:"
-                Write-Host "     ``@~/.codex/agentic-kit.md`` )"
+
+                Install-DeviceWideAlwaysOnRules `
+                    -ExistingPath  (Join-Path $HomeRoot ".codex/AGENTS.md") `
+                    -LongFormPath  (Join-Path $HomeRoot ".codex/agentic-kit.md") `
+                    -Label         "Codex CLI"
             }
             "opencode" {
                 # Standalone reference doc.
                 Install-DeviceWideRulesDoc `
                     -DocPath (Join-Path $HomeRoot ".config/opencode/agentic-kit.md") `
                     -Label   "OpenCode"
+
+                # Minimal always-on rules block in prompt.md
+                Install-DeviceWideAlwaysOnRules `
+                    -ExistingPath  (Join-Path $HomeRoot ".config/opencode/prompt.md") `
+                    -LongFormPath  (Join-Path $HomeRoot ".config/opencode/agentic-kit.md") `
+                    -Label         "OpenCode"
 
                 # Slash commands -- ~/.config/opencode/commands/<name>.md auto-mounts.
                 Install-DeviceWideCommands `
@@ -541,15 +613,17 @@ $endMarker
             }
             "generic" {
                 # No standard auto-discovery for generic CLIs (Aider, Cline,
-                # Cursor each have their own conventions). Just drop the
-                # standalone reference doc -- user opts in by referencing it
-                # from their tool's config if they want.
+                # Cursor each have their own conventions). Drop standalone
+                # reference + the minimal always-on rules block in ~/AGENTS.md
+                # (the canonical home file most "agentic" CLIs read).
                 Install-DeviceWideRulesDoc `
                     -DocPath (Join-Path $HomeRoot ".agentic-kit/AGENTS.md") `
                     -Label   "Generic"
-                Write-Host "  (Generic CLIs have no standard discovery."
-                Write-Host "   To enable kit awareness, point your tool's config at:"
-                Write-Host "     ``$(Join-Path $HomeRoot '.agentic-kit/AGENTS.md')`` )"
+
+                Install-DeviceWideAlwaysOnRules `
+                    -ExistingPath  (Join-Path $HomeRoot "AGENTS.md") `
+                    -LongFormPath  (Join-Path $HomeRoot ".agentic-kit/AGENTS.md") `
+                    -Label         "Generic"
             }
             "copilot" {
                 Write-Host "  GitHub Copilot has no device-wide config -- it reads"
