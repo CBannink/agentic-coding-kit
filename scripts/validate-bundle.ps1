@@ -118,7 +118,7 @@ $requiredTools = @(
     "playwright-runner.ps1", "playwright-runner.py", "visual-diff.ps1",
     "dev-server-runner.ps1", "frontend-detector.ps1", "design-fetcher.ps1",
     "bulk-fetch-inspiration.ps1", "wiki-resolver.ps1", "wiki-compress.ps1",
-    "review-evidence.ps1"
+    "review-evidence.ps1", "_run-ps.sh"
 )
 $missingTools = 0
 foreach ($t in $requiredTools) {

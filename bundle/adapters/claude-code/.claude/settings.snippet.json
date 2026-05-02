@@ -1,5 +1,5 @@
 {
-  "_comment": "Hook config for the Caspar Bannink Agentic Coding Kit. NOT a complete settings.json — merge these `hooks` entries into your existing ~/.claude/settings.json. The installer can do this for you with: pwsh ~/.agents/tools/merge-claude-settings.ps1",
+  "_comment": "Hook config for the Caspar Bannink Agentic Coding Kit. NOT a complete settings.json — merge these `hooks` entries into your existing ~/.claude/settings.json. The installer can do this for you with: pwsh ~/.agents/tools/merge-claude-settings.ps1. The commands route through ~/.agents/tools/_run-ps.sh which picks pwsh-or-powershell so hooks work whether pwsh 7+ is installed or only Windows PowerShell 5.1.",
   "hooks": {
     "SessionStart": [
       {
@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "pwsh -NoProfile -File ~/.agents/tools/session-start-hook.ps1 -SessionId \"${CLAUDE_SESSION_ID}\" -Mode \"${CLAUDE_MODE:-build}\" -RepoRoot \"${CLAUDE_PROJECT_DIR}\""
+            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/session-start-hook.ps1 -SessionId \"${CLAUDE_SESSION_ID}\" -Mode \"${CLAUDE_MODE:-build}\" -RepoRoot \"${CLAUDE_PROJECT_DIR}\""
           }
         ]
       }
@@ -18,11 +18,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "pwsh -NoProfile -File ~/.agents/tools/session-end-hook.ps1 -SessionId \"${CLAUDE_SESSION_ID}\" -Outcome \"session-end\""
+            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/session-end-hook.ps1 -SessionId \"${CLAUDE_SESSION_ID}\" -Outcome \"session-end\""
           },
           {
             "type": "command",
-            "command": "pwsh -NoProfile -File ~/.agents/tools/post-session.ps1 -SessionId \"${CLAUDE_SESSION_ID}\" -NonInteractive -AutoApprove"
+            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/post-session.ps1 -SessionId \"${CLAUDE_SESSION_ID}\" -NonInteractive -AutoApprove"
           }
         ]
       }
@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "pwsh -NoProfile -File ~/.agents/tools/subagent-stop-hook.ps1 -SessionId \"${CLAUDE_SESSION_ID}\" -AgentName \"${CLAUDE_SUBAGENT_NAME}\" -Status \"${CLAUDE_SUBAGENT_STATUS:-completed}\""
+            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/subagent-stop-hook.ps1 -SessionId \"${CLAUDE_SESSION_ID}\" -AgentName \"${CLAUDE_SUBAGENT_NAME}\" -Status \"${CLAUDE_SUBAGENT_STATUS:-completed}\""
           }
         ]
       }
@@ -44,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "pwsh -NoProfile -File ~/.agents/tools/precompact-hook.ps1 -SessionId \"${CLAUDE_SESSION_ID}\""
+            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/precompact-hook.ps1 -SessionId \"${CLAUDE_SESSION_ID}\""
           }
         ]
       }
