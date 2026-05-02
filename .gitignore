@@ -4,3 +4,9 @@ Thumbs.db
 *.log
 .idea\
 .vscode\
+
+# Local-only inspiration cache (populated by bulk-fetch-inspiration.ps1).
+# Screenshots of public design system pages for personal reference.
+# Never redistributed, never bundled.
+inspiration/
+**/inspiration/

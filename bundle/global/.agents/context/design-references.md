@@ -10,11 +10,25 @@ inspiration sources you visit at runtime, not corpora we redistribute.
 ## How drivers use this
 
 1. Identify the screen type (dashboard / list / settings / onboarding / detail / form / empty).
-2. Find the matching section below.
-3. Pick the closest analog from "First-party references" (safe to read fully).
-4. Optionally consult "Inspiration sources" (curated public URLs).
-5. Optionally invoke `design-fetcher.ps1` to capture a transient session-only screenshot.
-6. Cite the analog in `REFERENCE:` field of findings.
+2. **Check the local inspiration cache first** at `~/.agents/inspiration/` (populated by `bulk-fetch-inspiration.ps1`). If `index.json` exists, find references whose `patterns` field matches the current screen type and read those PNGs directly — no fetch needed.
+3. Find the matching section below for written guidance.
+4. Pick the closest analog from "First-party references" (safe to read fully).
+5. Optionally consult "Inspiration sources" (curated public URLs — link out only, do not cache).
+6. If the local cache is empty or stale, prompt the user to run `pwsh ~/.agents/tools/bulk-fetch-inspiration.ps1` (one-time) or invoke `design-fetcher.ps1` for a transient session-only screenshot.
+7. Cite the analog in `REFERENCE:` field of findings.
+
+**Local cache layout**:
+```
+~/.agents/inspiration/
+  index.json                  # slug -> {url, patterns, note, fetched_at, file}
+  material3-cards.png         # one PNG per cataloged reference
+  shadcn-dashboard.png
+  ...
+```
+
+The cache is **gitignored** at the kit level — local-only personal reference,
+never redistributed. Refresh quarterly via `bulk-fetch-inspiration.ps1` or
+on-demand with `-Force`.
 
 ## First-party design system docs (permissively licensed, abstract freely)
 
