@@ -317,14 +317,21 @@ lifecycle plumbing.
 5. **Run lifecycle scripts at session boundaries (mandatory)**:
    - At start: ``pwsh ~/.agents/tools/state-init.ps1`` (auto-fired by Claude
      SessionStart / OpenCode session.created hooks; manual elsewhere).
-   - Per subagent spawn: ``pwsh ~/.agents/tools/state-gate.ps1 -AddAgent``
-     and ``pwsh ~/.agents/tools/workflow-evidence.ps1 -AddAgent``.
+   - **The ORCHESTRATOR (parent agent) runs per-subagent calls** --
+     ``state-gate.ps1 -AddAgent`` and ``workflow-evidence.ps1 -AddAgent`` --
+     when it spawns a sub-agent. **Sub-agents do NOT self-register.** This
+     is a hard rule, not a judgment call: orchestrator owns lifecycle
+     bookkeeping; sub-agents own their work product only.
    - Mark gates as you progress: ``-Mark "context_loaded"`` →
      ``"implementation_done"`` → ``"verification_evidence"`` → ``"handoff_written"``.
+     Gate marking is also orchestrator-side -- sub-agents report progress
+     in their handoff body, not by marking gates themselves.
    - At end: ``pwsh ~/.agents/tools/post-session.ps1`` (auto-fired by
      Claude SessionEnd / OpenCode session.deleted hooks; manual elsewhere).
    These are MANDATORY even when a repo has its own pipeline. The kit's
    evidence is what makes cross-repo audit + self-improvement loop work.
+   "Sub-agent skipped because it's a small task" is NOT a valid excuse --
+   the orchestrator runs it regardless of task size.
 
 6. **Specialist memory routing**: when spawning role-specific subagents
    (security-reviewer, code-quality-reviewer, modularity-expert, etc.),
