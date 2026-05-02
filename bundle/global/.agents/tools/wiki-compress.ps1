@@ -30,6 +30,7 @@ param(
     [int]$SectionMaxLines = 150,
     [int]$ArchitectureMaxLines = 200,
     [int]$FeaturesMaxLines = 300,
+    [int]$IndexMaxLines = 100,
     [switch]$Json
 )
 
@@ -56,6 +57,9 @@ function Check-File {
         }
     }
 }
+
+# index.md
+Check-File -Path (Join-Path $wikiDir "index.md") -Budget $IndexMaxLines -Category "index"
 
 # features.md
 Check-File -Path (Join-Path $wikiDir "features.md") -Budget $FeaturesMaxLines -Category "features"

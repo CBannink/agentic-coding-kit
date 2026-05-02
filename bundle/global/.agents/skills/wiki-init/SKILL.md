@@ -33,6 +33,7 @@ loops (`/redesign`, `playwright-explorer`, `ux-driver`, `ui-driver`).
    NOT cover in any section page. The user decides whether each is
    intentional or a gap.
 5. **Size budget (anti-bloat).** Hard limits per file:
+   - `index.md`: **≤100 lines**. Just an entry point — no narrative.
    - `sections/<name>.md`: **≤150 lines** (target 80-120). Past 150,
      split or move detail into linked source comments.
    - `architecture.md`: **≤200 lines**.
@@ -64,6 +65,7 @@ wasn't relevant for this task). That's the desired behavior, not a failure.
 
 ```
 .wiki/
+├── index.md             # canonical entry point: lists sections + links architecture + features
 ├── features.md          # user-visible features rollup (human)
 ├── .features            # machine-readable feature ID list
 ├── architecture.md      # cross-section overview, dependency arrows
@@ -231,6 +233,49 @@ api/profiles-create
 # UI Pages
 ui/profiles-dashboard
 ```
+
+### Step 7b -- write index.md (canonical entry point)
+
+The first file a new contributor / agent reads. Tight, navigational only.
+No narrative. Template:
+
+```markdown
+# <Repo name> -- Wiki Index
+
+One-paragraph what-is-this. Mention the primary language / framework and
+the production purpose (one sentence each).
+
+## Sections (per code area)
+
+- [`auth`](sections/auth.md) -- one-line summary
+- [`api`](sections/api.md) -- one-line summary
+- [`data`](sections/data.md) -- one-line summary
+- ... (one bullet per `.wiki/sections/*.md`, in dependency order)
+
+## Cross-cutting
+
+- [`architecture.md`](architecture.md) -- system overview + section dependency table
+- [`features.md`](features.md) -- user-visible features rollup
+- [`.features`](.features) -- machine-readable feature ID list
+
+## How agents use this wiki
+
+Skills do not bulk-load the wiki. They use the lazy-load resolver:
+```
+pwsh ~/.agents/tools/wiki-resolver.ps1 -Task "<desc>" -ChangedFiles "<list>" -RepoRoot .
+```
+The resolver returns only sections whose `Key files` overlap with the
+changed-file set. Update sections surgically when their files change --
+do not let pages drift.
+
+## Last updated
+<YYYY-MM-DD by /wiki-init>
+```
+
+Order the section bullets by dependency depth from `architecture.md`:
+foundational layers (data, auth, infra) first; entry layers (api, ui) last.
+Keep one-line summaries to one short sentence -- the section page itself
+has the detail.
 
 ### Step 8 -- coverage report
 
