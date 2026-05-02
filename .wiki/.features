@@ -10,6 +10,7 @@ slash-command/investigate
 slash-command/refactor
 slash-command/redesign
 slash-command/security-review
+slash-command/wiki-init
 
 # Sub-agents
 agent/ux-driver
@@ -26,6 +27,7 @@ agent/qa-reviewer
 # Skills
 skill/analyze
 skill/build
+skill/wiki-init
 skill/plan
 skill/review
 skill/investigate
@@ -83,6 +85,8 @@ tool/bulk-fetch-inspiration
 tool/workflow-evidence
 tool/run-packet
 tool/handoff-register
+tool/wiki-resolver
+tool/wiki-compress
 tool/merge-claude-settings
 tool/validate-repo-skills-index
 tool/derive-repo-skills

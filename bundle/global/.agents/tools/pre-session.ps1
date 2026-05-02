@@ -285,7 +285,14 @@ if ($Mode -eq "build") {
         } catch {}
     }
 }
-if ($wikiExists)        { Write-Host "  Wiki: .wiki/features.md exists" }
+if ($wikiExists) {
+    Write-Host "  Wiki: .wiki/features.md exists"
+} else {
+    # Loud, actionable warning. Mandatory per global always-on rules.
+    Write-Host "${YELLOW}  WIKI: MISSING -- .wiki/ does not exist in this repo.${RESET}"
+    Write-Host "${YELLOW}        The kit's always-on rules require .wiki/features.md before non-trivial work.${RESET}"
+    Write-Host "${YELLOW}        Run /wiki-init to bootstrap it from real code evidence.${RESET}"
+}
 if ($buildBriefPath)    { Write-Host "  Prior build brief from today ($buildBriefSource): $buildBriefPath" }
 
 # ── Step 3.9: Parallel Instance Check ───────────────────────────────────────────
@@ -320,7 +327,7 @@ $brief = @"
 - SCOPE: $scope ($scopeReason)
 - TIER_REC: $tierRec ($tierReason -- orchestrator may override UPWARD only)
 - REFLECT_NEEDED: $(if ($reflectNeeded) { "YES ($reflectCount unaddressed entries -- run /reflect first)" } else { "no ($reflectCount entries)" })
-- WIKI: $(if ($wikiExists) { "yes (.wiki/features.md exists -- read before explore phase)" } else { "none" })
+- WIKI: $(if ($wikiExists) { "yes (.wiki/features.md exists -- use wiki-resolver.ps1 to load only relevant sections, NOT bulk-load)" } else { "MISSING -- run /wiki-init to bootstrap (mandatory per global rules)" })
 - BUILD_BRIEF: $(if ($buildBriefPath) { "YES -- read handoff at $buildBriefPath BEFORE planning (source: $buildBriefSource)" } else { "none" })
 - PARALLEL_INSTANCE: $(if ($parallelWarning) { $parallelWarning } else { "none detected" })
 - STATE_FILE: $(if ($stateInitialized) { Join-Path (Get-SessionDir $SessionId) "state.json" } else { "not initialized for /$Mode" })
