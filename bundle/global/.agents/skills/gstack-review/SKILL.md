@@ -1,11 +1,10 @@
 ---
 name: gstack-review
-model: gpt-5.4
 description: >
   Use when you want the sharper gstack-style specialist and adversarial review posture
   without adopting the full Claude-specific gstack runtime. Gives high signal-to-noise
   specialist decomposition, adversarial challenge, and production-risk framing.
-  Requires premium reasoning model — always run with gpt-5.4.
+  Requires premium reasoning model — always run with a premium reasoning model.
 ---
 
 # Gstack Review

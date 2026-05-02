@@ -1,6 +1,5 @@
 ---
 name: spec
-model: gpt-5.4
 description: >
   Lightweight spec-first workflow for complex features. Five phases before any code is written:
   Requirements clarification → Spec document → Technical plan → Task breakdown → Validation.

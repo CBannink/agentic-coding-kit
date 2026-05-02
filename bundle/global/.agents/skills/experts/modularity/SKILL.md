@@ -1,6 +1,5 @@
 ---
 name: modularity-expert
-model: gpt-5.4
 description: >
   Module boundary and anti-slop specialist. Invoke during /build when new services, files,
   shared helpers, packages, or cross-module dependencies are introduced. Checks reuse-first
@@ -26,8 +25,6 @@ Skip for: single-file changes with no new cross-module dependencies, UI-only cha
 ---
 
 ## Modularity Review Discipline
-
-**Model**: `gpt-5.4` — structural coupling reasoning requires premium depth.
 
 Ask (P1–P8 gates, in priority order):
 

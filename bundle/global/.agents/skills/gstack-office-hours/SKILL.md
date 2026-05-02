@@ -1,11 +1,10 @@
 ---
 name: gstack-office-hours
-model: gpt-5.4
 description: >
   Use for product-wedge, user-problem, and status-quo-replacement analysis.
   Applies gstack office-hours framing: is this the right problem? is this the wedge?
   what is the user's actual pain? what does "replacing the status quo" look like?
-  Requires deep reasoning — always run with gpt-5.4.
+  Requires deep reasoning — always run with a premium reasoning model.
 ---
 
 # Gstack Office Hours

@@ -1,6 +1,5 @@
 ---
 name: derive-repo-skills
-model: gpt-5.4
 description: >
   Repo bootstrap workflow that derives repo-specific skills and a routing index from repo
   evidence. Combines work-surface discovery, git-backed convention extraction, current-code
@@ -85,31 +84,31 @@ Schema reference for the canonical routing artifact:
 
 - `repo-triage-explorer`
   Purpose: detect repo shape, work surfaces, execution affordances, likely ownership boundaries, and the vocabulary this repo actually uses.
-  Model: `gpt-5.4-mini`
+  Model: `(premium reasoning model)`
 
 - `history-patterns-explorer`
   Purpose: run `git-archaeology` or equivalent history extraction to get naming, file placement, testing, and revert-backed antipatterns when history is informative.
-  Model: `gpt-5.4-mini`
+  Model: `(premium reasoning model)`
 
 - `current-patterns-explorer`
   Purpose: inspect representative current modules and entrypoints chosen from discovered work surfaces to confirm how the repo works now, not only how it evolved before.
-  Model: `gpt-5.4-mini`
+  Model: `(premium reasoning model)`
 
 ### Synthesize
 
 - `relevance-judge`
   Purpose: decide which evidence-backed claims are promotable into repo-local skills versus profile-only guidance.
-  Model: `gpt-5.4`
+  Model: `(premium reasoning model)`
 
 - `skill-synthesizer`
   Purpose: generate the repo-local profile, routing index, and derived skill files from the verified evidence packet and promotion decisions.
-  Model: `gpt-5.4`
+  Model: `(premium reasoning model)`
 
 ### Verify
 
 - `claim-verifier`
   Purpose: verify that every generated repo-local skill and routing rule is backed by specific evidence and that no low-confidence claim was promoted.
-  Model: `claude-sonnet-4.6`
+  Model: `(balanced model)`
 
 ---
 

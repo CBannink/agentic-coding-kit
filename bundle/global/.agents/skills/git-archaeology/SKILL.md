@@ -1,6 +1,5 @@
 ---
 name: git-archaeology
-model: gpt-5.4-mini
 description: >
   Analyzes the repository's git history (last 100–500 commits) to extract preferred patterns,
   naming conventions, test structure, commit style, directory organization, and technology choices.

@@ -1,13 +1,12 @@
 ---
 name: investigate
-model: gpt-5.4
 description: >
   Use when the user says /investigate or asks to debug, diagnose, trace, or root-cause
   something that isn't a build task — flaky CI, provider incidents, dependency drift,
   cross-repo contract failures, environment issues, or any scenario where the cause is
   unknown. Runs hypothesis-driven investigation with evidence capture.
   NO automatic memory mutation. NO workflow rule changes. Evidence only.
-  Orchestrator: gpt-5.4. Explorers: gpt-5.4-mini (0.33x cost).
+  33x cost).
   gstack source: ~/.agents/workflows/plugins/gstack/investigate/SKILL.md
 ---
 
@@ -87,7 +86,7 @@ ALREADY RULED OUT: [what has been tried without success]
 
 ### Phase 2 — Hypothesis Generation
 
-- `hypothesis-generator` (gpt-5.4) — **TARGETED/FULL only**; **INLINE**: orchestrator lists hypotheses inline, no sub-agent
+- `hypothesis-generator` — **TARGETED/FULL only**; **INLINE**: orchestrator lists hypotheses inline, no sub-agent
   Purpose: enumerate all plausible root causes. At least 3 hypotheses. Order by likelihood.
   Output format:
   ```
@@ -97,7 +96,7 @@ ALREADY RULED OUT: [what has been tried without success]
 
 ### Phase 3 — Evidence Gathering
 
-- `evidence-explorer` (gpt-5.4-mini, parallel when multiple hypotheses)
+- `evidence-explorer` (a fast explorer model, parallel when multiple hypotheses)
   Purpose: gather concrete facts for each hypothesis — logs, config, code, test output, git history.
   Rules: gather facts only. No conclusions. No fixing.
 
@@ -199,13 +198,13 @@ Before the final diagnosis, include a compact **Workflow Evidence** block.
 
 | Role | Model | Why |
 |------|-------|-----|
-| Orchestrator + hypothesis generation | `gpt-5.4` | Multi-hop causal reasoning across large evidence sets |
-| Evidence explorer | `gpt-5.4-mini` | Fast parallel tool-calling; GitHub-recommended for agentic codebase exploration |
-| Cross-provider sanity check (optional) | `gpt-5.4` | Different training catches different systemic patterns; invoke when hypothesis list is exhausted |
+| Orchestrator + hypothesis generation | `(premium reasoning model)` | Multi-hop causal reasoning across large evidence sets |
+| Evidence explorer | `(premium reasoning model)` | Fast parallel tool-calling; GitHub-recommended for agentic codebase exploration |
+| Cross-provider sanity check (optional) | `(premium reasoning model)` | Different training catches different systemic patterns; invoke when hypothesis list is exhausted |
 
 ## Fallback Ladder
 
 | Role | Primary | Fallback |
 |------|---------|---------|
-| Orchestrator | `gpt-5.4` | `claude-sonnet-4.6` |
-| Explorer | `gpt-5.4-mini` | `claude-sonnet-4.6` |
+| Orchestrator | `(premium reasoning model)` | `(balanced model)` |
+| Explorer | `(premium reasoning model)` | `(balanced model)` |

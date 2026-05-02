@@ -1,6 +1,5 @@
 ---
 name: reflect
-model: claude-sonnet-4.6
 description: >
   Use when the user says /reflect, or auto-triggered at end of /review or /build when
   reflections.md has 5+ unaddressed entries (3+ is a soft warning — log it but do not auto-run).

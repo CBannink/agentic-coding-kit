@@ -1,11 +1,10 @@
 ---
 name: gstack-plan-eng-review
-model: gpt-5.4
 description: >
   Use for architecture and plan review pressure before implementation. Applies gstack
   plan-eng-review: challenges architecture choices, data flow, failure modes, and test gaps.
   Stripped of Claude-specific host plumbing.
-  Requires adversarial reasoning — always run with gpt-5.4.
+  Requires adversarial reasoning — always run with a premium reasoning model.
 ---
 
 # Gstack Plan Eng Review

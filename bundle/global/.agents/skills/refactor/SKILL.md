@@ -1,10 +1,9 @@
 ---
 name: refactor
-model: gpt-5.4
 description: >
   Use when the user says /refactor or asks to improve code structure, enforce architectural
   principles, or clean up a codebase against a defined standard. Analyzes the codebase
-  part-by-part using parallel gpt-5.4-mini explorer agents through a gpt-5.4 orchestrator.
+  part-by-part using parallel a fast explorer model explorer agents through a a premium reasoning model orchestrator.
   Compares each module to the project's architectural principles. Produces a prioritised
   refactor plan, pressure-tests it with gstack-plan-eng-review, then executes with
   sequential subagent-driven-development discipline.
@@ -61,7 +60,7 @@ Extract the **active principles** as a numbered list. These are the yardstick ev
 ### Phase 1 — Codebase Decomposition
 
 Before dispatching agents, decompose the codebase into **independent analysis chunks**. Each chunk must be:
-- Small enough for a single gpt-5.4-mini agent to read completely
+- Small enough for a single a fast explorer model agent to read completely
 - Logically coherent (a module, a layer, a package)
 - Independent of other chunks (no shared state between agents)
 
@@ -83,7 +82,7 @@ If the codebase has changed or a custom refactor scope is specified, adjust the 
 
 ### Phase 2 — Parallel Principle Compliance Scan
 
-Dispatch **one gpt-5.4-mini agent per chunk** in parallel. Each agent receives:
+Dispatch **one a fast explorer model agent per chunk** in parallel. Each agent receives:
 1. The full active principles list (from Phase 0)
 2. The specific files to read for its chunk
 3. A structured output format
@@ -114,14 +113,14 @@ If no violations found in this chunk: output "CHUNK [CHUNK_ID]: CLEAN"
 ```
 
 **Model routing:**
-- All chunk scanner agents: `gpt-5.4-mini` (0.33x cost, tool-use optimized, codebase scanning)
+- All chunk scanner agents: `(premium reasoning model)` (0.33x cost, tool-use optimized, codebase scanning)
 
 ### Phase 3 — Violation Synthesis
 
-Collect all agent outputs. Before adding a violation to the inventory, run a **violation-verifier** (`claude-sonnet-4.6`) pass:
+Collect all agent outputs. Before adding a violation to the inventory, run a **violation-verifier** pass:
 - For each `VIOLATION` entry: verify the cited file and line actually contain the pattern described.
 - Downgrade or remove violations where: the code is intentional delegation (not a P6 violation), a deliberate architectural exception (documented in memory.md or AGENTS.md), or the cited pattern doesn't exist at the described location.
-- Keep the violation inventory clean — gpt-5.4-mini scanners optimise for recall, not precision. The verifier restores precision.
+- Keep the violation inventory clean — a fast explorer model scanners optimise for recall, not precision. The verifier restores precision.
 
 After verification, deduplicate and group by principle violated. Produce:
 
@@ -133,7 +132,7 @@ After verification, deduplicate and group by principle violated. Produce:
 
 ### Phase 3.5 — Modularity Expert (conditional)
 
-Invoke `modularity` expert (`gpt-5.4`) when the violation inventory shows:
+Invoke `modularity` expert when the violation inventory shows:
 - 3+ violations of P2, P4, or P6, **AND**
 - Violations span more than 2 chunks
 
@@ -174,7 +173,7 @@ Produce a structured refactor plan from the violation inventory. Format:
 **Before any implementation**, run `consequence-agent` on the refactor plan.
 Refactors have the highest ripple risk by definition — always trace the blast radius before touching files.
 
-- **Spawn with `model: "gpt-5.4"`** — multi-hop causal chains require premium reasoning.
+- **Spawn with `model: "a premium reasoning model"`** — multi-hop causal chains require premium reasoning.
 - Skill: `~/.agents/skills/consequence/SKILL.md`
 - Provide the agent: the full refactor plan + the violation inventory + `docs/wiki/INDEX.md`
 - Output: direct effects (compile-time breaks), indirect effects (callers/tests that drift silently),
@@ -202,7 +201,7 @@ Execute the Critical tasks using `subagent-driven-development` discipline:
 
 **Per task:**
 1. Mark task `in_progress` in the session SQL todos
-2. Dispatch an **implementer subagent** (`gpt-5.4` for all tasks — same 1x cost as codex, outperforms on coding)
+2. Dispatch an **implementer subagent** (`(premium reasoning model)` for all tasks — same 1x cost as codex, outperforms on coding)
 3. Implementer receives: task description, exact files, principle being fixed, existing tests to not break, verification command
 4. After implementer: dispatch **spec-compliance reviewer** (sonnet-4.6)
 5. After spec: dispatch **code-quality reviewer** (sonnet-4.6)
@@ -212,7 +211,7 @@ Execute the Critical tasks using `subagent-driven-development` discipline:
 9. Mark task `done` in SQL todos
 
 **Model routing for implementers:**
-- All implementation tasks → `gpt-5.4` (1x cost, best coding performance)
+- All implementation tasks → `(premium reasoning model)` (1x cost, best coding performance)
 
 ### Phase 7 — Post-Refactor Verification
 
@@ -226,7 +225,7 @@ After all Critical tasks complete:
 
 ### Phase 8 — Documentation Update
 
-Dispatch a **docs-updater agent** (claude-haiku-4.5):
+Dispatch a **docs-updater agent** :
 
 **Prompt:**
 ```

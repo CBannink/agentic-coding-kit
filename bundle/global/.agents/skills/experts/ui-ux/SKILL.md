@@ -1,12 +1,11 @@
 ---
 name: ui-ux-expert
-model: gpt-5.4 (strategist) / claude-sonnet-4.6 (implementer)
 description: >
   Two-agent UI/UX specialist pair. Invoke during /build when any UI component, page,
   flow, or onboarding step is being added or changed. The strategist critiques UX and
   the implementer critiques visual/component structure. Both self-reflect to global reflections.
   Uses Stitch MCP for design generation when available.
-  NOTE: gemini-3.1-pro removed — CLI bug #1703. Strategist falls back to gpt-5.4.
+  NOTE: gemini-3.1-pro removed — CLI bug #1703. Strategist falls back to a premium reasoning model.
 ---
 
 # UI/UX Expert — Two-Agent Discipline
@@ -28,8 +27,6 @@ Skip for: backend-only changes with no user-visible effect, test-only changes, t
 ---
 
 ## Agent 1 — UX Strategist
-
-**Model**: `gpt-5.4` — Gemini unavailable in CLI (bug #1703). GPT-5.4 is the fallback for UX flow and design critique; strong layout and user-flow reasoning.
 
 **Role**: Review the user experience — not the code.
 
@@ -54,8 +51,6 @@ FIX: [one sentence — what would resolve it]
 ---
 
 ## Agent 2 — UI Implementer
-
-**Model**: `claude-sonnet-4.6`
 **MCP**: Stitch MCP available for design generation
 
 **Role**: Review the component structure and visual implementation.
@@ -117,8 +112,8 @@ Pass to each agent:
 | Agent | Model | Provider | Rationale |
 |-------|-------|----------|-----------|
 | UX Strategist | `gemini-3.1-pro` | Google | Gemini's multimodal training excels at visual/spatial/layout reasoning — best available for UX |
-| UI Implementer | `claude-sonnet-4.6` | Anthropic | Component structure review + Stitch MCP integration |
-| **Fallback if Gemini unavailable** | `gpt-5.4` | Anthropic | Nearest alternative for deep UX reasoning |
+| UI Implementer | `(balanced model)` | Anthropic | Component structure review + Stitch MCP integration |
+| **Fallback if Gemini unavailable** | `(premium reasoning model)` | Anthropic | Nearest alternative for deep UX reasoning |
 
 ---
 

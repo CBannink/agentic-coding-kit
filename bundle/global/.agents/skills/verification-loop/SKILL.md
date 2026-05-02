@@ -1,6 +1,5 @@
 ---
 name: verification-loop
-model: gpt-5.4
 description: >
   Comprehensive post-implementation gate. Runs in sequence: build → type check → lint →
   test suite → security scan → diff review. Produces a structured VERIFICATION REPORT.

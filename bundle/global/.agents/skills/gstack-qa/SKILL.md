@@ -1,11 +1,9 @@
 ---
 name: gstack-qa
-model: claude-sonnet-4.6
 description: >
   Use for UI and behavior-heavy QA passes. Applies gstack QA mindset: user-flow first,
   behavior before implementation, real-scenario coverage, regression safety.
   Works as a reference layer without Claude-specific runtime.
-  Model: claude-sonnet-4.6 (balanced; thorough coverage without premium cost).
 ---
 
 # Gstack QA

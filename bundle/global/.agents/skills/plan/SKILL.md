@@ -1,6 +1,5 @@
 ---
 name: plan
-model: gpt-5.4
 description: >
   Plan-first workflow for targeted coding tasks. Clarifies scope, maps likely files,
   explores repo and wiki context, pressure-tests the approach, writes a session plan

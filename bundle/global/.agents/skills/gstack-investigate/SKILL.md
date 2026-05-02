@@ -1,11 +1,10 @@
 ---
 name: gstack-investigate
-model: gpt-5.4
 description: >
   Use for root-cause-first debugging and investigation. Applies disciplined
   hypothesis-driven analysis: state symptom → list hypotheses → cheapest test →
   eliminate with evidence → fix only after root cause confirmed.
-  Requires premium reasoning — always run with gpt-5.4.
+  Requires premium reasoning — always run with a premium reasoning model.
 ---
 
 # Gstack Investigate

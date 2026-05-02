@@ -1,6 +1,5 @@
 ---
 name: consequence
-model: gpt-5.4
 description: >
   Forward causal tracer. Given a plan, diff, or proposed change — traces ripple effects
   through the codebase dependency graph BEFORE implementation. Surfaces direct effects,
@@ -45,17 +44,17 @@ docs/wiki/INDEX.md             — all public exports, services, endpoints (blas
 - `import-graph-explorer`
   Purpose: map the import dependency tree for the files the plan touches. Who imports what?
   Find all consumers of changed modules, types, and interfaces.
-  Model: `gpt-5.4-mini` — I/O-bound read task; GitHub-recommended for agentic exploration.
+  Model: `(premium reasoning model)` — I/O-bound read task; GitHub-recommended for agentic exploration.
 
 - `contract-surface-explorer`
   Purpose: identify all public contracts the plan touches — Zod schemas, TypeScript interfaces,
   Pydantic models, API routes, database schema, CLI flags. What is the exposed surface?
-  Model: `gpt-5.4-mini`
+  Model: `(premium reasoning model)`
 
 - `test-fixture-explorer`
   Purpose: find all test files that reference the changed modules, types, or routes.
   Which tests will need updating? Which test fixtures make assumptions about the current shape?
-  Model: `gpt-5.4-mini`
+  Model: `(premium reasoning model)`
 
 ### Consequence synthesis (always, after explore)
 
@@ -64,7 +63,7 @@ docs/wiki/INDEX.md             — all public exports, services, endpoints (blas
   "A changes → B must adapt → C may break silently."
   Distinguish between compile-time breaks (will surface immediately) and semantic breaks
   (compile but behave wrong — the dangerous ones).
-  Model: `gpt-5.4` — multi-hop causal reasoning requires premium model.
+  Model: `(premium reasoning model)` — multi-hop causal reasoning requires premium model.
 
 ---
 
@@ -204,11 +203,11 @@ Never start a refactor without knowing the full scope of what needs to change.
 
 ## Model Routing
 
-- `consequence-synthesizer`: **`gpt-5.4`** — non-negotiable.
+- `consequence-synthesizer`: **`(premium reasoning model)`** — non-negotiable.
   Multi-hop causal chains ("A changes → B adapts → C breaks silently") require
   premium reasoning. Haiku and Sonnet miss the third-order effects. Do not downgrade.
 
-- Explore agents: **`gpt-5.4-mini`** — I/O-bound file reads, low latency, GitHub-recommended for agentic codebase exploration.
+- Explore agents: **`(premium reasoning model)`** — I/O-bound file reads, low latency, GitHub-recommended for agentic codebase exploration.
 
 ---
 

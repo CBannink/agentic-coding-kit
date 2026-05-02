@@ -1,10 +1,9 @@
 ---
 name: performance-expert
-model: gpt-5.4
 description: >
   Cross-provider performance specialist. Invoked during /build Phase 7 when the diff
   touches DB queries, React renders with lists/maps, hot loops, or API response handlers.
-  GPT-5.4 used for cross-provider adversarial perspective on performance anti-patterns.
+  a premium reasoning model used for cross-provider adversarial perspective on performance anti-patterns.
 ---
 
 # Performance Expert
@@ -65,8 +64,8 @@ FIX: [one sentence — what would resolve it]
 
 | Role | Model | Provider | Why |
 |------|-------|----------|-----|
-| Performance reviewer | `gpt-5.4` | OpenAI | Cross-provider adversarial — GPT's training on performance-heavy codebases catches different patterns than Claude. Primary adversarial model for a Claude-built codebase. |
-| **Fallback** | `claude-sonnet-4.6` | Anthropic | Use if GPT-5.4 unavailable. Log DEGRADED ASSURANCE. |
+| Performance reviewer | `(premium reasoning model)` | OpenAI | Cross-provider adversarial — GPT's training on performance-heavy codebases catches different patterns than Claude. Primary adversarial model for a Claude-built codebase. |
+| **Fallback** | `(balanced model)` | Anthropic | Use if a premium reasoning model unavailable. Log DEGRADED ASSURANCE. |
 
 ---
 

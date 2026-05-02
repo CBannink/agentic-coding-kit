@@ -1,14 +1,13 @@
 ---
 name: build
-model: gpt-5.4
 description: >
   Use when the user says /build or asks to implement, fix, refactor, or change code.
   On invoke: reads ~/.agents/instructions.md, then repo-local .codex/workflows/build.md +
   memory.md + handoffs.md. Executes approved plans with a freshness gate, then
   implement→review→verify. Falls back to plan-first behavior when no approved plan exists.
-  Orchestrator: gpt-5.4 for validation/review. Builder sub-agents: gpt-5.4 for all tasks
-  (same cost as gpt-5.3-codex, outperforms it on coding). Explorer sub-agents:
-  gpt-5.4-mini (0.33x cost, GitHub-recommended for agentic codebase exploration). Applies Superpowers verification-before-completion
+  Orchestrator: a premium reasoning model for validation/review. Builder sub-agents: a premium reasoning model for all tasks
+  (same cost as a premium reasoning model-codex, outperforms it on coding). Explorer sub-agents:
+  a fast explorer model . Applies Superpowers verification-before-completion
   (Iron Law: NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE) and
   subagent-driven-development. Uses gstack-plan-eng-review before non-trivial implementation
   and gstack-review for adversarial final pass.
@@ -147,20 +146,20 @@ If lifecycle callbacks are available in the host or harness, use these scripts a
   Source bias: gstack review specialists.
 - `build-loop-gate` — **BLOCKING GATE**
   Purpose: (1) for each finding from code-quality, modularity, or security, read the actual file+context and verify it has a real file:line citation — downgrade theoretical or already-fixed findings; (2) based on verified findings + test output, confirm pass/fail and report only confirmed blocking issues. Merges `false-positive-verifier` + `verification-gate` into a single agent.
-  Model: `claude-sonnet-4.6`
+  Model: `(balanced model)`
 
 ### Phase 7: Final Validation
 
 - `error-handling-adviser` *(skip when: diff contains no async calls, no external data sources, no null-returning APIs, and no new error paths — e.g. pure math, config-only, style-only changes)*
   Purpose: check that all new error paths are handled explicitly.
   Ask: missing try/catch on async calls? unhandled promise rejections? missing null checks on API/external responses? type narrowing holes? silent catch-and-swallow patterns?
-  Model: `claude-sonnet-4.6`
+  Model: `(balanced model)`
 
 - `performance-adviser` *(invoke when diff touches DB queries, React lists/maps, hot loops, or API handlers)*
   Purpose: judge code quality from a performance angle.
   Ask: N+1 query patterns? React re-renders missing memoization? synchronous I/O in hot paths? missing pagination on large result sets? unnecessary computation inside render or tight loops?
   Source: `~/.agents/skills/experts/performance/SKILL.md`
-  Model: `gpt-5.4` (cross-provider — different training catches different perf anti-patterns)
+  Model: `(premium reasoning model)` (cross-provider — different training catches different perf anti-patterns)
 
 - `qa-reviewer`
   Purpose: browser or user-flow validation for UI/web changes, including UI-to-backend default parity and artifact-rendering safety.
@@ -169,7 +168,7 @@ If lifecycle callbacks are available in the host or harness, use these scripts a
 - `ui-ux-expert` *(invoke when diff introduces or changes any user-visible flow, component, onboarding step, error state, navigation, or information hierarchy — not limited to .tsx files)*
   Purpose: UX flow + component structure **code review** (props, boundaries, Tailwind consistency). Does NOT use screenshots — use the visual gate below for that.
   Source: `~/.agents/skills/experts/ui-ux/SKILL.md`
-  Models: GPT-5.4 (UX/design critique — Gemini unavailable in CLI) + Claude Sonnet 4.6 (UI implementation review)
+  Models: a premium reasoning model (UX/design critique — Gemini unavailable in CLI) + Claude Sonnet 4.6 (UI implementation review)
 
 - `visual-gate` *(invoke when `frontend-detector.ps1` returns `visual_loop_recommended=true`)*
   Purpose: screenshot-based design review with UX→UI agent split. Distinct from `ui-ux-expert` (code review) — this is **pixel review**.
@@ -190,7 +189,7 @@ If lifecycle callbacks are available in the host or harness, use these scripts a
 
 - `final-verifier` — **BLOCKING GATE**
   Purpose: (1) verify that expert findings have file:line evidence and actually apply to this codebase's specific context — downgrade theoretical findings not present in the code; (2) enforce no-completion-claims-without-fresh-evidence (Iron Law). For INLINE/TARGETED: run as a single merged pass. For FULL: run as two distinct passes (expert findings first, then completion evidence).
-  Model: `claude-sonnet-4.6`
+  Model: `(balanced model)`
   Source bias: Superpowers verification-before-completion.
 
 ## Workflow
@@ -323,7 +322,7 @@ pwsh ~/.agents/tools/workflow-evidence.ps1 -SessionId "{session_id}" -AddModeDec
    - found → `pwsh ~/.agents/tools/workflow-evidence.ps1 -SessionId "{session_id}" -BuildBrief "used: {session or task}"`
    - not found → `pwsh ~/.agents/tools/workflow-evidence.ps1 -SessionId "{session_id}" -BuildBrief "no same-day brief found"`
 5. Delta exploration and synthesis:
-    - **5a — Delta explore**: Dispatch parallel agents **only for gaps not covered by the approved plan or resolved Build Brief**. Gather facts only. **Spawn with `model: "gpt-5.4-mini"`** — 0.33x cost, GitHub-recommended for agentic codebase exploration.
+    - **5a — Delta explore**: Dispatch parallel agents **only for gaps not covered by the approved plan or resolved Build Brief**. Gather facts only. **Spawn with `model: "a fast explorer model"`** — 0.33x cost, GitHub-recommended for agentic codebase exploration.
     - **5b — Delta synthesize**: only the changed assumptions, new constraints, new integration points, and updated test strategy.
      - **Context slice for implementers**: after synthesis, extract only (a) the scoped task, (b) 2–3 code patterns to follow, (c) 3–5 integration points to respect, (d) new test expectations. Do NOT embed memory.md or the full synthesis in the implementer prompt — pass only this slice.
      - Refresh `run-packet.json` with the current execution summary instead of pushing the full synthesis into every downstream prompt.
@@ -354,28 +353,26 @@ pwsh ~/.agents/tools/workflow-evidence.ps1 -SessionId "{session_id}" -AddModeDec
 8. Build loop (max 5 iterations):
    - **Recovery gate**: if the build loop hits the same error 2+ consecutive times with no forward progress, invoke agent-recovery (skill: `~/.agents/skills/agent-recovery/SKILL.md`) before the next attempt. Capture the failure, diagnose root cause, then retry with a changed approach. Do not retry blindly.
    - `implementer` builds only the scoped change, using the approved `plan.md` as the primary execution contract
-      - **All implementation tasks: `model: "gpt-5.4"`** — same 1x cost as codex, outperforms on coding; adversarial uses claude-sonnet-4.6 for cross-provider review
+      - **All implementation tasks: `model: "a premium reasoning model"`** — same 1x cost as codex, outperforms on coding; adversarial uses a balanced model for cross-provider review
    - run relevant tests and lint/build checks
-   - `spec-reviewer` checks compliance against the approved plan artifact / agreed scope — **`model: "claude-sonnet-4.6"`**
-   - `code-quality-reviewer`, `modularity-expert`, and `security-reviewer` run in parallel — **`model: "claude-sonnet-4.6"`** for `code-quality-reviewer`/`security-reviewer`; **`model: "gpt-5.4"`** for `modularity-expert`
+   - `spec-reviewer` checks compliance against the approved plan artifact / agreed scope- `code-quality-reviewer`, `modularity-expert`, and `security-reviewer` run in parallelfor `code-quality-reviewer`/`security-reviewer`;for `modularity-expert`
      - `code-quality-reviewer`: include test-quality and observability checks — is new behaviour specifically tested? Do test names describe behaviour? Are mocks accurate? Are fixtures updated? Are new test files registered? Are error/edge cases covered? Are errors logged with context?
      - `modularity-expert`: run when the diff adds or moves files, extracts helpers/classes, changes package imports/shared types, touches DI/container wiring, or introduces a new abstraction. Prompt it explicitly: "Run an anti-slop architecture-integrity pass: is each new file necessary and correctly placed? Did the change reuse existing helpers/types/functions/classes where possible? Any near-duplicate helper/type/schema? Any pass-through wrappers or speculative abstractions? Does the changed-file set still match the approved plan?"
      - `security-reviewer`: run only when spec-reviewer or the diff mentions auth, credential, token, trust boundary, injection, user input, external HTTP, DB write, file path, permission, or role. Skip if spec-reviewer classifies diff as structural-only, style-only, or test-only.
-   - `build-loop-gate` — **BLOCKING GATE** (`model: "claude-sonnet-4.6"`): (1) for each finding from code-quality, modularity, or security, read the actual file+context and verify it has a real file:line citation — downgrade if finding doesn't match actual code, already fixed in same diff, or pattern is safe in memory.md; (2) based on verified findings + test output, confirm pass/fail. Reports only confirmed blocking issues.
+   - `build-loop-gate` — **BLOCKING GATE**: (1) for each finding from code-quality, modularity, or security, read the actual file+context and verify it has a real file:line citation — downgrade if finding doesn't match actual code, already fixed in same diff, or pattern is safe in memory.md; (2) based on verified findings + test output, confirm pass/fail. Reports only confirmed blocking issues.
    - fix only confirmed blocking issues, then loop
    - **Mark implementation complete**: when all blocking issues are resolved and the build loop exits successfully: `pwsh ~/.agents/tools/state-gate.ps1 -SessionId "{session_id}" -Mark "implementation_done"`
 9. Final validation:
    - **FULL only**: run `code-quality-reviewer` again as a dedicated deep pass — prompt: "Run a deep test-quality and observability pass: are all new behaviours specifically tested by name? Are mocks accurate? Are fixtures updated? Are new test files registered? Are error/edge cases covered? Are errors logged with context (not swallowed)? Is trace context forwarded? Are key user actions logged?"
    - run `error-handling-adviser` — **INLINE**: skip. **TARGETED/FULL**: run only when diff introduces new async calls, external data sources, or null-returning APIs. Skip for pure math, config, style, or structural changes.
-   - run `qa-reviewer` for UI or behavior-heavy changes — **`model: "claude-sonnet-4.6"`**
-     - For thin local UIs or control panels over scripts/CLI flows, explicitly check that preselected defaults and allowed option sets match the underlying script/backend contract, and that artifact-derived strings are rendered as text rather than injected as HTML.
-   - run `adversarial-reviewer` for final failure-mode review — **`model: "gpt-5.4"`** — **INLINE**: skip. **TARGETED**: run only when diff touches a shared surface (routes, services, providers, packages). **FULL**: always run.
+   - run `qa-reviewer` for UI or behavior-heavy changes- For thin local UIs or control panels over scripts/CLI flows, explicitly check that preselected defaults and allowed option sets match the underlying script/backend contract, and that artifact-derived strings are rendered as text rather than injected as HTML.
+   - run `adversarial-reviewer` for final failure-mode review —— **INLINE**: skip. **TARGETED**: run only when diff touches a shared surface (routes, services, providers, packages). **FULL**: always run.
    - run conditional experts: `performance-adviser`, `ui-ux-expert` per their trigger conditions
    - **Frontend visual gate** (run before `final-verifier`):
      - `pwsh ~/.agents/tools/frontend-detector.ps1` — if `visual_loop_recommended=true`, fire the visual gate from the agent matrix above (dev-server-runner → playwright-navigator if needed → playwright-runner → ux-driver → ui-driver → visual-diff). Skip otherwise.
      - The visual gate can return `structure_ok=false` from `ux-driver`. Treat this like a blocking review finding: stop, surface to user, do NOT proceed to `final-verifier` until structure is corrected and re-screenshotted.
    - **Context budget guard**: use the global ≤200-word-per-agent rule — read each agent's result, extract a summary, then read the next. No separate summarizer agent.
-   - `final-verifier` — **BLOCKING GATE** (`model: "claude-sonnet-4.6"`): verify expert findings have file:line evidence AND enforce fresh test/build evidence before completion. For INLINE/TARGETED: single merged pass. For FULL: two distinct passes (expert findings first, then completion evidence).
+   - `final-verifier` — **BLOCKING GATE**: verify expert findings have file:line evidence AND enforce fresh test/build evidence before completion. For INLINE/TARGETED: single merged pass. For FULL: two distinct passes (expert findings first, then completion evidence).
 10. Completion gate:
    - **Verification loop** (mandatory): run the verification-loop (skill: `~/.agents/skills/verification-loop/SKILL.md`) — build → types → lint → tests → security → diff — before claiming completion. The `final-verifier` requires a VERIFICATION REPORT as evidence. Quick/standard depth unless approaching a PR (use full depth then).
    - **Mark verification complete**: after verification-loop passes: `pwsh ~/.agents/tools/state-gate.ps1 -SessionId "{session_id}" -Mark "verification_evidence"`

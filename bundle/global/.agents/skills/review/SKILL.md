@@ -1,6 +1,5 @@
 ---
 name: review
-model: gpt-5.4
 description: >
   Use when the user says /review or asks for a code review, audit, or quality check.
   On invoke: reads ~/.agents/instructions.md, then repo-local .codex/workflows/review.md +
@@ -192,11 +191,10 @@ Specialist reviewers exist for genuine blind spots — not for delegation of obv
    - **INLINE**: orchestrator reviews inline only. One false-positive-verifier at end.
    - **TARGETED**: spawn software-reviewer always. Add security/api/surface specialists conditionally per triggers in tier table. Skip testing-reviewer (embedded in software-reviewer).
    - **FULL**: spawn all core surface reviewers + applicable specialists.
-   - **Spawn all surface reviewers with `model: "claude-sonnet-4.6"`** — thorough but not adversarial.
-4. Add surface specialists when the diff shape warrants them. — **`model: "claude-sonnet-4.6"`**
-4.5. Run `consequence-agent` when the diff modifies a public interface, shared type, API route,
+   - **Spawn all surface reviewers with `model: "a balanced model"`** — thorough but not adversarial.
+4. Add surface specialists when the diff shape warrants them.4.5. Run `consequence-agent` when the diff modifies a public interface, shared type, API route,
    DI container, or cross-module contract.
-    - **Spawn with `model: "gpt-5.4"`**
+    - **Spawn with `model: "a premium reasoning model"`**
     - Skill: `~/.agents/skills/consequence/SKILL.md`
     - Purpose: surface what the diff breaks **outside the diff** — callers, consumers, test fixtures,
       contracts that will silently drift. This is distinct from adversarial (which finds bugs in
@@ -207,10 +205,10 @@ Specialist reviewers exist for genuine blind spots — not for delegation of obv
    - `caller-callee-reviewer` for direct integration points, registrations, adapters, and changed dependency edges
    - `shared-contract-reviewer` for routes, shared types, request/response shapes, public interfaces, or fixture compatibility
    - `state-flow-reviewer` when defaults, retries, state transitions, async error flow, or multi-step behavior changed
-   - **Spawn interaction reviewers with `model: "claude-sonnet-4.6"`**
+   - **Spawn interaction reviewers with `model: "a balanced model"`**
    - Each interaction reviewer receives: diff summary + relevant surface-review findings + consequence output when present
 6. Run `synthesis-reviewer` as the parent reviewer whenever 2+ reviewer outputs must be merged.
-   - **Spawn synthesis-reviewer with `model: "gpt-5.4"`**
+   - **Spawn synthesis-reviewer with `model: "a premium reasoning model"`**
    - It must:
      - merge surface and interaction findings
      - resolve contradictions between reviewers
@@ -218,8 +216,8 @@ Specialist reviewers exist for genuine blind spots — not for delegation of obv
      - decide whether changed surfaces still behave correctly together
      - produce a deduplicated candidate findings list for the final passes
 7. Run `adversarial-reviewer` as a separate pass for production-risk thinking.
-   - **Spawn adversarial-reviewer with `model: "gpt-5.4"`** — cross-provider from Claude specialist reviewers. GPT's different training distribution catches blind spots Claude specialists share. See ensemble rule in copilot-instructions.md.
-8. Run `false-positive-verifier` — **BLOCKING GATE** (`model: "claude-sonnet-4.6"`):
+   - **Spawn adversarial-reviewer with `model: "a premium reasoning model"`** — cross-provider from Claude specialist reviewers. GPT's different training distribution catches blind spots Claude specialists share. See ensemble rule in copilot-instructions.md.
+8. Run `false-positive-verifier` — **BLOCKING GATE**:
     - **No finding above Low severity may be reported to the user without verifier confirmation.**
     - The verifier must read the actual file + surrounding context for every Medium/High/Critical finding.
     - It must confirm or downgrade each finding with a direct `file:line` citation.

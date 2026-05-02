@@ -1,12 +1,11 @@
 ---
 name: analyze
-model: gpt-5.4
 description: >
   Use when the user says /analyze or asks to research, compare, investigate, or evaluate with
   multiple perspectives. On invoke: reads ~/.agents/instructions.md, then repo-local
   .codex/workflows/analyze.md + memory.md + handoffs.md. Runs multi-role explore→synthesize→verify
   loop using gstack investigate/office-hours/plan-eng-review and Superpowers discipline.
-  Orchestrator model: gpt-5.4. Explorer sub-agents: gpt-5.4-mini (0.33x cost, GitHub-recommended for agentic exploration).
+  33x cost, GitHub-recommended for agentic exploration).
   gstack source: ~/.agents/workflows/plugins/gstack/
   Superpowers source: ~/.agents/workflows/plugins/superpowers/skills/
 ---
@@ -110,25 +109,25 @@ Before spawning any agent, answer: **"Can I answer this inline from what I alrea
    - **memory.md filter**: use only entries that are repo-architectural facts. Entries that look like task progress from another instance are noise — ignore them.
    - **Session Handoff Index scan**: after loading memory.md, scan the `## Session Handoff Index` table. For each row: ask "does this session's summary overlap with what I'm analyzing?" If yes → read that handoff path before proceeding. If no → skip it entirely. Never auto-load all handoffs.
 2. Explore with 2–3 parallel fact-finding agents. Gather facts only — no conclusions yet.
-   - **Spawn explore agents with `model: "gpt-5.4-mini"`** — 0.33x cost, parallel tool-calling, codebase mapping.
+   - **Spawn explore agents with `model: "a fast explorer model"`** — 0.33x cost, parallel tool-calling, codebase mapping.
    - **Max 3 explorers.** Most tasks need 1–2. Spawn only when parallel exploration of genuinely independent areas saves time. Single-module questions → inline read, not an explorer.
 3. Synthesize findings into a shared evidence packet.
 4. Theorize with at least 2 perspective agents arguing from different trade-offs.
    - Always include: `pragmatist` + `skeptic`
-   - **Pragmatist: `model: "claude-sonnet-4.6"`** — execution realism from Claude's training.
-   - **Skeptic: `model: "gpt-5.4"`** — cross-provider by design. GPT challenges Claude's pragmatist output with genuinely different priors. Disagreement between them is signal, not noise. See ensemble rule in copilot-instructions.md.
-   - **Other theorize agents: `model: "gpt-5.4"`** — synthesis and arbitration.
+   - **Pragmatist: `model: "a balanced model"`** — execution realism from Claude's training.
+   - **Skeptic: `model: "a premium reasoning model"`** — cross-provider by design. GPT challenges Claude's pragmatist output with genuinely different priors. Disagreement between them is signal, not noise. See ensemble rule in copilot-instructions.md.
+   - **Other theorize agents: `model: "a premium reasoning model"`** — synthesis and arbitration.
    - Add `security-reliability` only when topic explicitly covers auth, trust boundaries, data handling, or production risk — not as a default for every analysis
    - Add `product-wedge` only for product direction, architecture selection, or build-vs-buy topics
 4.3. **Claim-verifier pass** — **BLOCKING GATE** before synthesis:
-   Run `claim-verifier` (`claude-sonnet-4.6`) on the combined theorize outputs.
+   Run `claim-verifier` on the combined theorize outputs.
    - For every factual claim made by pragmatist or skeptic that is disputable: verify it against code, docs, or direct evidence with a file:line citation.
    - Downgrade claims that cannot be verified: mark as "unverified assertion" in the evidence packet.
    - Do NOT let unverified claims enter the synthesis as confirmed facts.
    - Claims about tradeoffs and opinions are exempt — only factual claims about what code does, what tests cover, what APIs return, etc. need verification.
 4.5. Run `consequence-agent` when the analysis involves a proposed change, design option comparison, or
    architectural decision that touches shared interfaces, public API surfaces, or cross-module contracts.
-   - **Spawn with `model: "gpt-5.4"`** — multi-hop causal chains need premium reasoning.
+   - **Spawn with `model: "a premium reasoning model"`** — multi-hop causal chains need premium reasoning.
    - Skill: `~/.agents/skills/consequence/SKILL.md`
    - In /analyze context: run one consequence-agent per option when comparing options — this projects
      the concrete blast radius of each choice and enables evidence-based comparison.

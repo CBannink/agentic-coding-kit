@@ -1,11 +1,10 @@
 ---
 name: silent-failure-hunter
-model: claude-sonnet-4.6
 description: >
   Specialist that hunts for silent failures: empty catch blocks, swallowed errors, dangerous
   fallbacks, missing error propagation, and inadequate logging. Invoke during /build
   code-quality-reviewer phase or /review when the diff adds new async, try/catch,
-  or error-handling code. Cross-provider from GPT-5.4 builders for maximum coverage.
+  or error-handling code. Cross-provider from a premium reasoning model builders for maximum coverage.
 ---
 
 # Silent Failure Hunter

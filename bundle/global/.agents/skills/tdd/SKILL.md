@@ -1,6 +1,5 @@
 ---
 name: tdd
-model: gpt-5.4
 description: >
   Test-Driven Development workflow. Invoke when writing new features, fixing bugs, or refactoring.
   Enforces Red → Green → Refactor with git checkpoint commits and 80%+ coverage gate.
