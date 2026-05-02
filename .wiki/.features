@@ -1,0 +1,154 @@
+# Machine-readable feature index. One feature ID per line.
+# Pair with .wiki/features.md (human-readable). Update both together.
+
+# Slash commands
+slash-command/plan
+slash-command/build
+slash-command/review
+slash-command/analyze
+slash-command/investigate
+slash-command/refactor
+slash-command/redesign
+slash-command/security-review
+
+# Sub-agents
+agent/ux-driver
+agent/ui-driver
+agent/playwright-navigator
+agent/spec-reviewer
+agent/code-quality-reviewer
+agent/modularity-expert
+agent/security-reviewer
+agent/adversarial-reviewer
+agent/final-verifier
+agent/qa-reviewer
+
+# Skills
+skill/analyze
+skill/build
+skill/plan
+skill/review
+skill/investigate
+skill/refactor
+skill/redesign
+skill/security-review
+skill/ux-driver
+skill/ui-driver
+skill/playwright-navigator
+skill/playwright-explorer
+skill/design-driver
+skill/swarm
+skill/tdd
+skill/verification-loop
+skill/reflect
+skill/spec
+skill/consequence
+skill/git-archaeology
+skill/derive-repo-skills
+skill/experts/modularity
+skill/experts/performance
+skill/experts/silent-failure-hunter
+skill/experts/ui-ux
+skill/gstack-investigate
+skill/gstack-office-hours
+skill/gstack-plan-eng-review
+skill/gstack-qa
+skill/gstack-review
+
+# Tools
+tool/scope-classifier
+tool/swarm-classifier
+tool/frontend-detector
+tool/pre-session
+tool/post-session
+tool/state-gate
+tool/session-start-hook
+tool/session-end-hook
+tool/subagent-stop-hook
+tool/precompact-hook
+tool/specialist-memory-resolver
+tool/auto-consolidate
+tool/compress-memory
+tool/edit-with-lint
+tool/test-loop
+tool/detect-slop
+tool/harness-propose
+tool/harness-review
+tool/reflect-trigger
+tool/dev-server-runner
+tool/playwright-runner
+tool/visual-diff
+tool/design-fetcher
+tool/bulk-fetch-inspiration
+tool/workflow-evidence
+tool/run-packet
+tool/handoff-register
+tool/merge-claude-settings
+tool/validate-repo-skills-index
+tool/derive-repo-skills
+tool/scoped-derive-repo-skills
+
+# Installer + validators
+installer/install.ps1
+installer/install.sh
+installer/-For
+installer/-Auto
+installer/-TargetRepo
+installer/-InstallAdapter
+installer/-Upgrade
+installer/-Force
+validator/validate-bundle
+validator/doctor
+
+# Adapters
+adapter/claude-code
+adapter/opencode
+adapter/codex-cli
+adapter/copilot-cli
+adapter/kilocode
+adapter/generic
+
+# Lifecycle hooks
+lifecycle/claude-session-start
+lifecycle/claude-session-end
+lifecycle/claude-subagent-stop
+lifecycle/claude-pre-compact
+lifecycle/opencode-session-created
+lifecycle/opencode-session-deleted
+lifecycle/opencode-session-idle
+lifecycle/opencode-session-compacted
+
+# Frontend visual loop
+frontend-loop/dev-server-runner
+frontend-loop/playwright-runner
+frontend-loop/playwright-navigator
+frontend-loop/ux-driver
+frontend-loop/ui-driver
+frontend-loop/visual-diff
+frontend-loop/design-fetcher
+frontend-loop/bulk-fetch-inspiration
+frontend-loop/design-references-catalog
+
+# Self-improvement loop
+self-improvement/auto-consolidate
+self-improvement/compress-memory
+self-improvement/harness-propose
+self-improvement/harness-review
+self-improvement/reflect-trigger
+
+# Memory routing
+memory/repo-fact
+memory/repo-specialist
+memory/skill-pattern
+memory/session-only
+
+# Global always-on rules
+always-on/wiki-mandate
+always-on/iron-law-verification
+always-on/slash-command-pointer
+
+# Tests + CI
+test/pester-harness
+test/quick-harness-check
+test/mini-coding-eval
+ci/validate-workflow
