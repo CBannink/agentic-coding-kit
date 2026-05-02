@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "purpose": "Machine-readable catalog of global skill memory files and when to retrieve them. Paths are templated — install.ps1 / install.sh substitute __AGENTS_ROOT__ at install time.",
+  "skills": {
+    "build": {
+      "path": "__AGENTS_ROOT__/skills/build/memory.md",
+      "domains": ["implementation", "testing", "git", "debugging", "tooling"],
+      "retrieve_when": ["implementing", "refactoring", "planning build loops", "reusing cross-repo build patterns"]
+    },
+    "review": {
+      "path": "__AGENTS_ROOT__/skills/review/memory.md",
+      "domains": ["false-positive", "trap", "pattern", "heuristic"],
+      "retrieve_when": ["reviewing diffs", "filtering false positives", "checking recurring reviewer traps"]
+    },
+    "analyze": {
+      "path": "__AGENTS_ROOT__/skills/analyze/memory.md",
+      "domains": ["architecture", "tradeoffs", "research", "performance", "security"],
+      "retrieve_when": ["analyzing options", "architecture comparison", "cross-repo analysis patterns"]
+    },
+    "investigate": {
+      "path": "__AGENTS_ROOT__/skills/investigate/memory.md",
+      "domains": ["env", "config", "dependency", "type-drift", "flaky", "ci", "api"],
+      "retrieve_when": ["debugging unknown causes", "triaging flaky failures", "mapping symptom to root cause"]
+    },
+    "plan": {
+      "path": "__AGENTS_ROOT__/skills/plan/memory.md",
+      "domains": ["scoping", "exploration", "blast-radius", "approval"],
+      "retrieve_when": ["planning non-trivial work", "tracing dependencies before edits"]
+    },
+    "derive-repo-skills": {
+      "path": "__AGENTS_ROOT__/skills/derive-repo-skills/memory.md",
+      "domains": ["triage", "history", "routing", "skill-synthesis"],
+      "retrieve_when": ["onboarding unfamiliar repos", "deriving repo-local skills", "checking repo-skill index freshness", "synthesizing repo conventions from history and current code"]
+    }
+  }
+}

@@ -1,0 +1,22 @@
+# Skip everything that bloats the build context or that the container shouldn't carry.
+.git
+.gitignore
+.github
+**/__pycache__
+**/.venv
+**/venv
+**/node_modules
+**/dist
+**/build
+**/.archive
+*.log
+*.tmp
+*.bak.*
+*.before-agentic-kit-*
+**/.DS_Store
+**/Thumbs.db
+# Local sandbox artifacts from smoke tests
+kit-smoketest-*
+ts*-*
+elint*-*
+cm*-*

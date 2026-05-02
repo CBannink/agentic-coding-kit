@@ -1,0 +1,53 @@
+{
+  "_comment": "Hook config for the Caspar Bannink Agentic Coding Kit. NOT a complete settings.json — merge these `hooks` entries into your existing ~/.claude/settings.json. The installer can do this for you with: pwsh ~/.agents/tools/merge-claude-settings.ps1",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -File ~/.agents/tools/session-start-hook.ps1 -SessionId \"${CLAUDE_SESSION_ID}\" -Mode \"${CLAUDE_MODE:-build}\" -RepoRoot \"${CLAUDE_PROJECT_DIR}\""
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -File ~/.agents/tools/session-end-hook.ps1 -SessionId \"${CLAUDE_SESSION_ID}\" -Outcome \"session-end\""
+          },
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -File ~/.agents/tools/post-session.ps1 -SessionId \"${CLAUDE_SESSION_ID}\" -NonInteractive -AutoApprove"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -File ~/.agents/tools/subagent-stop-hook.ps1 -SessionId \"${CLAUDE_SESSION_ID}\" -AgentName \"${CLAUDE_SUBAGENT_NAME}\" -Status \"${CLAUDE_SUBAGENT_STATUS:-completed}\""
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -File ~/.agents/tools/precompact-hook.ps1 -SessionId \"${CLAUDE_SESSION_ID}\""
+          }
+        ]
+      }
+    ]
+  }
+}
