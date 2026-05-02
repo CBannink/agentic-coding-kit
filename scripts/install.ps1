@@ -250,16 +250,114 @@ if ($resolvedFor) {
         Set-Content -Path $CompanionPath -Value $kitContent -Encoding UTF8
         Write-Host "  $Label companion: $CompanionPath"
 
-        # Append include marker to existing config (if it exists, preserve content)
+        # Append the kit rules block to the existing config (if it exists,
+        # preserve content). The block is INLINE (~100 lines) so the rules are
+        # always loaded -- not a pointer the agent might skip.
         $marker = "<!-- agentic-kit:include -->"
         $endMarker = "<!-- /agentic-kit:include -->"
         $includeBlock = @"
 
 $marker
-The Caspar Bannink Agentic Coding Kit is installed. Read these rules before
-acting on /plan, /build, /review, /redesign, /security-review, or any
-agentic workflow:
-$CompanionPath
+# Caspar Bannink Agentic Coding Kit -- Inline Rules
+
+The kit is installed at ``~/.agents/``. These rules apply to EVERY session in
+EVERY repo on this device. The full reference is at ``$CompanionPath`` --
+read it for long-form details.
+
+## Workflow commands (slash-mounted; available in every repo)
+
+- ``/plan`` -- clarify scope, map files, trace blast radius, stop for approval
+- ``/build`` -- execute approved plan: implement -> review -> verify gates
+- ``/review`` -- hierarchical review (surface -> interactions -> synthesis -> adversarial -> false-positive verifier)
+- ``/analyze`` -- multi-angle research/synthesis
+- ``/investigate`` -- hypothesis-driven root-cause debugging
+- ``/refactor`` -- principle-driven restructuring with consequence tracing
+- ``/redesign`` -- greenfield UI / multi-component visual rebuild (swarm-eligible)
+- ``/security-review`` -- adversarial audit by attack class (swarm-eligible)
+
+## 4-axis classification (the harness picks; do not override casually)
+
+The kit's classifiers decide behavior. Run them before any non-trivial work:
+
+- **Scope** (``pwsh ~/.agents/tools/scope-classifier.ps1``): ISOLATED / SHARED / CRITICAL
+- **Tier** (``pwsh ~/.agents/tools/pre-session.ps1 -Mode <build|review|...> -Task "<short>"``): INLINE / TARGETED / FULL / SWARM
+- **Mode** (``pwsh ~/.agents/tools/swarm-classifier.ps1 -Task "<short>"``): sequential / swarm-review / swarm-fanout
+- **Memory** (4 buckets, see below)
+
+Override scope **upward only** (never downward) and only with concrete evidence.
+
+## Swarm gating (do not fan-out without all three)
+
+Swarms only fire when ALL hold:
+1. Verb is parallel-safe (audit, explore, redesign, port, security-review, brainstorm, bulk-migrate)
+2. Scope is fan-out-able (ISOLATED + >=4 files OR >=8 files with parallel-safe verb; CRITICAL never swarms)
+3. User opted in (``$env:AGENTS_SWARM = "1"`` OR task contains "swarm" OR ``/redesign`` / ``/security-review`` invoked)
+
+If only condition 1 holds: ``swarm-review`` (sequential implementer + parallel reviewers).
+Default: sequential.
+
+## Frontend visual gate (auto-fires in /build when UI changes)
+
+When ``pwsh ~/.agents/tools/frontend-detector.ps1`` returns ``visual_loop_recommended=true``:
+1. ``dev-server-runner.ps1`` auto-starts the dev server
+2. ``playwright-navigator`` discovers route+auth+selectors for any unmapped screen
+3. ``playwright-runner.ps1`` captures before/after screenshots
+4. ``ux-driver`` runs first (structure: hierarchy/flow/density/a11y) -- BLOCKS if ``structure_ok=false``
+5. ``ui-driver`` runs only after UX passes (visuals: typography/color/spacing/slop)
+6. ``visual-diff.ps1`` confirms changes, no regressions
+7. ``ux-driver`` and ``ui-driver`` read ``~/.agents/context/design-references.md`` and the local cache at ``~/.agents/inspiration/`` (populated by ``bulk-fetch-inspiration.ps1``)
+
+## Memory routing (4 buckets, explicit rules)
+
+| Bucket | Target | Use when |
+|---|---|---|
+| REPO-FACT | ``.codex/context/memory.md`` | Durable repo architecture, schema, verified commands |
+| REPO-SPECIALIST | ``.codex/context/agent-memory/{role}.md`` | Repo-local guidance for one specialist role only |
+| SKILL-PATTERN | ``~/.agents/skills/{skill}/memory.md`` | Cross-repo workflow pattern with recurring evidence |
+| SESSION-ONLY | ``${AGENTS_SESSION_ROOT}/{id}/handoffs.md`` | Task progress, scratch, session-private notes |
+
+Specialist memory is **lazy-loaded via**:
+``pwsh ~/.agents/tools/specialist-memory-resolver.ps1 -SessionId <id> -Role <role> -RepoRoot <repo>``
+If ``found=true``, embed its ``prompt_block`` directly in the spawned subagent prompt.
+**Never** auto-load the directory at session start.
+
+## Wiki convention (mandatory)
+
+``.wiki/features.md`` is the SST for user-visible capabilities. If the change adds or
+modifies a CLI command, API endpoint, UI page, evaluation mode, adapter, or validator:
+update ``.wiki/features.md`` AND ``.wiki/.features``. Surgical edits only -- do not
+rewrite. Skip only for pure refactors, test-only, bug fixes restoring documented
+behavior, or perf with no UX change.
+
+## Verification gate (Iron Law)
+
+NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE. Run the test, read the
+output, then claim. "Should work now" is never acceptable. Use:
+- ``pwsh ~/.agents/tools/test-loop.ps1 -SessionId <id> -Command "<test cmd>"`` -- detects 3-same-signature failures = ``stuck``
+- ``pwsh ~/.agents/tools/edit-with-lint.ps1 -Path <file> -Find <s> -Replace <s>`` -- atomic write + revert on syntax fail
+
+## Session lifecycle (auto-fires on Claude Code + OpenCode)
+
+- **pre-session.ps1** -- emits BRIEF block with scope/tier/swarm/reflections
+- **state-gate.ps1** -- agent marks ``context_loaded`` -> ``implementation_done`` -> ``verification_evidence`` -> ``handoff_written``
+- **post-session.ps1** -- gate check, auto-consolidate, compress-memory, harness-propose, reflect-trigger
+
+Under Codex/Copilot/Kilo/generic: call these manually.
+
+## Tool index (most-used)
+
+- Classification: ``scope-classifier.ps1``, ``swarm-classifier.ps1``, ``frontend-detector.ps1``
+- Lifecycle: ``pre-session.ps1``, ``post-session.ps1``, ``state-gate.ps1``
+- Edit/test: ``edit-with-lint.ps1``, ``test-loop.ps1``
+- Memory: ``specialist-memory-resolver.ps1``, ``auto-consolidate.ps1``, ``compress-memory.ps1``
+- Self-improvement: ``harness-propose.ps1``, ``harness-review.ps1``, ``reflect-trigger.ps1``
+- Frontend: ``dev-server-runner.ps1``, ``playwright-runner.ps1``, ``visual-diff.ps1``, ``design-fetcher.ps1``, ``bulk-fetch-inspiration.ps1``
+- Evidence: ``workflow-evidence.ps1``, ``run-packet.ps1``
+
+## Quick reference
+
+For long-form details (full agent matrix, per-tier policy, edge cases):
+``$CompanionPath``
 $endMarker
 "@
 
