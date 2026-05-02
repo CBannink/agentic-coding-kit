@@ -1,15 +1,22 @@
 ﻿#!/usr/bin/env pwsh
 # install.ps1 -- Caspar Bannink Agentic Coding Kit installer.
 #
-# Usage:
-#   pwsh ./install.ps1 -HomeRoot $HOME
-#   pwsh ./install.ps1 -TargetRepo C:\path\to\repo -InstallRepoTemplate
-#   pwsh ./install.ps1 -TargetRepo C:\path\to\repo -InstallAdapter claude
-#   pwsh ./install.ps1 -TargetRepo C:\path\to\repo -InstallAdapter all
+# Quick start (most users):
+#   pwsh ./install.ps1 -For claude               # one CLI, device-wide
+#   pwsh ./install.ps1 -For "claude,opencode"    # multiple
+#   pwsh ./install.ps1 -For all                  # everything
+#   pwsh ./install.ps1 -Auto                     # detect CLIs on PATH and install for those
+#
+# Per-repo (advanced):
+#   pwsh ./install.ps1 -TargetRepo C:\path\to\repo -InstallRepoTemplate -InstallAdapter claude
+#   pwsh ./install.ps1 -TargetRepo C:\path\to\repo -InstallRepoTemplate -InstallAdapter all
+#
+# Upgrade (preserves customizations via backup):
+#   pwsh ./install.ps1 -Upgrade -For claude
 #
 # Adapters: claude | codex | copilot | opencode | kilocode | generic | all
-# `generic` writes a tool-neutral AGENTS.md (works with Aider, Cline, Cursor, etc.).
-# `all` writes every adapter's instruction file (they coexist; CLIs pick what they read).
+# `generic` writes a tool-neutral AGENTS.md (Aider, Cline, Cursor, etc. read it).
+# `all` writes every adapter's files (they coexist; CLIs pick what they recognize).
 
 param(
     [string]$HomeRoot = $HOME,
@@ -17,6 +24,16 @@ param(
     [switch]$InstallGlobal = $true,
     [switch]$InstallRepoTemplate,
     [string]$InstallAdapter = "",
+    # The simple path: -For <cli-list> installs global assets + device-wide
+    # config for the named CLIs. Same as -DeviceWide; new name is clearer.
+    # Examples:
+    #   -For claude               # one CLI
+    #   -For "claude,opencode"    # multiple
+    #   -For all                  # all 5 supported CLIs
+    [string]$For = "",
+    # Detect which CLIs are on PATH and install for those automatically.
+    [switch]$Auto,
+    # Legacy flag, kept for back-compat. Same behavior as -For.
     [string]$DeviceWide = "",
     [switch]$Upgrade,
     [switch]$Force
@@ -142,20 +159,53 @@ if ($TargetRepo -and $InstallAdapter) {
     }
 }
 
-if (-not $TargetRepo -and -not $DeviceWide) {
+if (-not $TargetRepo -and -not $DeviceWide -and -not $For -and -not $Auto) {
     Write-Host ""
-    Write-Host "Global install complete."
-    Write-Host "Next: bootstrap a repo with:"
+    Write-Host "Global assets installed at $AgentsRoot."
+    Write-Host ""
+    Write-Host "To wire the kit into a CLI on this device, re-run with -For or -Auto:"
+    Write-Host "  pwsh ./install.ps1 -For claude                     # one CLI"
+    Write-Host "  pwsh ./install.ps1 -For 'claude,opencode'           # multiple"
+    Write-Host "  pwsh ./install.ps1 -For all                        # all five"
+    Write-Host "  pwsh ./install.ps1 -Auto                            # detect CLIs on PATH"
+    Write-Host ""
+    Write-Host "Or bootstrap a single repo:"
     Write-Host "  pwsh ./install.ps1 -TargetRepo <path> -InstallRepoTemplate -InstallAdapter all"
-    Write-Host "Or install device-wide with:"
-    Write-Host "  pwsh ./install.ps1 -DeviceWide all"
+}
+
+# ── Resolve which CLIs to install for (-For, -Auto, -DeviceWide all converge) ─
+# -For is the new canonical flag. -DeviceWide is kept as an alias.
+# -Auto detects which CLIs are on PATH and installs for those.
+$resolvedFor = ""
+if ($For)        { $resolvedFor = $For }
+elseif ($DeviceWide) { $resolvedFor = $DeviceWide }
+elseif ($Auto) {
+    $detected = @()
+    if (Get-Command claude -ErrorAction SilentlyContinue)   { $detected += "claude" }
+    if (Get-Command opencode -ErrorAction SilentlyContinue) { $detected += "opencode" }
+    if (Get-Command codex -ErrorAction SilentlyContinue)    { $detected += "codex" }
+    if (Get-Command gh -ErrorAction SilentlyContinue) {
+        # Copilot CLI is `gh copilot ...`. If gh is present, offer copilot adapter.
+        $detected += "copilot"
+    }
+    if ($detected.Count -gt 0) {
+        $resolvedFor = $detected -join ","
+        Write-Host ""
+        Write-Host "Auto-detected CLIs on PATH: $($detected -join ', ')"
+        Write-Host "Installing for those. Pass -For <list> to override."
+    } else {
+        Write-Host ""
+        Write-Host "Auto-detect found no supported CLI on PATH."
+        Write-Host "Pass -For <claude|codex|copilot|opencode|kilocode|all> explicitly."
+    }
 }
 
 # ── Device-wide install ──────────────────────────────────────────────────────
 # Writes companion files (~/.claude/agentic-kit.md etc.) so the kit applies to
 # ANY repo on this device, not just one. Appends a single include marker to
 # existing CLAUDE.md / AGENTS.md / prompt.md so user instructions are preserved.
-if ($DeviceWide) {
+if ($resolvedFor) {
+    $DeviceWide = $resolvedFor
     $sharedBody = Join-Path $AdaptersRoot "_shared/AGENT-INSTRUCTIONS.md"
     if (-not (Test-Path $sharedBody)) {
         Write-Error "Shared instructions not found at $sharedBody"

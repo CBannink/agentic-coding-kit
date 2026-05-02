@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # install.sh -- Caspar Bannink Agentic Coding Kit installer (Mac/Linux/WSL).
 #
-# Usage:
+# This is the bootstrap path for systems that don't have pwsh yet.
+# Once pwsh is installed, prefer install.ps1's cleaner -For / -Auto API:
+#   pwsh ./install.ps1 -For claude
+#   pwsh ./install.ps1 -For all
+#   pwsh ./install.ps1 -Auto
+#
+# Bash version usage:
 #   ./install.sh                                    # global install only
 #   ./install.sh -t /path/to/repo -r                # + repo template
 #   ./install.sh -t /path/to/repo -r -a claude      # + Claude Code adapter

@@ -24,36 +24,57 @@ It gives you:
 
 ## Install
 
-### 1. Install global assets
+### Quick start — pick the CLI you use, run one command
 
-```bash
-pwsh ./scripts/install.ps1            # any platform with pwsh
-./scripts/install.sh                  # Mac/Linux/WSL
+```powershell
+# Use Claude Code
+pwsh ./scripts/install.ps1 -For claude
+
+# Use OpenCode
+pwsh ./scripts/install.ps1 -For opencode
+
+# Use Codex CLI
+pwsh ./scripts/install.ps1 -For codex
+
+# Use multiple
+pwsh ./scripts/install.ps1 -For "claude,opencode"
+
+# Or just install for everything supported (Claude, Codex, Copilot, OpenCode, Kilo Code)
+pwsh ./scripts/install.ps1 -For all
+
+# Or auto-detect what's on your PATH and install for those
+pwsh ./scripts/install.ps1 -Auto
 ```
 
-This populates `~/.agents/` with everything: skills, tools, protocols, and workflow plugins (gstack/superpowers/caspar-workflows referenced by skills). Renders `skill-memory-index.json` from a template with your absolute paths. Pre-flight runs `validate-bundle.ps1` and refuses to install a broken kit (override with `-Force`).
+Each `-For <cli>` does three things:
 
-### 2. Bootstrap a target repo
+1. **Populates `~/.agents/`** with skills, tools, protocols, and the workflow plugins skills reference (gstack / superpowers / caspar-workflows). Renders `skill-memory-index.json` with absolute paths.
+2. **Writes the kit instructions companion** to that CLI's config dir (e.g. `~/.claude/agentic-kit.md`, `~/.config/opencode/agentic-kit.md`).
+3. **Wires lifecycle automation** — for Claude Code merges hooks into `~/.claude/settings.json`; for OpenCode installs the plugin at `~/.config/opencode/plugins/agentic-kit.ts`; for Copilot the lifecycle is baked into the instructions file.
 
-```bash
-# All adapters (they coexist; CLIs read whichever file they recognize)
-pwsh ./scripts/install.ps1 -TargetRepo /path/to/repo -InstallRepoTemplate -InstallAdapter all
+Pre-flight runs `validate-bundle.ps1` and refuses to install a broken kit (override with `-Force`).
 
-# Just one adapter (recommended unless you actually use multiple CLIs)
+After install, restart your CLI. Verify with:
+
+```powershell
+pwsh ./scripts/doctor.ps1   # 17-check health report
+```
+
+### Per-repo bootstrap (advanced — usually you don't need this)
+
+If you want the kit's repo-template (`.codex/context/`, `.codex/workflows/`, `.wiki/`) dropped into a specific repo:
+
+```powershell
 pwsh ./scripts/install.ps1 -TargetRepo /path/to/repo -InstallRepoTemplate -InstallAdapter claude
 ```
 
-Adapter values: `claude` | `codex` | `copilot` | `opencode` | `kilocode` | `generic` | `all`.
+### Upgrade safely
 
-### 3. (Claude Code only) Confirm hook wiring
-
-`-InstallAdapter claude` runs `merge-claude-settings.ps1` automatically. It additively merges the kit's `SessionStart` / `SessionEnd` / `SubagentStop` / `PreCompact` hooks into `~/.claude/settings.json`, preserving your existing keys and writing a timestamped backup. Restart Claude Code for hooks to load.
-
-To verify:
-
-```bash
-pwsh ~/.agents/tools/merge-claude-settings.ps1 -DryRun   # show what would change
+```powershell
+pwsh ./scripts/install.ps1 -Upgrade -For all
 ```
+
+The `-Upgrade` flag moves your existing `~/.agents/` to a timestamped backup before overwriting. Hand-merge any customizations afterward.
 
 ## Adapter matrix — what auto-fires per CLI
 
