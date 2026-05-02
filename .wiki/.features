@@ -11,6 +11,7 @@ slash-command/refactor
 slash-command/redesign
 slash-command/security-review
 slash-command/wiki-init
+slash-command/codex-init
 
 # Sub-agents
 agent/ux-driver
@@ -28,6 +29,7 @@ agent/qa-reviewer
 skill/analyze
 skill/build
 skill/wiki-init
+skill/codex-init
 skill/plan
 skill/review
 skill/investigate

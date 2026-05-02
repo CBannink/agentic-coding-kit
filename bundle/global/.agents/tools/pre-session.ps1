@@ -293,6 +293,17 @@ if ($wikiExists) {
     Write-Host "${YELLOW}        The kit's always-on rules require .wiki/features.md before non-trivial work.${RESET}"
     Write-Host "${YELLOW}        Run /wiki-init to bootstrap it from real code evidence.${RESET}"
 }
+
+# Codex tree detection -- the kit's runtime memory artifacts. Skills assume
+# .codex/context/memory.md and friends exist; without them they no-op.
+$codexExists = Test-Path ".codex/context/memory.md"
+if ($codexExists) {
+    Write-Host "  Codex: .codex/context/memory.md exists"
+} else {
+    Write-Host "${YELLOW}  CODEX: MISSING -- .codex/ runtime memory tree not initialized in this repo.${RESET}"
+    Write-Host "${YELLOW}         Skills (/build, /plan, /review) will silently skip context-load steps.${RESET}"
+    Write-Host "${YELLOW}         Run /codex-init to bootstrap memory.md + handoffs.md + agent-memory/.${RESET}"
+}
 if ($buildBriefPath)    { Write-Host "  Prior build brief from today ($buildBriefSource): $buildBriefPath" }
 
 # ── Step 3.9: Parallel Instance Check ───────────────────────────────────────────
@@ -328,6 +339,7 @@ $brief = @"
 - TIER_REC: $tierRec ($tierReason -- orchestrator may override UPWARD only)
 - REFLECT_NEEDED: $(if ($reflectNeeded) { "YES ($reflectCount unaddressed entries -- run /reflect first)" } else { "no ($reflectCount entries)" })
 - WIKI: $(if ($wikiExists) { "yes -- read .wiki/index.md FIRST (TOC, ≤100 lines), then use wiki-resolver.ps1 for on-demand section loading. NEVER bulk-read .wiki/sections/." } else { "MISSING -- run /wiki-init to bootstrap (mandatory per global rules)" })
+- CODEX: $(if ($codexExists) { "yes -- read .codex/context/memory.md + handoffs.md + agent-memory/shared.md per skill 'Load Context First' steps. Use specialist-memory-resolver.ps1 for per-role memory." } else { "MISSING -- run /codex-init to bootstrap repo memory tree (memory.md + handoffs index + agent-memory/)" })
 - BUILD_BRIEF: $(if ($buildBriefPath) { "YES -- read handoff at $buildBriefPath BEFORE planning (source: $buildBriefSource)" } else { "none" })
 - PARALLEL_INSTANCE: $(if ($parallelWarning) { $parallelWarning } else { "none detected" })
 - STATE_FILE: $(if ($stateInitialized) { Join-Path (Get-SessionDir $SessionId) "state.json" } else { "not initialized for /$Mode" })
