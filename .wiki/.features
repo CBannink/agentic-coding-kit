@@ -12,6 +12,7 @@ slash-command/redesign
 slash-command/security-review
 slash-command/wiki-init
 slash-command/kit-init
+slash-command/kit-migrate
 
 # Sub-agents
 agent/ux-driver
@@ -30,6 +31,7 @@ skill/analyze
 skill/build
 skill/wiki-init
 skill/kit-init
+skill/kit-migrate
 skill/plan
 skill/review
 skill/investigate
