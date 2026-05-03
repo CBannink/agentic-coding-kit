@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 # pre-session.ps1
 # Run BEFORE opening a /plan, /build, /review, /analyze, /investigate, or /refactor session.
 # Does scope classification, state initialization, handoff index scan,
@@ -82,7 +82,7 @@ if ($Mode -eq "build" -or $Mode -eq "refactor") {
     } elseif ($scope -eq "SHARED") {
         $tierRec = "TARGETED"; $tierReason = "SHARED scope, manageable file count"
     } elseif ($scope -eq "ISOLATED" -and $fileCount -le 3) {
-        $tierRec = "INLINE";   $tierReason = "ISOLATED scope, <= 3 files"
+        $tierRec = "INLINE";   $tierReason = "ISOLATED scope, 1-3 files"
     } else {
         $tierRec = "TARGETED"; $tierReason = "ISOLATED scope, 4+ files"
     }
@@ -338,7 +338,7 @@ $brief = @"
 - SCOPE: $scope ($scopeReason)
 - TIER_REC: $tierRec ($tierReason -- orchestrator may override UPWARD only)
 - REFLECT_NEEDED: $(if ($reflectNeeded) { "YES ($reflectCount unaddressed entries -- run /reflect first)" } else { "no ($reflectCount entries)" })
-- WIKI: $(if ($wikiExists) { "yes -- read .wiki/index.md FIRST (TOC, ≤100 lines), then use wiki-resolver.ps1 for on-demand section loading. NEVER bulk-read .wiki/sections/." } else { "MISSING -- run /wiki-init to bootstrap (mandatory per global rules)" })
+- WIKI: $(if ($wikiExists) { "yes -- read .wiki/index.md FIRST (TOC, ~100 lines), then use wiki-resolver.ps1 for on-demand section loading. NEVER bulk-read .wiki/sections/." } else { "MISSING -- run /wiki-init to bootstrap (mandatory per global rules)" })
 - KIT: $(if ($codexExists) { "yes -- read .kit/context/memory.md + handoffs.md + agent-memory/shared.md per skill 'Load Context First' steps. Use specialist-memory-resolver.ps1 for per-role memory." } else { "MISSING -- run /kit-init to bootstrap repo memory tree (memory.md + handoffs index + agent-memory/)" })
 - BUILD_BRIEF: $(if ($buildBriefPath) { "YES -- read handoff at $buildBriefPath BEFORE planning (source: $buildBriefSource)" } else { "none" })
 - PARALLEL_INSTANCE: $(if ($parallelWarning) { $parallelWarning } else { "none detected" })
