@@ -30,8 +30,12 @@ Same operating rules as the rest of the kit; see
 - `/analyze` — multi-angle synthesis
 - `/investigate` — root-cause-first debugging
 - `/refactor` — principle-driven restructuring
-- `/redesign` — multi-component UI work (swarm-eligible)
+- `/redesign` — multi-component UI work (swarm-eligible). Locks aesthetic via `aesthetic-director` if no `DESIGN.md` exists.
 - `/security-review` — adversarial audit (swarm-eligible)
+
+## Frontend aesthetic direction
+
+Greenfield UI work in `/build` or `/redesign` automatically checks for `DESIGN.md`. When absent, the `aesthetic-director` skill runs first — proposes 2-3 named directions, user picks, writes a locked `DESIGN.md` (typography, OKLCH palette, density, motion, banned-defaults list). `ux-driver` and `ui-driver` read this and refuse to silently default. Without a locked direction, parallel design agents converge on the same Inter + purple-gradient + rounded-2xl LLM default. The 5-line shortcut: paste an `<always_use_X_theme>` block into this `CLAUDE.md`.
 
 ## File layout to respect
 

@@ -15,6 +15,10 @@ for the canonical body.
 5. Default sequential. Swarms require parallel-safe verb + fan-out-able
    scope + explicit opt-in (`--swarm` or task containing "swarm").
 
+## Frontend aesthetic direction
+
+Greenfield UI in `/build` or `/redesign` checks for `DESIGN.md` first. If missing, `aesthetic-director` skill runs — proposes 2-3 named directions (Swiss Minimalism, Editorial, Brutalism, Glassmorphism, Dark OLED Luxury, etc.), user picks, locks `DESIGN.md` with typography + OKLCH palette + density + motion + a mandatory **banned-defaults list**. `ux-driver` and `ui-driver` then read this; they refuse to silently substitute generic taste when DESIGN.md is missing. Without it, parallel design agents converge on the same LLM default look. Lightweight alternative: paste a 5-line `<always_use_X_theme>` block into this `AGENTS.md`.
+
 ## OpenCode-specific notes
 
 - OpenCode honors AGENTS.md as the primary system prompt and supports

@@ -32,8 +32,12 @@ AGENTS.md / system-prompt files).
 - `/analyze` — multi-angle synthesis
 - `/investigate` — root-cause-first debugging
 - `/refactor` — principle-driven restructuring with consequence tracing
-- `/redesign` — multi-component UI work (parallel design agents per component)
+- `/redesign` — multi-component UI work (parallel design agents per component). Locks aesthetic direction via `aesthetic-director` skill if `DESIGN.md` is missing — prevents parallel agents from each defaulting to LLM aesthetic (Inter + purple gradient + rounded cards) and producing variations of one boring look.
 - `/security-review` — adversarial audit (parallel attack-class agents)
+
+## Frontend aesthetic direction
+
+When `/build` or `/redesign` introduces greenfield UI, the kit checks for `DESIGN.md` first. If missing, the `aesthetic-director` skill runs as Step 0 of the visual gate — proposes 2-3 named directions (Swiss Minimalism, Editorial, Brutalism, Glassmorphism, Dark OLED Luxury, Cyberpunk, etc.), user picks, locks DESIGN.md with typography pairing + OKLCH palette + density + motion + a mandatory **banned-defaults list**. Downstream `ux-driver` and `ui-driver` read DESIGN.md and refuse to silently substitute generic taste when it's missing. Lightweight alternative: paste a 5-line `<always_use_X_theme>` block in CLAUDE.md / AGENTS.md and skip the skill.
 
 ## Session lifecycle
 
