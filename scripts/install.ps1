@@ -270,91 +270,76 @@ if ($resolvedFor) {
         $block = @"
 
 $marker
-## Caspar Bannink Agentic Coding Kit (always-on rules)
+## Caspar Bannink Agentic Coding Kit (augmentation rules)
 
 This device has the kit installed. Skills, sub-agents, and slash commands
-are auto-discovered from your CLI's native dirs. **These rules are
-authoritative -- they OVERRIDE any repo-specific conventions for
-lifecycle, memory routing, and session handoffs.** Repo-specific files
-(``.kit/workflows/``, repo CLAUDE.md additions) augment the domain-
-specific build/test/review commands; they do NOT replace the kit's
-lifecycle plumbing.
+are auto-discovered from your CLI's native dirs. The kit also installs
+PreToolUse / PostToolUse hooks that enforce a small set of rules at the
+**protocol layer** (cannot be skipped by the agent).
 
-### Precedence (when in conflict)
+### Precedence: REPO WINS
 
-- **Kit wins** on: session handoffs, memory routing, lifecycle scripts,
-  classification (scope/tier/mode), wiki conventions, verification gates.
-- **Repo wins** on: domain-specific build/test/lint/deploy commands,
-  feature flags, code review categories specific to the project.
-- When uncertain: kit's rules are the global default; repo can SUGGEST
-  augmentations via ``.kit/workflows/*.md`` but cannot override.
+- **Repo conventions take precedence** when they conflict with the kit's
+  defaults. If your repo has its own pipeline (``hand_off.md``,
+  ``agents/handoffs/``, ``memory/MEMORY.md``, project-scoped
+  ``.claude/agents/``, etc.), follow it. The kit augments; it does not
+  replace.
+- The kit's runtime artifacts (``~/.agents/session-state/``) are written
+  ALONGSIDE your repo's pipeline as cross-repo audit / memory continuity --
+  not as the source of truth. Your repo's files remain canonical.
+- Skills + sub-agents + slash commands + hooks are the kit's contribution.
+  Use them where they fit; ignore them where the repo has better.
 
-### Always-on rules
+### What the kit enforces (via hooks, not prose)
 
-1. **``.wiki/features.md`` is mandatory.** Every repo MUST maintain
-   ``.wiki/features.md`` + ``.wiki/.features``. Update on ANY change
-   adding/modifying a CLI command, API endpoint, UI page, evaluation
-   mode, adapter, or validator. Surgical edits only. Skip only for pure
-   refactors, test-only, bug fixes restoring documented behavior, or
-   perf with no UX change. If ``.wiki/`` does not exist, create it via
-   ``/wiki-init`` before non-trivial work.
+These rules fire deterministically because they're protocol-layer hooks
+(``settings.json`` / OpenCode plugin events). They cannot be skipped by
+the agent under conversational pressure -- they fire at every tool call:
 
-2. **``.kit/`` is the kit's runtime memory tree.** ``.kit/context/memory.md``
-   (durable repo facts), ``.kit/context/handoffs.md`` (cross-session index),
-   ``.kit/context/agent-memory/{role}.md`` (specialist memory). If
-   ``.kit/`` does not exist, create it via ``/kit-init`` before non-
-   trivial work. Repos may have ``hand_off.md`` / ``agents/handoffs/`` /
-   ``memory/MEMORY.md`` from prior conventions -- treat those as
-   secondary mirrors, NOT the source of truth. The kit's tree is canonical.
+- **Dangerous filesystem ops blocked**: ``rm -rf /``, ``sudo rm``,
+  ``chmod 777``, redirects to ``/etc/`` -- bash dispatcher refuses.
+- **Force-push to main/master blocked** without explicit confirmation.
+- **Git commit requires verification evidence**: bash dispatcher checks
+  the session's ``state.json`` for ``verification_evidence`` gate. If
+  unmarked, commit is blocked with a clear message.
+- **Test commands auto-mark verification**: when you run ``npm test`` /
+  ``pytest`` / etc. and exit code is 0, the gate marks itself. No agent
+  thought required.
+- **First-edit-per-file reminder**: surfaces a recommendation to run
+  ``wiki-resolver.ps1`` before editing source code for the first time
+  this session. (Soft warn, does not block.)
+- **Wiki-existence check**: source-code edits in a repo without
+  ``.wiki/index.md`` are blocked with a ``/wiki-init`` suggestion.
+- **Task tool auto-records sub-agents**: PreToolUse on Task auto-runs
+  ``state-gate.ps1 -AddAgent`` and ``workflow-evidence.ps1 -AddAgent``.
+  The orchestrator never has to think about bookkeeping.
 
-3. **Session handoffs ALWAYS go to ``~/.agents/session-state/{id}/handoffs.md``**
-   (private, per-session). Repo-level handoff files are mirrors at most.
+All hook enforcement respects ``KIT_DISABLED_HOOKS`` env var
+(comma-separated rule names) for opt-out per-rule, e.g.:
+``KIT_DISABLED_HOOKS=wiki-existence,git-commit-verify``
 
-4. **Iron Law: no completion claims without fresh verification evidence.**
-   Run the test, read the output, then claim. "Should work" / "looks
-   correct" / "probably passes" are forbidden.
+### Soft conventions (not enforced; suggested when applicable)
 
-5. **Run lifecycle scripts at session boundaries (mandatory)**:
-   - At start: ``pwsh ~/.agents/tools/state-init.ps1`` (auto-fired by Claude
-     SessionStart / OpenCode session.created hooks; manual elsewhere).
-   - **The ORCHESTRATOR (parent agent) runs per-subagent calls** --
-     ``state-gate.ps1 -AddAgent`` and ``workflow-evidence.ps1 -AddAgent`` --
-     when it spawns a sub-agent. **Sub-agents do NOT self-register.** This
-     is a hard rule, not a judgment call: orchestrator owns lifecycle
-     bookkeeping; sub-agents own their work product only.
-   - Mark gates as you progress: ``-Mark "context_loaded"`` →
-     ``"implementation_done"`` → ``"verification_evidence"`` → ``"handoff_written"``.
-     Gate marking is also orchestrator-side -- sub-agents report progress
-     in their handoff body, not by marking gates themselves.
-   - At end: ``pwsh ~/.agents/tools/post-session.ps1`` (auto-fired by
-     Claude SessionEnd / OpenCode session.deleted hooks; manual elsewhere).
-   These are MANDATORY even when a repo has its own pipeline. The kit's
-   evidence is what makes cross-repo audit + self-improvement loop work.
-   "Sub-agent skipped because it's a small task" is NOT a valid excuse --
-   the orchestrator runs it regardless of task size.
+These are descriptive, not enforced. Skip them when the repo has its own
+better answer:
 
-6. **Specialist memory routing**: when spawning role-specific subagents
-   (security-reviewer, code-quality-reviewer, modularity-expert, etc.),
-   resolve repo-local context via
-   ``pwsh ~/.agents/tools/specialist-memory-resolver.ps1 -Role <name>``.
-   Embed its returned ``prompt_block`` in the subagent prompt. Don't
-   hand-roll role memory.
-
-7. **Wiki context pre-flight**: before spawning ANY explorer / reviewer /
-   implementer, run ``pwsh ~/.agents/tools/wiki-resolver.ps1`` and pass
-   its ``prompt_block`` to every subagent. Never bulk-read ``.wiki/sections/``.
-
-8. **Use the kit's workflow commands** when applicable: ``/plan``
-   ``/build`` ``/review`` ``/analyze`` ``/investigate`` ``/refactor``
-   ``/redesign`` ``/security-review`` ``/wiki-init`` ``/kit-init``.
-   Prefer them over ad-hoc work.
+- ``.wiki/features.md`` documents user-visible capabilities -- useful for
+  cross-session memory. Run ``/wiki-init`` to bootstrap.
+- ``.kit/context/memory.md`` for durable repo facts the kit's tools can
+  read. Run ``/kit-init`` to bootstrap.
+- Skills auto-discover via the host CLI -- type ``/<skill>`` or let the
+  CLI surface them by description matching.
 
 ### Opt-out
 
-If a repo genuinely needs to bypass the kit's lifecycle (rare), add
+If a repo genuinely needs to bypass kit hooks (rare), add
 ``<!-- agentic-kit:disable-lifecycle -->`` to its ``CLAUDE.md`` /
-``AGENTS.md`` and the kit's hooks/skills will respect it. Memory routing
-+ wiki conventions still apply.
+``AGENTS.md`` -- the SessionStart hook will read this and short-circuit
+the lifecycle scripts. Hook-layer rules still apply but become no-ops
+when their gates aren't initialized.
+
+For per-rule opt-out: set ``KIT_DISABLED_HOOKS`` env var. Each hook's
+script-level documentation lists its rule names.
 
 ### Long-form reference
 

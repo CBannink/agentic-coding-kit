@@ -1,5 +1,5 @@
 {
-  "_comment": "Hook config for the Caspar Bannink Agentic Coding Kit. NOT a complete settings.json — merge these `hooks` entries into your existing ~/.claude/settings.json. The installer can do this for you with: pwsh ~/.agents/tools/merge-claude-settings.ps1. The commands route through ~/.agents/tools/_run-ps.sh which picks pwsh-or-powershell so hooks work whether pwsh 7+ is installed or only Windows PowerShell 5.1.",
+  "_comment": "Hook config for the Caspar Bannink Agentic Coding Kit. Includes both lifecycle hooks (SessionStart/End/SubagentStop/PreCompact) AND PreToolUse/PostToolUse enforcement hooks (bash dispatcher, write gateguard, task orchestrator gate, verify-mark). Pattern from affaan-m/everything-claude-code + disler/claude-code-hooks-mastery -- protocol-layer enforcement that fires deterministically. Universal opt-out via KIT_DISABLED_HOOKS env var (comma-separated rule names). All hooks route through ~/.agents/tools/_run-ps.sh which picks pwsh or powershell.",
   "hooks": {
     "SessionStart": [
       {
@@ -45,6 +45,46 @@
           {
             "type": "command",
             "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/precompact-hook.ps1 -SessionId \"${CLAUDE_SESSION_ID}\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/hooks/pretool-bash-dispatcher.ps1"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/hooks/pretool-write-gateguard.ps1"
+          }
+        ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/hooks/pretool-task-orchestrator-gate.ps1"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/hooks/posttool-bash-verify-mark.ps1"
           }
         ]
       }

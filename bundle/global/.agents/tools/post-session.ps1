@@ -843,11 +843,19 @@ if (Test-Path $reflectTrigger) {
 # if there are CRITICAL/HIGH fails. Without this, compliance data only
 # exists when the user manually runs the harness -- which means it doesn't.
 $complianceScript = $null
-foreach ($candidate in @(
-    (Join-Path $HOME "Downloads/caspar_bannink_agentic_coding/caspar_bannink_agentic_coding/scripts/test-compliance.ps1"),
-    (Resolve-Path -Path "scripts/test-compliance.ps1" -ErrorAction SilentlyContinue),
-    (Join-Path (Split-Path -Parent $TOOLS) "../../scripts/test-compliance.ps1")
-)) {
+# Discovery (no hardcoded user paths): env var override -> cwd -> kit-installed
+# location -> walk up from $TOOLS looking for the kit checkout.
+$candidates = @()
+if ($env:KIT_REPO_ROOT) { $candidates += (Join-Path $env:KIT_REPO_ROOT "scripts/test-compliance.ps1") }
+$candidates += (Resolve-Path -Path "scripts/test-compliance.ps1" -ErrorAction SilentlyContinue)
+$candidates += (Join-Path $HOME ".agents/scripts/test-compliance.ps1")
+$walkRoot = Split-Path -Parent $TOOLS
+for ($depth = 0; $depth -lt 5; $depth++) {
+    if (-not $walkRoot) { break }
+    $candidates += (Join-Path $walkRoot "scripts/test-compliance.ps1")
+    $walkRoot = Split-Path -Parent $walkRoot
+}
+foreach ($candidate in $candidates) {
     if ($candidate -and (Test-Path $candidate)) { $complianceScript = $candidate; break }
 }
 

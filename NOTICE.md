@@ -6,7 +6,7 @@ projects. The MIT license in `LICENSE` covers original work in this repo.
 
 ## Upstream-derived content
 
-Files under `bundle/global/.codex/global-workflows/plugins/` reference or
+Files under `bundle/global/.agents/workflows/plugins/` reference or
 adapt material from:
 
 - **GStack** ([garrytan/gstack](https://github.com/garrytan/gstack)) — engineering team

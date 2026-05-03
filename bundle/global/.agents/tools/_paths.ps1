@@ -28,6 +28,7 @@ if ($env:AGENTS_SESSION_ROOT) {
 }
 
 $script:InstructionsPath = Join-Path $script:AgentsRoot "instructions.md"
+$script:Tools = Join-Path $script:AgentsRoot "tools"
 
 # Eval mirror -- prefer new env var, fall back to legacy
 $script:EvalMirror = if ($env:AGENTS_EVAL_ARTIFACT_MIRROR) {
