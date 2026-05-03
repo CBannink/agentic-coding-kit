@@ -45,6 +45,28 @@ function runScript(script: string, args: string[]): { ok: boolean; stdout: strin
   };
 }
 
+// Run a PreTool/PostTool hook script via stdin JSON contract.
+// Mirrors how Claude Code's PreToolUse/PostToolUse hooks work:
+// the script reads the payload from stdin, decides allow/block via
+// exit code (2 = block, 0 = allow), reason on stderr.
+function runHookScript(hookScript: string, payload: any): { exitCode: number; stderr: string } {
+  const path = join(TOOLS, "hooks", hookScript);
+  if (!existsSync(path)) {
+    return { exitCode: 0, stderr: "" }; // missing hook = no-op (graceful)
+  }
+  const json = JSON.stringify(payload);
+  const result = spawnSync(SHELL, ["-NoProfile", "-File", path], {
+    input: json,
+    encoding: "utf-8",
+    shell: false,
+    timeout: 30_000,
+  });
+  return {
+    exitCode: result.status ?? 0,
+    stderr: result.stderr ?? "",
+  };
+}
+
 export const AgenticKit: Plugin = async ({ project, client, $, directory, worktree }) => {
   return {
     // session.created fires when a new session begins
@@ -86,18 +108,81 @@ export const AgenticKit: Plugin = async ({ project, client, $, directory, worktr
       ]);
     },
 
-    // tool.execute.before lets us register subagent invocations as they happen
-    "tool.execute.before": async (input: any, _output: any) => {
-      // Only register noteworthy tool calls (avoid noise from every read/grep)
-      const toolName = input?.tool ?? "";
-      const subagentLike = ["task", "agent", "subagent", "spawn"];
-      if (!subagentLike.some((s) => toolName.toLowerCase().includes(s))) return;
+    // tool.execute.before -- the protocol-layer enforcement entry point.
+    // Mirrors Claude Code's PreToolUse hooks. Routes to the appropriate
+    // PreTool hook script based on the tool name, then translates the
+    // script's exit code 2 into OpenCode's `output.abort` to actually
+    // block the tool call. Missing hooks = no-op (graceful).
+    "tool.execute.before": async (input: any, output: any) => {
+      const toolName = String(input?.tool ?? "").toLowerCase();
       const sessionId = input?.session?.id || "unknown";
-      runScript("subagent-stop-hook.ps1", [
-        "-SessionId", sessionId,
-        "-AgentName", toolName,
-        "-Status", "registered",
-      ]);
+      // Build a Claude-Code-style payload so the PowerShell hook scripts
+      // (which already work for Claude Code) parse the same JSON shape.
+      const payload = {
+        session_id: sessionId,
+        tool_name: input?.tool,
+        tool_input: input?.args ?? input?.input ?? {},
+        hook_event_name: "PreToolUse",
+      };
+      let hookScript: string | null = null;
+      if (toolName === "bash" || toolName.includes("shell") || toolName.includes("execute")) {
+        hookScript = "pretool-bash-dispatcher.ps1";
+      } else if (toolName === "write" || toolName === "edit" || toolName.includes("write") || toolName.includes("edit")) {
+        hookScript = "pretool-write-gateguard.ps1";
+      } else if (toolName === "task" || toolName.includes("agent") || toolName.includes("subagent") || toolName.includes("spawn")) {
+        hookScript = "pretool-task-orchestrator-gate.ps1";
+      }
+      if (!hookScript) return;
+      const { exitCode, stderr } = runHookScript(hookScript, payload);
+      if (exitCode === 2) {
+        // Block the tool call. OpenCode plugin contract: throw to abort,
+        // OR set output.abort if available. Throw is most reliable.
+        const reason = stderr.trim() || "Blocked by kit hook";
+        if (output && typeof output === "object") {
+          output.abort = reason;
+        }
+        throw new Error(reason);
+      }
+      // Surface stderr as a soft warning (PreToolUse exit 0 with stderr
+      // is the "info-only" pattern -- write-gateguard uses it for the
+      // first-edit reminder). OpenCode logs plugin stderr to its own
+      // event stream so the agent can see it.
+      if (stderr && stderr.trim()) {
+        // eslint-disable-next-line no-console
+        console.error(stderr.trim());
+      }
+    },
+
+    // tool.execute.after -- mirrors PostToolUse hook. Currently used by
+    // the verify-auto-mark hook to mark verification_evidence after a
+    // successful test command (closes the Iron Law loop without agent
+    // thought).
+    "tool.execute.after": async (input: any, output: any) => {
+      const toolName = String(input?.tool ?? "").toLowerCase();
+      if (toolName !== "bash" && !toolName.includes("shell") && !toolName.includes("execute")) {
+        return; // only PostBash needed for verify-auto-mark
+      }
+      const sessionId = input?.session?.id || "unknown";
+      // Translate OpenCode's output shape to Claude's tool_response.exit_code
+      // so the PowerShell hook script (which expects Claude's contract) works.
+      const exitCode =
+        output?.exit_code ??
+        output?.exitCode ??
+        output?.result?.exit_code ??
+        output?.result?.exitCode ??
+        (output?.error ? 1 : 0);
+      const payload = {
+        session_id: sessionId,
+        tool_name: input?.tool,
+        tool_input: input?.args ?? input?.input ?? {},
+        tool_response: { exit_code: exitCode },
+        hook_event_name: "PostToolUse",
+      };
+      const { stderr } = runHookScript("posttool-bash-verify-mark.ps1", payload);
+      if (stderr && stderr.trim()) {
+        // eslint-disable-next-line no-console
+        console.error(stderr.trim());
+      }
     },
 
     // session.compacted = pre-compact event; capture compact brief

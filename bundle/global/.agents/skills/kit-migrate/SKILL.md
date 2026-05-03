@@ -1,20 +1,41 @@
 ---
 name: kit-migrate
-description: Converts a repo with existing legacy agentic pipeline (gstack agents/, hand_off.md, memory/MEMORY.md, project-scoped .claude/agents/, etc.) to coexist with the kit's .kit/ tree and conventions. Detects existing files, maps them to kit equivalents, archives obsoleted files, preserves repo conventions where they win. Use when /kit-init or /wiki-init reports the repo already has a pipeline that conflicts, or when the user says "migrate this repo to the kit" / "install the kit on top of existing setup".
+description: CONVERGES a repo's local agentic conventions to align with the kit's global pattern, while preserving local domain preferences. Actively migrates competing pipeline content (handoffs/, memory/, session_state.md, root MEMORY.md, etc.) into kit equivalents under .kit/, archives the originals via git mv, and surgically updates the repo's CLAUDE.md to drop conflicting pipeline rules but keep build/test/style/agent-persona preferences intact. NOT a passive coexist mode -- this is a one-time convergence event. Use when the user says "migrate this repo to the kit", "install kit on top of existing setup", or when /kit-init / /wiki-init reports a competing pipeline.
 ---
 
 # Kit Migrate Skill
 
-Convert a repo from legacy agentic conventions (gstack, ECC, custom
-hand_off.md, etc.) to coexist with the kit. Parallel to `/kit-init` and
-`/wiki-init` -- those bootstrap greenfield; this one converges with
-existing setup.
+**Convergence operation, not coexist.** Bring a repo's local rules into
+alignment with the kit's global conventions while preserving the repo's
+domain-specific preferences.
 
-**Important**: per the kit's "REPO WINS" precedence rule, this skill
-does NOT delete or override the repo's conventions. It MAPS legacy
-pipeline files to kit equivalents (where the kit can read them via its
-tools), ARCHIVES anything that's now obsolete (preserving git history),
-and LEAVES ALONE anything that should keep working as-is.
+Parallel to `/kit-init` (greenfield kit memory bootstrap) and `/wiki-init`
+(greenfield wiki bootstrap). Where those bootstrap empty repos, this one
+**converges** repos that already have legacy agentic conventions.
+
+## What converges vs what stays
+
+The kit has GLOBAL conventions for **structural** things — handoff
+locations, memory routing, session state, lifecycle bookkeeping. Two
+competing structural pipelines in one repo creates the silent-drop
+problem we keep hitting empirically. After `/kit-migrate`, the repo's
+structural conventions ALIGN with the kit's; competing instructions
+get rewritten or removed.
+
+The repo's **substantive** preferences stay untouched. These are
+domain-specific decisions the kit can't make for you:
+- Build / test / lint commands (`npm test` vs `pytest` vs `cargo test`)
+- Deploy gates ("never push to main without CI green")
+- Code style ("snake_case", "tests/ mirrors src/", "absolute imports only")
+- Agent personas ("Scout", "Pricing Agent", custom builder/reviewer roles)
+- Project-scoped `.claude/agents/`, `.claude/commands/`, `.claude/skills/`
+  (CLI-native auto-discovery; kit doesn't compete with these)
+- Other-CLI configs (`.cursor/`, `.aider.conf.yml`, `.github/copilot-instructions.md`)
+
+**The litmus test**: if the rule is about *where state goes / how the
+session is bookkept / how memory routes*, that's structural — it
+converges. If the rule is about *what gets built / how it's tested /
+who reviews it / the project's identity*, that's preference — it stays.
 
 ## When to run
 
@@ -29,18 +50,27 @@ and LEAVES ALONE anything that should keep working as-is.
 
 ## Hard rules
 
-1. **Idempotent**. Re-run is safe -- subsequent invocations either no-op
+1. **Idempotent**. Re-run is safe — subsequent invocations either no-op
    or surgical-update. Never destructive on re-run.
 2. **Preserve git history**. Use `git mv` for any file moves. Never
    `rm` user data; archive instead.
-3. **Repo wins**. If the repo has its own CLAUDE.md, agents/, commands/,
-   plans/, .claude/settings.json -- KEEP THEM. The kit augments via
-   skills/agents/commands/hooks; it does not replace what the repo
-   already has working.
-4. **Ask before destructive moves**. Any operation that could lose data
-   (e.g., overwriting an existing `.kit/context/memory.md` with content
-   from `memory/MEMORY.md`) requires user confirmation.
-5. **Coverage report at the end**. Lists every detection, every action
+3. **Convergence on STRUCTURE, preservation on PREFERENCE.** Local
+   structural rules (handoff path, memory routing, session state) get
+   migrated into kit pattern. Local preferences (build commands, code
+   style, agent personas, project-scoped `.claude/agents/`) stay
+   untouched. The litmus test above is load-bearing.
+4. **CLAUDE.md surgical edits with diff preview**. If the repo's
+   CLAUDE.md has structural rules that compete with the kit (e.g.,
+   "write handoff to agents/handoffs/latest.md, NEVER use external
+   session-state directories"), show a diff of the proposed edit
+   BEFORE applying. Default is: ask. The agentic-kit:include block
+   appended by the installer is separate; this is about the user's
+   own content.
+5. **Ask before content migration that has merge conflicts**. If a
+   target file (e.g., `.kit/context/memory.md`) already has content
+   AND the legacy file has content, surface the diff and ask. Never
+   auto-merge memory.
+6. **Coverage report at the end**. Lists every detection, every action
    taken, every action skipped (with reason). User decides any unclear
    cases.
 
@@ -68,18 +98,27 @@ Source-of-truth file patterns this skill recognizes:
 - `docs/plans/`, `plans/`
 - `.codex/specs/` or `.kit/specs/`
 
-### Project-scoped agents / commands (KEEP AS-IS, repo wins)
-- `.claude/agents/<name>.md`
-- `.claude/commands/<name>.md`
-- `.claude/settings.json` (do NOT modify -- user's hook config)
+### Project-scoped agents / commands (KEEP — local preferences)
+- `.claude/agents/<name>.md` — CLI-native auto-discovery, project's workforce
+- `.claude/commands/<name>.md` — CLI-native auto-mounted commands
+- `.claude/settings.json` — user's hook config; never modify
+- `.claude/skills/<name>/` — project-scoped skills
 - `.cursor/rules/`, `.cursorrules`
 - `.aider.conf.yml`
 - `.github/copilot-instructions.md`
 - `.kilocode/rules/*.md`
 
-### Repo CLAUDE.md / AGENTS.md
-- KEEP AS-IS. The kit's `agentic-kit:include` block is already appended
-  during install. Don't re-edit.
+### Repo CLAUDE.md / AGENTS.md (SURGICAL EDITS, with diff preview)
+- The agentic-kit:include block (added by installer) is the kit's territory.
+- The user's own content gets a STRUCTURAL audit:
+  - Identify lines that mandate competing pipeline behavior (handoff path,
+    memory location, session state, lifecycle bookkeeping).
+  - Show the user a diff of proposed surgical edits to those lines (drop
+    them or rewrite to align with kit pattern).
+  - Preserve everything else: build commands, project context, agent
+    persona descriptions, code style rules, deploy gates, repo-specific
+    conventions.
+- DEFAULT: ask before applying. Diff must be visible.
 
 ## Workflow
 
@@ -103,14 +142,62 @@ table:
 
 For each detection, classify:
 
-- **MAP** -- legacy file content should be migrated to a kit equivalent
-  (e.g., `memory/MEMORY.md` -> `.kit/context/memory.md`)
-- **ARCHIVE** -- legacy file is now obsolete; move to
-  `.kit/legacy/<original-path>` to preserve history without confusion
-- **KEEP** -- repo file should remain as-is (project agents, commands,
-  settings.json, CLAUDE.md, .cursor/, etc.)
-- **MERGE** -- both legacy and kit versions exist; need user input on
-  how to reconcile
+- **MIGRATE** -- legacy file is a STRUCTURAL competitor; content gets
+  migrated into a kit equivalent + original archived
+  (e.g., `memory/MEMORY.md` -> `.kit/context/memory.md` + archive)
+- **ARCHIVE-ONLY** -- legacy file is structural but has no useful
+  content to migrate; just `git mv` to `.kit/legacy/`
+- **KEEP** -- local preference, repo-owned (project agents, commands,
+  settings.json, .cursor/, etc.) — touch nothing
+- **REWRITE** -- repo's own CLAUDE.md / AGENTS.md content has lines
+  mandating competing pipeline behavior; surgical edit with diff preview,
+  ask user before applying
+- **MERGE** -- both legacy and kit versions of same artifact have
+  meaningful content; ask user how to reconcile, never auto-merge
+
+### Step 2b -- CLAUDE.md / AGENTS.md structural scan (the convergence step)
+
+Read the repo's `CLAUDE.md` and `AGENTS.md`. Identify lines / sections
+that mandate STRUCTURAL behavior conflicting with the kit. Examples of
+what to flag for surgical removal/rewrite:
+
+- "After every task, write your handoff to `agents/handoffs/latest.md`"
+  → conflicts with kit's `~/.agents/session-state/{id}/handoffs.md`
+- "Update `agents/session_state.md` after every step"
+  → kit's session state is `~/.agents/session-state/{id}/state.json`
+- "NEVER use external session-state directories"
+  → directly competes with kit
+- "Read `memory/MEMORY.md` for project memory"
+  → kit reads `.kit/context/memory.md` via specialist-memory-resolver
+- "Use builder → reviewer → pr chain in `.claude/agents/`"
+  → KEEP IF the chain is local agents the kit doesn't compete with;
+  REWRITE only if it explicitly forbids the kit's flow
+
+Examples of what to PRESERVE (local preferences):
+
+- "Tests live in `tests/` mirroring source layout. Use pytest"
+- "Deploy via `git push origin main` (CI auto-deploys)"
+- "Agent persona: Scout. Voice: friendly, concise"
+- "Use snake_case throughout; lint config is the source of truth"
+- "Customer LTV > €100; never spam"
+
+For each REWRITE candidate, show the user a unified diff and ask:
+```
+PROPOSED CLAUDE.md edit:
+@@ line 47-51 @@
+-After every task, write your handoff to `agents/handoffs/latest.md` and
+-append summary to `agents/handoffs/chain-log.md`. Do NOT use any
+-session-state directories outside this repo. The repo pipeline is the
+-source of truth.
++After every task, the kit writes a session handoff to
++`~/.agents/session-state/{id}/handoffs.md` (private per-session). The
++orchestrator should follow the kit's lifecycle scripts; sub-agents do
++not self-register.
+
+Apply? [y/n]
+```
+
+Default = ask. Never auto-apply rewrites without diff.
 
 ### Step 3 -- ensure .kit/ exists
 
