@@ -40,12 +40,21 @@ re-run the runner.
 
 When done, stop the dev server: `pwsh ~/.agents/tools/dev-server-runner.ps1 -Stop -ProcessId <pid>`.
 
-### 2. Read existing design system
+### 2. Read existing design system (or create one first)
 
 Required reads before any redesign:
 - `.wiki/features.md` — what the UI must support
 - any `DESIGN.md`, `design-system.md`, `tailwind.config.*`, theme files
 - the current screenshots from step 1
+
+**If no `DESIGN.md` exists**, halt the redesign and invoke `aesthetic-director`
+(skill: `~/.agents/skills/aesthetic-director/SKILL.md`) first. That skill
+proposes 2-3 named directions, the user picks, and a locked `DESIGN.md` is
+written. Without a locked direction, parallel redesign agents will each
+default to the same LLM aesthetic (Inter + purple gradient + rounded cards)
+and produce variations of one boring look — not real design exploration.
+
+After `aesthetic-director` returns, re-read the new `DESIGN.md` and proceed.
 
 ### 3. Decompose
 

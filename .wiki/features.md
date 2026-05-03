@@ -38,7 +38,7 @@ Available as `subagent_type` for the Task tool.
 | `final-verifier` | Iron Law gate — blocks completion without fresh verification evidence. |
 | `qa-reviewer` | Browser / user-flow QA for UI or behavior-heavy changes. |
 
-## Skills (26)
+## Skills (27)
 
 Auto-discovered at `~/.claude/skills/<name>/SKILL.md` and `~/.config/opencode/skills/<name>/SKILL.md`.
 
@@ -46,10 +46,10 @@ Workflow skills: `analyze`, `build`, `plan`, `review`, `investigate`, `refactor`
 `redesign`, `security-review`.
 
 Specialized skills: `ux-driver`, `ui-driver`, `playwright-navigator`,
-`playwright-explorer`, `design-driver`, `swarm`, `tdd`, `verification-loop`,
-`reflect`, `spec`, `consequence`, `git-archaeology`, `derive-repo-skills`,
-`experts/modularity`, `experts/performance`, `experts/silent-failure-hunter`,
-`experts/ui-ux`.
+`playwright-explorer`, `design-driver`, `aesthetic-director`, `swarm`, `tdd`,
+`verification-loop`, `reflect`, `spec`, `consequence`, `git-archaeology`,
+`derive-repo-skills`, `experts/modularity`, `experts/performance`,
+`experts/silent-failure-hunter`, `experts/ui-ux`.
 
 GStack-derived: `gstack-investigate`, `gstack-office-hours`,
 `gstack-plan-eng-review`, `gstack-qa`, `gstack-review`.

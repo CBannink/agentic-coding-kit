@@ -459,6 +459,33 @@ If all three transports are empty, the hook falls back to `unknown-{timestamp}` 
 
 This means the kit's hooks work out-of-the-box across Claude Code versions whether the host populates env vars, passes args, or pipes JSON — without manual settings tuning. End-to-end verified across all four hooks and four transport-failure modes.
 
+## Frontend aesthetic direction (DESIGN.md)
+
+The default LLM frontend output is recognizable: Inter, purple gradient, rounded cards, generic spacing. The kit's design critics (`ux-driver`, `ui-driver`, `design-driver`, `redesign`) all *judge* output against `DESIGN.md` — but nothing creates one. Result: parallel redesign agents each default to the same boring AI aesthetic and produce variations of one look instead of real exploration.
+
+The `aesthetic-director` skill closes this gap. Pattern lifted from Anthropic's [Frontend Aesthetics Cookbook](https://platform.claude.com/cookbook/coding-prompting-for-frontend-aesthetics):
+
+1. Pick the aesthetic *before* generating code
+2. Encode it as a locked `DESIGN.md` (typography pairing, OKLCH palette, density, motion, banned-defaults list)
+3. Optionally append a 5-10 line `CLAUDE.md` theme block so every future prompt in the repo holds to it
+
+Invoked automatically by `/redesign` Phase 0 when no `DESIGN.md` exists. Standalone for "theme this project" tasks. Proposes 2-3 named directions from the vocabulary (Swiss Minimalism, Editorial, Brutalism, Glassmorphism, Dark OLED Luxury, Aurora Mesh, Solarpunk, Cyberpunk, etc.) — never one — and the user picks. Banned-defaults list is mandatory in every DESIGN.md to keep downstream agents from drifting back to LLM defaults.
+
+The lightweight version: skip the skill, paste a `CLAUDE.md` theme block by hand:
+
+```markdown
+## Frontend Theme
+<always_use_editorial_theme>
+Always design with Editorial aesthetic:
+- Serif headlines (e.g. Fraunces), sans body (e.g. Inter)
+- Magazine grid, generous margins, pull quotes
+- Muted palette: warm cream bg, near-black ink, single accent
+- Banned: Inter for headlines, purple gradients, rounded-2xl cards
+</always_use_editorial_theme>
+```
+
+Five lines, no install, locks the project's whole aesthetic.
+
 ## Important honesty
 
 This kit is **pre-v1**. What that means in practice:
