@@ -22,7 +22,7 @@ without an upstream UX verdict, request one before critiquing.
 
 - screenshot(s) of the current state (from `playwright-explorer`)
 - the upstream `UX-VERDICT` block confirming structure_ok=true
-- design system / tokens / `DESIGN.md` (if present)
+- design system / tokens / `DESIGN.md` — the **locked aesthetic direction**. The `banned-defaults` list in DESIGN.md is load-bearing for visual critique: a finding "uses `rounded-2xl` shadows everywhere" only matters if DESIGN.md says rounded-2xl is banned. If DESIGN.md is missing on greenfield UI, recommend the orchestrator run `aesthetic-director` (skill: `~/.agents/skills/aesthetic-director/SKILL.md`) first rather than critiquing against generic taste.
 - `~/.agents/context/design-references.md` — visual patterns from reference systems
 - the user's brief (style direction, constraints)
 

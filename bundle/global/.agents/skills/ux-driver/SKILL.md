@@ -16,6 +16,7 @@ work. This driver runs first; only when it returns `structure_ok=true` does
 
 - screenshot(s) of the current state (from `playwright-explorer`)
 - `.wiki/features.md` — what the screen must support
+- `DESIGN.md` / `design-system.md` if present — locked aesthetic direction. If missing AND this is greenfield UI work, do **not** silently substitute generic taste — recommend the orchestrator run `aesthetic-director` (skill: `~/.agents/skills/aesthetic-director/SKILL.md`) first. Without a locked direction, your structural critique can't anchor to anything beyond LLM defaults.
 - `~/.agents/context/design-references.md` — UX patterns from reference systems
 - the user's brief (constraints, target users, primary task)
 

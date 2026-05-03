@@ -173,6 +173,7 @@ If lifecycle callbacks are available in the host or harness, use these scripts a
 - `visual-gate` *(invoke when `frontend-detector.ps1` returns `visual_loop_recommended=true`)*
   Purpose: screenshot-based design review with UX→UI agent split. Distinct from `ui-ux-expert` (code review) — this is **pixel review**.
   Sequence:
+  0. **Aesthetic gate** — check for `DESIGN.md` / `design-system.md`. If absent AND the diff introduces new screens or substantial new components (not just tweaking an existing screen), invoke `aesthetic-director` (skill: `~/.agents/skills/aesthetic-director/SKILL.md`) FIRST so the downstream UX/UI critique has a locked direction to hold to. Skip when polishing existing UI against an existing DESIGN.md, or when the change is style-token-only.
   1. `pwsh ~/.agents/tools/dev-server-runner.ps1 -RepoRoot .` — auto-start dev server
   2. For any new screen in the diff that's not in `.agents/screen-flows.yaml`: spawn `playwright-navigator` to emit the YAML block
   3. `pwsh ~/.agents/tools/playwright-runner.ps1` — capture before/after shots
@@ -180,7 +181,7 @@ If lifecycle callbacks are available in the host or harness, use these scripts a
   5. `ui-driver` — visual critique (typography, color, spacing, slop), only if UX passed
   6. `pwsh ~/.agents/tools/visual-diff.ps1` — confirm changes were intentional, no regressions elsewhere
   7. Stop dev server when done
-  Source: `~/.agents/skills/ux-driver/SKILL.md` + `~/.agents/skills/ui-driver/SKILL.md` + `~/.agents/skills/playwright-navigator/SKILL.md`
+  Source: `~/.agents/skills/ux-driver/SKILL.md` + `~/.agents/skills/ui-driver/SKILL.md` + `~/.agents/skills/playwright-navigator/SKILL.md` + `~/.agents/skills/aesthetic-director/SKILL.md`
   References: `~/.agents/context/design-references.md` (read by ux-driver and ui-driver)
 
 - `adversarial-reviewer`
