@@ -56,6 +56,51 @@ $script:AgentsShell = if (Get-Command pwsh -ErrorAction SilentlyContinue) {
     "powershell"
 }
 
+# Hook stdin parsing -- Claude Code passes session metadata as a JSON payload on
+# stdin to hook commands. Older configs relied on $env:CLAUDE_SESSION_ID being
+# set, which isn't reliable across shells/versions. Read stdin once, cache, and
+# expose helpers so hook scripts can survive missing/empty -SessionId args.
+$script:_HookStdinCache = $null
+$script:_HookStdinRead = $false
+
+function Get-HookStdinJson {
+    if (-not $script:_HookStdinRead) {
+        $script:_HookStdinRead = $true
+        try {
+            if ([Console]::IsInputRedirected) {
+                $raw = [Console]::In.ReadToEnd()
+                if ($raw -and $raw.Trim()) {
+                    $script:_HookStdinCache = $raw | ConvertFrom-Json -ErrorAction SilentlyContinue
+                }
+            }
+        } catch {
+            $script:_HookStdinCache = $null
+        }
+    }
+    return $script:_HookStdinCache
+}
+
+function Resolve-HookSessionId {
+    param([string]$Provided)
+    if ($Provided) { return $Provided }
+    if ($env:CLAUDE_SESSION_ID) { return $env:CLAUDE_SESSION_ID }
+    $stdin = Get-HookStdinJson
+    if ($stdin -and $stdin.session_id) { return [string]$stdin.session_id }
+    return "unknown-$(Get-Date -Format 'yyyyMMddHHmmss')"
+}
+
+function Resolve-HookField {
+    param([string]$Provided, [string]$JsonField, [string]$EnvVar = "")
+    if ($Provided) { return $Provided }
+    if ($EnvVar -and (Get-Item "env:$EnvVar" -ErrorAction SilentlyContinue)) {
+        $v = (Get-Item "env:$EnvVar").Value
+        if ($v) { return $v }
+    }
+    $stdin = Get-HookStdinJson
+    if ($stdin -and $JsonField -and $stdin.$JsonField) { return [string]$stdin.$JsonField }
+    return ""
+}
+
 function Sync-EvalArtifactMirror {
     param(
         [string]$SessionId,

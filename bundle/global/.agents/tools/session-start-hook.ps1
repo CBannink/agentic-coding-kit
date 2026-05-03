@@ -1,8 +1,7 @@
 ﻿#!/usr/bin/env pwsh
 
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$SessionId,
+    [string]$SessionId = "",
     [string]$Mode = "",
     [string]$Task = "",
     [string]$RepoRoot = "",
@@ -11,12 +10,18 @@ param(
 
 . (Join-Path $PSScriptRoot "_paths.ps1")
 
+$SessionId = Resolve-HookSessionId -Provided $SessionId
+$RepoRoot  = Resolve-HookField -Provided $RepoRoot -JsonField "cwd" -EnvVar "CLAUDE_PROJECT_DIR"
+
 $toolsDir = $PSScriptRoot
 $sessionDir = Get-SessionDir $SessionId
 $eventsPath = Join-Path $sessionDir "hook-events.jsonl"
 New-Item -ItemType Directory -Path $sessionDir -Force | Out-Null
 
-& $script:AgentsShell -NoProfile -File (Join-Path $toolsDir "run-packet.ps1") -SessionId $SessionId -Mode $Mode -Task $Task -AddNote "hook:$Trigger" | Out-Null
+$packetArgs = @("-NoProfile", "-File", (Join-Path $toolsDir "run-packet.ps1"), "-SessionId", $SessionId, "-AddNote", "hook:$Trigger")
+if ($Mode) { $packetArgs += @("-Mode", $Mode) }
+if ($Task) { $packetArgs += @("-Task", $Task) }
+& $script:AgentsShell @packetArgs | Out-Null
 
 $record = [ordered]@{
     event       = $Trigger

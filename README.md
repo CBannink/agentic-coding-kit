@@ -447,12 +447,24 @@ $ pwsh ~/.agents/tools/post-session.ps1 -SessionId <id>
 
 Under Claude Code or OpenCode, `pre-session` and `post-session` fire automatically via hooks/plugin. Under Copilot CLI, the agent calls them itself per the baked instructions. Under Codex CLI / Kilo Code / generic, run them manually.
 
+### How hook scripts resolve session metadata
+
+The four lifecycle hook scripts (`session-start-hook.ps1`, `session-end-hook.ps1`, `subagent-stop-hook.ps1`, `precompact-hook.ps1`) accept session metadata from any of three transports, in priority order:
+
+1. **CLI args** — `-SessionId`, `-Mode`, `-RepoRoot` etc. passed by the host (e.g. via `${CLAUDE_SESSION_ID}` substitution in `~/.claude/settings.json`).
+2. **Env var** — `$env:CLAUDE_SESSION_ID` if set in the hook's environment.
+3. **Stdin JSON** — Claude Code (and some other hosts) pipe `{"session_id": "...", "cwd": "...", "agent_name": "..."}` to hook commands. The kit reads stdin once via `Resolve-HookSessionId` in `_paths.ps1`, parses JSON, and resolves missing fields.
+
+If all three transports are empty, the hook falls back to `unknown-{timestamp}` so the session still gets recorded — never crashes. Malformed JSON on stdin is swallowed gracefully.
+
+This means the kit's hooks work out-of-the-box across Claude Code versions whether the host populates env vars, passes args, or pipes JSON — without manual settings tuning. End-to-end verified across all four hooks and four transport-failure modes.
+
 ## Important honesty
 
 This kit is **pre-v1**. What that means in practice:
 
 - **End-to-end runs are mostly unverified at scale.** The pieces work in isolation (validator + Pester + smoke tests all pass). Full multi-session usage across many repos hasn't been recorded. Test on a throwaway repo first.
-- **Hook event names are best-effort verified against current docs.** Claude Code uses `${CLAUDE_SESSION_ID}`; OpenCode uses `session.created` / `session.deleted` event-handler keys (re-verified against opencode.ai/docs/plugins). If hooks don't fire, that's where to look.
+- **Hook event names are best-effort verified against current docs.** Claude Code passes session metadata via stdin JSON, args (`${CLAUDE_SESSION_ID}` substitution), or env vars depending on version — kit hooks accept all three (see "How hook scripts resolve session metadata" above). OpenCode uses `session.created` / `session.deleted` event-handler keys (re-verified against opencode.ai/docs/plugins). If hooks don't fire, that's where to look.
 - **Upgrade safety is via backup-and-replace.** `install.ps1 -Upgrade` moves `~/.agents/` to a timestamped backup before installing. Hand-merge customizations afterward. A proper override pattern (`~/.agents/overrides/{skill}.md`) isn't implemented yet.
 - **CI is included but not yet exercised by external contributions.** `.github/workflows/validate.yml` runs validate-bundle + Pester on push and PR.
 

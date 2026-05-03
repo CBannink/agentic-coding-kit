@@ -1,10 +1,8 @@
 ﻿#!/usr/bin/env pwsh
 
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$SessionId,
-    [Parameter(Mandatory = $true)]
-    [string]$AgentName,
+    [string]$SessionId = "",
+    [string]$AgentName = "",
     [string]$Status = "completed",
     [string]$Summary = "",
     [string]$Files = "",
@@ -12,6 +10,12 @@ param(
 )
 
 . (Join-Path $PSScriptRoot "_paths.ps1")
+
+$SessionId = Resolve-HookSessionId -Provided $SessionId
+if (-not $AgentName) {
+    $AgentName = Resolve-HookField -Provided "" -JsonField "agent_name"
+    if (-not $AgentName) { $AgentName = "unknown-agent" }
+}
 
 $toolsDir = $PSScriptRoot
 $sessionDir = Get-SessionDir $SessionId

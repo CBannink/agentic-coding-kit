@@ -1,8 +1,7 @@
 ﻿#!/usr/bin/env pwsh
 
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$SessionId,
+    [string]$SessionId = "",
     [string]$Mode = "",
     [string]$Outcome = "",
     [string]$Summary = "",
@@ -12,6 +11,8 @@ param(
 
 . (Join-Path $PSScriptRoot "_paths.ps1")
 
+$SessionId = Resolve-HookSessionId -Provided $SessionId
+
 $toolsDir = $PSScriptRoot
 $sessionDir = Get-SessionDir $SessionId
 $eventsPath = Join-Path $sessionDir "hook-events.jsonl"
@@ -20,7 +21,9 @@ New-Item -ItemType Directory -Path $sessionDir -Force | Out-Null
 $note = "hook:$Trigger"
 if ($Outcome) { $note += "|$Outcome" }
 if ($Summary) { $note += "|$Summary" }
-& $script:AgentsShell -NoProfile -File (Join-Path $toolsDir "run-packet.ps1") -SessionId $SessionId -Mode $Mode -AddNote $note | Out-Null
+$packetArgs = @("-NoProfile", "-File", (Join-Path $toolsDir "run-packet.ps1"), "-SessionId", $SessionId, "-AddNote", $note)
+if ($Mode) { $packetArgs += @("-Mode", $Mode) }
+& $script:AgentsShell @packetArgs | Out-Null
 
 $record = [ordered]@{
     event       = $Trigger

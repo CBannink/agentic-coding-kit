@@ -1,13 +1,14 @@
 ﻿#!/usr/bin/env pwsh
 
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$SessionId,
+    [string]$SessionId = "",
     [int]$RecentAgentCount = 5,
     [string]$Trigger = "PreCompact"
 )
 
 . (Join-Path $PSScriptRoot "_paths.ps1")
+
+$SessionId = Resolve-HookSessionId -Provided $SessionId
 
 $sessionDir = Get-SessionDir $SessionId
 $packetPath = Join-Path $sessionDir "run-packet.json"
