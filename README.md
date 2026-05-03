@@ -132,6 +132,67 @@ Each `-For <cli>` does three things:
 2. **Writes the kit instructions companion** to that CLI's config dir (e.g. `~/.claude/agentic-kit.md`, `~/.config/opencode/agentic-kit.md`, `~/.codex/agentic-kit.md`, or `~/.agentic-kit/AGENTS.md` for the generic case).
 3. **Wires lifecycle automation** — for Claude Code merges hooks into `~/.claude/settings.json`; for OpenCode installs the plugin at `~/.config/opencode/plugins/agentic-kit.ts`; for Copilot the lifecycle is baked into the per-repo instructions file.
 
+### Setup when your repo already has rules / pipeline
+
+Most real repos already have:
+- A repo `CLAUDE.md` / `AGENTS.md` with project conventions, build commands, agent personas
+- Project-scoped `.claude/agents/`, `.claude/commands/`, `.claude/skills/`, `.claude/settings.json`
+- A custom pipeline (`hand_off.md`, `agents/handoffs/`, `memory/MEMORY.md`, `agents/session_state.md` from gstack-style or your own)
+- Other-CLI configs (`.cursor/rules/`, `.aider.conf.yml`, `.github/copilot-instructions.md`, `.kilocode/rules/`)
+
+The kit was designed to coexist with these. **Two-step install for an existing-rules repo**:
+
+```powershell
+# 1. Global install (one time, device-wide)
+pwsh ./scripts/install.ps1 -For all       # or -For "claude,opencode,codex"
+
+# 2. In the repo, run /kit-migrate (one time, per repo)
+#    Open Claude Code or OpenCode in your repo and type:
+#    /kit-migrate
+```
+
+`/kit-migrate` is a **convergence operation**: it scans your repo for legacy
+agentic conventions and brings the *structural* ones (handoff path, memory
+routing, session state, lifecycle bookkeeping) into alignment with the
+kit's pattern, while *preserving* domain preferences (build/test commands,
+code style, agent personas, project-scoped `.claude/agents/`, custom
+skills, deploy gates).
+
+**Litmus test for what converges vs what stays**:
+- Rule about *where state goes / how session is bookkept / how memory routes* → **STRUCTURAL**, converges to kit pattern
+- Rule about *what gets built / how it's tested / who reviews / project identity* → **PREFERENCE**, stays untouched
+
+`/kit-migrate` shows you a diff of every proposed change to your `CLAUDE.md`
+and asks before applying. Default = ask. Never auto-applies destructive moves.
+
+If a repo has `.openclaw/` / `.vibe/` / other CLI-native trees the kit
+doesn't know about, those are KEPT — repo wins on those by default.
+
+### Per-CLI enforcement matrix
+
+| CLI | Slash commands | Sub-agents | Skills auto-discover | PreToolUse hooks | PostToolUse hooks | Lifecycle hooks |
+|---|---|---|---|---|---|---|
+| **Claude Code** | ✅ `~/.claude/commands/` | ✅ `~/.claude/agents/` | ✅ | ✅ via `settings.json` | ✅ | ✅ |
+| **Codex CLI** | ❌ no native discovery | ❌ | ❌ | ✅ via `~/.codex/config.toml` (Bash/apply_patch/MCP only — issue #20204) | ✅ | ⚠️ partial |
+| **OpenCode** | ✅ `~/.config/opencode/commands/` | ✅ `~/.config/opencode/agents/` | ✅ | ✅ via plugin `tool.execute.before` | ✅ | ✅ via plugin events |
+| **Copilot CLI** | ❌ | ❌ | ❌ | ❌ | ❌ | manual via instruction file |
+| **Kilo Code** | ❌ (modes, not commands) | ❌ | ❌ | ❌ | ❌ | none |
+| **Generic** (Aider/Cline/etc.) | ❌ | ❌ | ❌ | ❌ | ❌ | manual |
+
+### Which CLI should you use?
+
+Honest take as of late 2026:
+
+- **Claude Code** — most mature hook ecosystem, broadest tool coverage (every tool fires hooks), supports `additionalContext` injection via SessionStart hook, full skills/agents/commands auto-discovery. Best fit if you want the kit's full enforcement surface working with the least wiring.
+- **Codex CLI** — hooks now structurally near-identical to Claude (TOML config is cleaner than Claude's settings.json sprawl), `PermissionRequest` as a distinct event is more granular, but: hooks fire only on Bash/apply_patch/MCP (not list_dir/plan/web_search per issue #20204), and no native slash command / sub-agent / skill discovery. Strong if you want the hook-layer enforcement and don't need the discovery surfaces.
+- **OpenCode** — has events but they were event-only until recently; the kit now wires `tool.execute.before` / `.after` to fire the same hook scripts as Claude, but the kernel-level "block before exec" contract isn't quite as battle-tested as Claude or Codex. Solid choice if you prefer it for other reasons.
+
+For an opinionated kit like this, **Claude Code is the safest default**;
+**Codex CLI is a strong alternative if you prefer its TOML config and
+PermissionRequest model**; **OpenCode is fine for general use**. The kit
+ships adapters for all three so you can switch any time without
+re-installing.
+
 **A note on `copilot` and `kilocode`:** these tools have no useful device-wide
 config — Copilot only reads `.github/copilot-instructions.md` from each
 workspace, and Kilo Code only reads `.kilocode/rules/*.md` from each workspace.

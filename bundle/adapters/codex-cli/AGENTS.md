@@ -22,28 +22,43 @@ across all CLIs that consume this repo. See the shared body for full detail:
 - Session state path is `${AGENTS_SESSION_ROOT}` (default `~/.agents/session-state`).
 - The legacy `.copilot/session-state` path is no longer written to.
 
-## Hook enforcement (limited on Codex CLI)
+## Hook enforcement (Codex CLI has hooks now)
 
-Unlike Claude Code (which has `PreToolUse` / `PostToolUse` hooks via
-`settings.json`) and OpenCode (which has `tool.execute.before` / `.after`
-plugin events), **Codex CLI does not provide a per-tool-call hook surface**.
-The kit's protocol-layer enforcement (bash dispatcher, write gateguard,
-git-commit-verify gate, auto-record sub-agents, verify-auto-mark) is
-NOT available under Codex CLI.
+Codex CLI ships PreToolUse / PostToolUse hooks via `~/.codex/config.toml`
+(see https://developers.openai.com/codex/hooks). Same exit-code-2 + reason
+contract as Claude Code, same matcher syntax. The kit installs its hook
+scripts to fire under Codex automatically when you run `pwsh ./install.ps1
+-For codex` (or `-For all`).
 
-What you do get under Codex CLI:
-- Codex's native sandbox / approval mode (`approval_policy = "untrusted"` in
-  `~/.codex/config.toml`) — protocol-layer prompt-before-tool-call, but coarser
-  than the kit's pattern-matching hooks.
-- The kit's prompt-layer rules (always-on block in `~/.codex/AGENTS.md`)
-  — descriptive, agent reads and obeys at its discretion.
-- Manual lifecycle scripts: `pwsh ~/.agents/tools/pre-session.ps1 ...` at
-  session start, `post-session.ps1 ...` at end, `state-gate.ps1 -Mark <gate>`
-  as you progress. Agent has to remember to invoke these.
+What gets enforced under Codex CLI:
+- **Bash dispatcher** (PreToolUse, matcher `^Bash$`): dangerous fs ops,
+  force-push to main, git-commit-verify gate, test-command tagging
+- **Write/Edit gateguard** (PreToolUse, matcher `^apply_patch$`): wiki-
+  existence block, first-edit soft-warn (Codex uses `apply_patch` for
+  writes; `Write` / `Edit` aren't separate tools)
+- **Bash post-verify-mark** (PostToolUse, matcher `^Bash$`): auto-marks
+  verification_evidence on test-pass
 
-For users who want the kit's full protocol-layer enforcement: switch to
-Claude Code or OpenCode for sessions that need it. Use Codex for tasks
-where the prompt-layer rules + Codex's own sandbox are sufficient.
+Coverage caveat (Codex issue #20204, late 2026): hooks fire for Bash,
+`apply_patch` (writes), and MCP tools. They do NOT fire for `list_dir`,
+`view_image`, `plan`, `goal`, `agent_jobs`, `web_search`. Reads + planning
+are silent. Roughly the same enforcement as Claude Code for the events
+that matter (write + execute), narrower for read-only + planning events.
+
+The kit also installs:
+- Prompt-layer always-on rules in `~/.codex/AGENTS.md`
+- Standalone reference doc at `~/.codex/agentic-kit.md`
+- Codex's native sandbox / approval mode (`approval_policy` in
+  `~/.codex/config.toml`) is independent of the kit; configure separately
+  if you want approval-gating on top of the kit's pattern-matching.
+
+Universal opt-out via `KIT_DISABLED_HOOKS` env var (comma-separated rule
+names) — same as Claude / OpenCode.
+
+The kit currently does NOT auto-install slash commands or sub-agents
+under Codex (Codex's native discovery surfaces are different from
+Claude/OpenCode). For now, invoke kit skills by reading
+`~/.agents/skills/<name>/SKILL.md` directly when needed.
 
 Run `pwsh ~/.agents/tools/pre-session.ps1 -Mode <mode> -Task "<task>"` to start
 a tracked session. The pre-session script emits a brief you should read before

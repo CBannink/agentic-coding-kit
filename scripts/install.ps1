@@ -611,18 +611,33 @@ $endMarker
                 }
             }
             "codex" {
-                # Codex auto-loads ~/.codex/AGENTS.md but has no skills/commands/
-                # agents auto-discovery. Drop the standalone reference doc and
-                # append the minimal always-on rules block to AGENTS.md so the
-                # wiki rule + Iron Law are loaded every session.
+                # Codex CLI auto-loads ~/.codex/AGENTS.md AND ships
+                # PreToolUse / PostToolUse hooks via ~/.codex/config.toml
+                # (per developers.openai.com/codex/hooks). Same exit-code-2
+                # contract as Claude Code; same hook scripts work unchanged.
+                # Coverage gap (issue #20204): hooks fire for Bash,
+                # apply_patch, MCP -- not list_dir / plan / web_search.
+                #
+                # NOTE: ~/.codex/ here is the REAL Codex CLI HOME dir, NOT
+                # the kit's repo-local .kit/ tree. Do NOT confuse them.
                 Install-DeviceWideRulesDoc `
-                    -DocPath (Join-Path $HomeRoot ".kit/agentic-kit.md") `
+                    -DocPath (Join-Path $HomeRoot ".codex/agentic-kit.md") `
                     -Label   "Codex CLI"
 
                 Install-DeviceWideAlwaysOnRules `
-                    -ExistingPath  (Join-Path $HomeRoot ".kit/AGENTS.md") `
-                    -LongFormPath  (Join-Path $HomeRoot ".kit/agentic-kit.md") `
+                    -ExistingPath  (Join-Path $HomeRoot ".codex/AGENTS.md") `
+                    -LongFormPath  (Join-Path $HomeRoot ".codex/agentic-kit.md") `
                     -Label         "Codex CLI"
+
+                # Wire Codex hooks via the TOML merger
+                $codexMerger = Join-Path $AgentsRoot "tools/merge-codex-config.ps1"
+                $codexSnippet = Join-Path $AdaptersRoot "codex-cli/.codex/hooks.snippet.toml"
+                $codexConfig = Join-Path $HomeRoot ".codex/config.toml"
+                if ((Test-Path $codexMerger) -and (Test-Path $codexSnippet)) {
+                    Write-Host "  Codex CLI hooks: wiring..."
+                    $shell = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh" } else { "powershell" }
+                    & $shell -NoProfile -File $codexMerger -SnippetPath $codexSnippet -ConfigPath $codexConfig
+                }
             }
             "opencode" {
                 # Standalone reference doc.

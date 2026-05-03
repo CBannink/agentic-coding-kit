@@ -119,6 +119,7 @@ $requiredTools = @(
     "dev-server-runner.ps1", "frontend-detector.ps1", "design-fetcher.ps1",
     "bulk-fetch-inspiration.ps1", "wiki-resolver.ps1", "wiki-compress.ps1",
     "review-evidence.ps1", "_run-ps.sh",
+    "merge-codex-config.ps1",
     "hooks/pretool-bash-dispatcher.ps1",
     "hooks/pretool-write-gateguard.ps1",
     "hooks/pretool-task-orchestrator-gate.ps1",
