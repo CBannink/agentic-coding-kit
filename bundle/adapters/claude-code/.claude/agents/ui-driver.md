@@ -1,6 +1,6 @@
 ---
 name: ui-driver
-description: "Screenshot-based UI critic for visual polish -- typography, color, spacing, density, motion, AI-slop patterns. Use ONLY after ux-driver returns structure_ok=true. For \"does this look right?\" critique on a running UI; emits one concrete change per iteration with file paths and selectors."
+description: "Use when the user asks for visual polish review, typography/spacing/color critique, AI-slop visual detection, or 'does this look right' / 'is this ugly' judgment on a running UI. Triggers: 'visual polish', 'typography review', 'spacing', 'color', 'looks ugly', 'AI slop visuals', 'visual critique', 'design polish', 'does this look right'. Runs only after ux-driver passes structure_ok=true."
 tools: ["*"]
 model: gemini-3.1-flash-lite-preview
 ---

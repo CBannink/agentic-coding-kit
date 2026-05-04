@@ -1,6 +1,6 @@
 ---
 name: code-quality-reviewer
-description: "Reviews maintainability, correctness, conventions, test quality, and observability of a code change. Use during /build Phase 2-6 build loop and during /review's deep pass. Checks: are new behaviors specifically tested? Are mocks accurate? Are errors logged with context? Are fixtures updated?"
+description: "Use when the user asks to review code, audit a change, check correctness, review tests, or get a general code review. Triggers: 'review code', 'code review', 'audit this change', 'check correctness', 'review tests', 'is this OK', 'find problems', 'check conventions', 'maintainability'. Inside `/build` and `/review`, runs the deep quality pass."
 tools: ["*"]
 model: gemini-3-flash-preview
 ---
