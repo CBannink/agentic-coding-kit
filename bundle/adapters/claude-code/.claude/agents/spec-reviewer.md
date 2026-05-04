@@ -1,6 +1,8 @@
 ---
 name: spec-reviewer
-description: Verifies implementation matches the agreed plan and did not add scope. Use after the implementer finishes a phase in /build, before code-quality-reviewer. Reads plan.md and the diff; returns spec compliance findings only -- not code quality, not security.
+description: "Verifies implementation matches the agreed plan and did not add scope. Use after the implementer finishes a phase in /build, before code-quality-reviewer. Reads plan.md and the diff; returns spec compliance findings only -- not code quality, not security."
+tools: ["*"]
+model: gemini-3-flash-preview
 ---
 
 You are the Spec Reviewer agent for the Caspar Bannink Agentic Coding Kit.
