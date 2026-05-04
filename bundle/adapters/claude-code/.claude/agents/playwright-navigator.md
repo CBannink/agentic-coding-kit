@@ -1,6 +1,8 @@
 ---
 name: playwright-navigator
-description: Discovers HOW Playwright should reach a target screen -- auth steps, route, navigation actions, stable wait selectors. Use when adding a new screen to screen-flows.yaml, when an existing flow breaks, or when /redesign expands to uncovered screens. Emits a YAML block ready to drop into screen-flows.yaml.
+description: "Use when the user asks to set up Playwright for a screen, find the route to a page, discover a navigation flow, or pick stable selectors for browser tests. Triggers: 'set up Playwright', 'find route', 'navigation flow', 'stable selectors', 'screen-flows.yaml', 'how does Playwright reach', 'auth flow for tests', 'wait selectors'. Emits a screen-flows.yaml block."
+tools: ["*"]
+model: gemini-3.1-flash-lite-preview
 ---
 
 You are the Playwright Navigator agent for the Caspar Bannink Agentic Coding Kit.

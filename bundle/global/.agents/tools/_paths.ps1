@@ -64,26 +64,52 @@ $script:_HookStdinCache = $null
 $script:_HookStdinRead = $false
 
 function Get-HookStdinJson {
-    if (-not $script:_HookStdinRead) {
-        $script:_HookStdinRead = $true
-        try {
-            if ([Console]::IsInputRedirected) {
-                $raw = [Console]::In.ReadToEnd()
-                if ($raw -and $raw.Trim()) {
-                    $script:_HookStdinCache = $raw | ConvertFrom-Json -ErrorAction SilentlyContinue
-                }
-            }
-        } catch {
-            $script:_HookStdinCache = $null
+    # Bounded stdin read with timeout. Some hook hosts (notably Gemini CLI) redirect
+    # stdin but never close it -- a naive ReadToEnd() blocks indefinitely. Read
+    # asynchronously and bail after a short timeout, OR after stdin closes,
+    # whichever comes first. Override timeout via AGENTS_HOOK_STDIN_TIMEOUT_MS.
+    if ($script:_HookStdinRead) { return $script:_HookStdinCache }
+    $script:_HookStdinRead = $true
+
+    if (-not [Console]::IsInputRedirected) { return $null }
+
+    $timeoutMs = 250
+    if ($env:AGENTS_HOOK_STDIN_TIMEOUT_MS) {
+        $parsed = 0
+        if ([int]::TryParse($env:AGENTS_HOOK_STDIN_TIMEOUT_MS, [ref]$parsed) -and $parsed -ge 0) {
+            $timeoutMs = $parsed
         }
+    }
+    if ($timeoutMs -eq 0) { return $null }
+
+    try {
+        $reader = [Console]::In
+        $task = $reader.ReadToEndAsync()
+        if ($task.Wait($timeoutMs)) {
+            $raw = $task.Result
+            if ($raw -and $raw.Trim()) {
+                $script:_HookStdinCache = $raw | ConvertFrom-Json -ErrorAction SilentlyContinue
+            }
+        }
+        # If timed out, leave cache as $null. The task continues running in the
+        # background but the hook returns -- the host will reap the process.
+    } catch {
+        $script:_HookStdinCache = $null
     }
     return $script:_HookStdinCache
 }
 
 function Resolve-HookSessionId {
     param([string]$Provided)
-    if ($Provided) { return $Provided }
-    if ($env:CLAUDE_SESSION_ID) { return $env:CLAUDE_SESSION_ID }
+    # Treat literal "${VAR}" / "$VAR" patterns as missing. Some hosts (Gemini CLI)
+    # don't expand bash-style placeholders in their hook command lines, so the
+    # raw template arrives here as a literal string. Using it as a session id
+    # creates junk directories with $ and { characters in the path.
+    if ($Provided -and $Provided -notmatch '^\$\{?\w+\}?$') { return $Provided }
+    if ($env:CLAUDE_SESSION_ID)  { return $env:CLAUDE_SESSION_ID }
+    if ($env:GEMINI_SESSION_ID)  { return $env:GEMINI_SESSION_ID }
+    if ($env:CODEX_SESSION_ID)   { return $env:CODEX_SESSION_ID }
+    if ($env:OPENCODE_SESSION_ID) { return $env:OPENCODE_SESSION_ID }
     $stdin = Get-HookStdinJson
     if ($stdin -and $stdin.session_id) { return [string]$stdin.session_id }
     return "unknown-$(Get-Date -Format 'yyyyMMddHHmmss')"

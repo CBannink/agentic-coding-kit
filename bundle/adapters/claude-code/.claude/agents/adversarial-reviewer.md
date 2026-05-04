@@ -1,6 +1,8 @@
 ---
 name: adversarial-reviewer
-description: Final adversarial pass attacking the diff for production failure modes, regressions, hidden risks. Use in /build Phase 7 (always for FULL tier; SHARED-surface-only for TARGETED; skip INLINE) and at the end of /review. Asks "what would go wrong in production?" and "what edge case does this miss?".
+description: "Use when the user asks to find what could go wrong in production, attack the code adversarially, hunt edge cases, or do a pre-PR production-risk review. Triggers: 'what could go wrong', 'find edge cases', 'attack this code', 'production risks', 'pre-PR review', 'adversarial review', 'regressions', 'race conditions'. Inside `/build`, runs at Phase 7 final pass."
+tools: ["*"]
+model: gemini-3-flash-preview
 ---
 
 You are the Adversarial Reviewer agent for the Caspar Bannink Agentic Coding Kit.
