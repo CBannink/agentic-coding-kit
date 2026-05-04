@@ -184,6 +184,16 @@ Per-session handoff path (canonical, dated):
 
 Repo-level `hand_off.md` and `agents/handoffs/` are **mirrors**, not the source of truth.
 
+### §2a. Degraded-mode check (kit health, first turn only)
+
+On your FIRST turn of a session, check whether `~/.agents/KIT-DEGRADED.txt`
+exists. The wrapper that runs every kit lifecycle script writes this file
+when no PowerShell host is available. If it exists:
+
+1. **Your first response to the user MUST start with**: `WARN KIT-DEGRADED: no PowerShell host on this machine. Lifecycle scripts (state-init, workflow-evidence, post-session, verify-writeback) cannot run. Continuing without lifecycle gates -- doc writes will not be enforced, session state will not persist.`
+2. Then ask whether to proceed in degraded mode or stop until pwsh is installed.
+3. Do not silently fall back to ad-hoc operation. Field reflection (May 2026) identified silent degradation as a load-bearing failure: the agent skips the lifecycle then forgets to re-engage it.
+
 ---
 
 ## §3. MEMORY ARCHITECTURE — five tiers, integrated
@@ -231,6 +241,33 @@ a workflow complete without recording fresh test/build/lint exit codes via
 `workflow-evidence.ps1 -AddVerification`, the hook will block the stop.
 
 Override only with `KIT_IRON_LAW_OFF=1` in genuine emergencies.
+
+### §4a. Writeback gate — mandatory before claiming completion
+
+Iron Law catches "did tests pass." It does not catch "did wiki/memory get
+updated." Markdown rules in this file lose to ship-it instincts under PR-chain
+context bleed; the writeback gate is mechanical.
+
+Before your final response on any task that shipped user-visible changes
+(routes, components, public exports, env vars, schema migrations), run:
+
+```powershell
+pwsh ~/.agents/tools/verify-writeback.ps1 -SessionId "{session_id}"
+```
+
+The tool emits one of:
+- `OK writeback: ...` -- doc files updated alongside user-visible changes. Include in your final response verbatim.
+- `WARN NO WRITEBACK -- ...` -- user-visible files changed without `.wiki/features.md`, `.kit/context/memory.md`, or `.kit/context/handoffs.md`. Either update the docs and re-run, or include the warning verbatim in your final response so the user sees the gap.
+
+Enforcement mode via `KIT_WRITEBACK_ENFORCE`:
+- `off` -- detector still runs, output informational only.
+- `warn` -- (default) warn but proceed.
+- `block` -- detector exits non-zero so a wrapper can refuse to ship.
+
+This rule exists because field reflection identified writeback skipping as the
+single most common failure mode after green-test sessions. The detector also
+runs unconditionally at session end via `post-session.ps1` (Detector 8) so a
+skipped run still gets logged to `reflections.md` for later consolidation.
 
 ---
 

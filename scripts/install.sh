@@ -39,6 +39,65 @@ BUNDLE_GLOBAL="$REPO_ROOT/bundle/global"
 BUNDLE_REPO="$REPO_ROOT/bundle/repo-template"
 ADAPTERS_ROOT="$REPO_ROOT/bundle/adapters"
 
+# ── Pre-flight: PowerShell host detection ────────────────────────────────────
+# The kit's runtime scripts require pwsh (or fall back to powershell.exe on
+# Windows). Without one of them, lifecycle scripts silently no-op and the
+# self-improvement loop breaks. Detect early and walk the user through install.
+detect_powershell() {
+    if command -v pwsh >/dev/null 2>&1; then
+        echo "pwsh"
+        return 0
+    fi
+    if command -v powershell.exe >/dev/null 2>&1; then
+        echo "powershell.exe"
+        return 0
+    fi
+    if command -v powershell >/dev/null 2>&1; then
+        echo "powershell"
+        return 0
+    fi
+    return 1
+}
+
+if ! PS_HOST=$(detect_powershell); then
+    echo ""
+    echo "######################################################################"
+    echo "# Pre-flight FAIL: no PowerShell host detected                       #"
+    echo "######################################################################"
+    echo "# The kit's lifecycle scripts (state-init, workflow-evidence,        #"
+    echo "# post-session, verify-writeback, hooks) all require pwsh.           #"
+    echo "# Installing the kit without pwsh produces a silently-degraded      #"
+    echo "# setup where the self-improvement loop is broken.                   #"
+    echo "#                                                                     #"
+    echo "# Install PowerShell 7+ first, then re-run this installer:           #"
+    echo "#                                                                     #"
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) echo "#   Windows:  winget install Microsoft.PowerShell                    #" ;;
+        Darwin)               echo "#   macOS:    brew install --cask powershell                         #" ;;
+        Linux)
+            echo "#   Linux:    https://learn.microsoft.com/en-us/powershell/                #"
+            echo "#             scripting/install/installing-powershell-on-linux               #"
+            ;;
+        *) echo "#   See https://learn.microsoft.com/en-us/powershell/scripting/install/      #" ;;
+    esac
+    echo "#                                                                     #"
+    echo "# After installing, verify with:  pwsh --version                     #"
+    echo "# Then re-run:  ./scripts/install.sh $@                              #"
+    echo "######################################################################"
+    echo ""
+    echo "To proceed in degraded mode anyway (lifecycle disabled), set"
+    echo "  KIT_ALLOW_NO_PWSH=1"
+    echo "and re-run. Not recommended."
+    echo ""
+    if [ "${KIT_ALLOW_NO_PWSH:-}" != "1" ]; then
+        exit 1
+    fi
+    echo "KIT_ALLOW_NO_PWSH=1 set -- continuing in degraded mode."
+    PS_HOST="(none)"
+fi
+echo "Detected PowerShell host: $PS_HOST"
+
+
 AGENTS_ROOT="$HOME_ROOT/.agents"
 
 copy_tree() {

@@ -728,6 +728,33 @@ if ($state -and @($state.agents_run).Count -ge 3) {
     }
 }
 
+# Detector 8 (a.k.a. #12 in the canonical lifecycle ordering): writeback skipped.
+# Mirrors the verify-writeback.ps1 runtime tool but runs unconditionally at
+# session end. Catches the case where the agent shipped user-visible code
+# (routes, components, public exports, env vars, schema) without touching
+# .wiki/features.md, .kit/context/memory.md, or .kit/context/handoffs.md.
+# Pattern named after the field reflection that surfaced this failure:
+# the agent skipped writeback under PR-chain context bleed + reward asymmetry.
+$verifyWritebackPath = Join-Path $script:Tools "verify-writeback.ps1"
+if (Test-Path $verifyWritebackPath) {
+    try {
+        $repoRoot = if ($state -and $state.repo_root) { [string]$state.repo_root } else { (Get-Location).Path }
+        $env:KIT_WRITEBACK_ENFORCE = if ($env:KIT_WRITEBACK_ENFORCE) { $env:KIT_WRITEBACK_ENFORCE } else { 'warn' }
+        $vwOut = & $script:AgentsShell -NoProfile -File $verifyWritebackPath -SessionId $SessionId -RepoRoot $repoRoot -Json 2>$null
+        if ($vwOut) {
+            $vw = $vwOut | ConvertFrom-Json -ErrorAction SilentlyContinue
+            if ($vw -and $vw.status -eq 'warn') {
+                $sample = if (@($vw.user_visible_changes).Count -gt 0) {
+                    (@($vw.user_visible_changes) | Select-Object -First 3) -join ', '
+                } else { 'unknown' }
+                Append-ReflectionEntry -Path $globalReflectionsPath -Class "writeback" `
+                    -Pattern "Writeback skipped -- $($vw.user_visible_count) user-visible file(s) shipped without updating .wiki/features.md or .kit/context/memory.md (sample: $sample)" `
+                    -Evidence "session=$SessionId task=$Task user_visible_count=$($vw.user_visible_count) doc_files_count=$($vw.doc_files_count)"
+            }
+        }
+    } catch {}
+}
+
 # ── Self-improvement loop enforcement ─────────────────────────────────────────
 # Three phases: consolidate, compress, gate-check. Each handles a different
 # axis of slop/noise; together they close the loop without requiring /reflect
