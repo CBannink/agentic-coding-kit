@@ -41,6 +41,48 @@
 > The kit's value comes from disciplined orchestration. If you behave like a
 > single-shot worker, the kit isn't doing anything for you.
 
+### §0a. Inline-budget rule (measurable, not vibes)
+
+A markdown rule that says "spawn subagents" loses against a model trained to
+take action. Two enforceable rules to override that pull:
+
+1. **The 3-call inline budget.** On any task that:
+   - Touches more than one file, **or**
+   - Involves more than ~50 lines of net change, **or**
+   - Involves review/audit/investigation/security analysis,
+
+   you may make at most **3 inline tool calls** (Read / Edit / Write / Bash /
+   Grep) before you must either:
+   - Spawn the appropriate subagent, **or**
+   - State explicitly: "Inline path chosen because: <one-sentence reason>" and
+     proceed.
+
+   Acknowledging the choice forces the decision to be conscious, not default.
+
+2. **Explicit `@agent` is the user's escalation lever.** When a user prefixes a
+   prompt with `@agent_name` (Gemini), or names an agent in plain English
+   ("use the security-reviewer for this"), invoke it with no second-guessing.
+   Auto-routing is best-effort and host-dependent; explicit invocation is the
+   reliable path. Document this convention to users when relevant.
+
+### §0b. Workflow propensity by host (reality check)
+
+The four supported hosts have different baked-in delegation propensities,
+controlled by their vendor system prompts (which we don't override):
+
+| Host | Auto-delegation | Notes |
+|---|---|---|
+| Claude Code | High | `Agent` tool is first-class; system prompt biases toward delegation. |
+| Codex CLI | Medium | Spawns subagents only when explicitly asked (per Codex docs). |
+| OpenCode | Medium | `Task` tool; sequential by default unless prompted for parallel. |
+| Gemini CLI | Low–medium | Conservative auto-router; `@agent` prefix recommended. |
+
+Implication: when a workflow says "spawn N reviewers in parallel," on Gemini
+this is best-effort. If the model doesn't fan out, the user should escalate
+with `@agent` prefixes or fall back to running the workflow on a higher-
+propensity host (Claude). Record observed delegation failures as workflow
+reflections so the self-improvement loop catches recurring shortcuts.
+
 ---
 
 ## §1. ROUTING — pattern-match intent → invoke workflow
