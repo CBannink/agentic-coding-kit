@@ -65,17 +65,29 @@ take action. Two enforceable rules to override that pull:
    Auto-routing is best-effort and host-dependent; explicit invocation is the
    reliable path. Document this convention to users when relevant.
 
-### §0b. Workflow propensity by host (reality check, evidence-backed)
+### §0b. Host support tier (evidence-backed, May 2026)
 
-The four supported hosts have different baked-in delegation propensities,
-controlled by their vendor system prompts (which we don't override):
+Four primary hosts the kit targets and supports first-class. Gemini CLI is
+demoted to experimental until upstream stabilizes; see dedicated note.
+
+**Primary hosts** (use these for real agentic work):
+
+| Host | Auto-delegation | Mid-flight kit lifecycle | Instruction file |
+|---|---|---|---|
+| **Claude Code** | High | Reliable | `~/.claude/CLAUDE.md` |
+| **Codex CLI** | Medium | Mostly reliable | `~/.codex/AGENTS.md` |
+| **OpenCode** | Medium | Mostly reliable | `~/.config/opencode/prompt.md` |
+| **GitHub Copilot CLI** | Medium | Best-effort (no native hooks) | `~/.copilot/copilot-instructions.md` |
+
+OpenCode is strong with Kimi K2.6 (see model-routing notes below). Copilot
+CLI has no native session hooks — workflows that need lifecycle calls bake
+those into the workflow body itself (per the kit's copilot-cli adapter).
+
+**Experimental host** (kit installs but agentic features unreliable):
 
 | Host | Auto-delegation | Mid-flight kit lifecycle | Notes |
 |---|---|---|---|
-| Claude Code | High | Reliable | `Agent` tool first-class; system prompt biases toward delegation. |
-| Codex CLI | Medium | Mostly reliable | Spawns subagents only when explicitly asked. |
-| OpenCode | Medium | Mostly reliable | `Task` tool; sequential by default. Strong with Kimi K2.6 (see below). |
-| **Gemini CLI** | **Effectively none** | **Does not fire** | See dedicated note below — kit integration is currently aspirational. |
+| Gemini CLI | Effectively none | Does not fire | Kit syncs canonical + agents but model ignores them. See note. |
 
 **Gemini CLI — observed and documented limitations (May 2026):**
 

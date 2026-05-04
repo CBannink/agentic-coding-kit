@@ -17,7 +17,7 @@
 param(
     [switch]$DryRun,
     [switch]$Force,
-    [string[]]$Hosts = @('claude','gemini','opencode','codex')
+    [string[]]$Hosts = @('claude','codex','opencode','copilot','gemini')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -102,6 +102,7 @@ $OpenCodeMap = @{
     'CLAUDE_SESSION_ID'  = 'OPENCODE_SESSION_ID'
     'CLAUDE_PROJECT_DIR' = 'OPENCODE_PROJECT_DIR'
 }
+$CopilotMap = @{}  # Copilot CLI exposes no equivalent env vars; canonical refers to env via host-specific guidance instead
 
 # ---------- per-host sync ----------
 $results = @()
@@ -147,6 +148,20 @@ foreach ($h in $Hosts) {
                 $results += [pscustomobject]@{ host='opencode'; file=(Join-Path $OpenCodeRoot 'prompt.md'); action='via-installer' }
             } else {
                 Say "  install-opencode-kit.ps1 not found" 'Yellow'
+            }
+        }
+        'copilot' {
+            Section "Copilot CLI (~/.copilot/copilot-instructions.md)"
+            $installer = Join-Path $AgentsRoot 'tools\install-copilot-kit.ps1'
+            if (Test-Path $installer) {
+                $installerArgs = @{}
+                if ($DryRun) { $installerArgs.DryRun = $true }
+                if ($Force)  { $installerArgs.Force = $true }
+                & $installer @installerArgs | Out-Host
+                $CopilotRoot = if ($env:COPILOT_HOME) { $env:COPILOT_HOME } else { Join-Path $HOME '.copilot' }
+                $results += [pscustomobject]@{ host='copilot'; file=(Join-Path $CopilotRoot 'copilot-instructions.md'); action='via-installer' }
+            } else {
+                Say "  install-copilot-kit.ps1 not found" 'Yellow'
             }
         }
         'codex' {
