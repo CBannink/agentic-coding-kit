@@ -65,23 +65,61 @@ take action. Two enforceable rules to override that pull:
    Auto-routing is best-effort and host-dependent; explicit invocation is the
    reliable path. Document this convention to users when relevant.
 
-### §0b. Workflow propensity by host (reality check)
+### §0b. Workflow propensity by host (reality check, evidence-backed)
 
 The four supported hosts have different baked-in delegation propensities,
 controlled by their vendor system prompts (which we don't override):
 
-| Host | Auto-delegation | Notes |
-|---|---|---|
-| Claude Code | High | `Agent` tool is first-class; system prompt biases toward delegation. |
-| Codex CLI | Medium | Spawns subagents only when explicitly asked (per Codex docs). |
-| OpenCode | Medium | `Task` tool; sequential by default unless prompted for parallel. |
-| Gemini CLI | Low–medium | Conservative auto-router; `@agent` prefix recommended. |
+| Host | Auto-delegation | Mid-flight kit lifecycle | Notes |
+|---|---|---|---|
+| Claude Code | High | Reliable | `Agent` tool first-class; system prompt biases toward delegation. |
+| Codex CLI | Medium | Mostly reliable | Spawns subagents only when explicitly asked. |
+| OpenCode | Medium | Mostly reliable | `Task` tool; sequential by default. Strong with Kimi K2.6 (see below). |
+| **Gemini CLI** | **Effectively none** | **Does not fire** | See dedicated note below — kit integration is currently aspirational. |
 
-Implication: when a workflow says "spawn N reviewers in parallel," on Gemini
-this is best-effort. If the model doesn't fan out, the user should escalate
-with `@agent` prefixes or fall back to running the workflow on a higher-
-propensity host (Claude). Record observed delegation failures as workflow
-reflections so the self-improvement loop catches recurring shortcuts.
+**Gemini CLI — observed and documented limitations (May 2026):**
+
+Local empirical testing (May 2026) confirmed Gemini CLI does NOT execute the
+kit's mid-flight lifecycle on its own:
+- SessionStart / SessionEnd hooks DO fire (host-enforced via settings.json) ✅
+- All other instrumentation (`wiki-resolver.ps1`,
+  `specialist-memory-resolver.ps1`, `workflow-evidence.ps1`, `state-init.ps1`,
+  dated handoff writes, subagent spawning) do NOT fire ❌
+- The orchestrator reads §0/§1/§2/§3/§4 as context but ignores them in favor
+  of inline `run_shell_command` execution (34 inline shell calls observed in
+  one /investigate run; zero subagents spawned).
+
+This isn't kit-specific — it's a documented Gemini CLI behavior the community
+is reporting on Google's own tracker:
+
+- [Issue #15037 — "Gemini 3 Pro explicitly decided to ignore instructions in GEMINI.md"](https://github.com/google-gemini/gemini-cli/issues/15037)
+- [Issue #18064 — "Experimental agents (`~/.gemini/agents/`) hang indefinitely on Starting Agent Creation"](https://github.com/google-gemini/gemini-cli/issues/18064)
+- [Issue #22093 — "(Sub)agents running without permission since v0.33.0"](https://github.com/google-gemini/gemini-cli/issues/22093)
+- [PR #15007 — "temp fix for subagent invocation until subagent delegation is merged to stable"](https://github.com/google-gemini/gemini-cli/pull/15007)
+- [Issue #6475 — "Does not follow instructions"](https://github.com/google-gemini/gemini-cli/issues/6475)
+
+Subagents formally launched in v0.38.1 ([discussion #25562](https://github.com/google-gemini/gemini-cli/discussions/25562))
+and the feature is still being stabilized — this is the "early-product" period.
+
+**Practical guidance until upstream stabilizes:**
+
+- For real agentic workflows (`/build`, `/review`, `/investigate`) → **run on
+  Claude Code**. Subagent spawning, memory writes, wiki resolution, and dated
+  handoffs all fire reliably there.
+- On Gemini, treat the kit as **lifecycle-bookended only**: SessionStart and
+  SessionEnd hooks run, the canonical block is read, but mid-flight
+  instrumentation will not execute. Use `@agent_name` prefix for explicit
+  invocation when you need a specialist.
+- **Alternative**: OpenCode + Kimi K2.6 (open-weights, 1T-param MoE, 262K
+  context, ~$0.80/$3.50 per M tokens — ~10× cheaper than Opus 4.7). Reported
+  as "exceptionally reliable" for tool-calling and task decomposition in
+  OpenCode; SWE-Bench Pro 58.6% (beats GPT-5.4 and Opus 4.6). Strong as
+  parallel sub-agent worker, weaker as top-level orchestrator on ambiguous
+  planning. Worth evaluating if Gemini's instability is a blocker.
+
+Record observed delegation failures as workflow reflections so the
+self-improvement loop catches recurring shortcuts. Re-evaluate this section
+every ~2 months as Gemini CLI stabilizes.
 
 ---
 
