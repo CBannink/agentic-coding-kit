@@ -1,4 +1,4 @@
-﻿---
+---
 name: workflow-reviewer
 description: MUST BE USED after non-trivial code changes for scoped diff review (correctness, regressions, contract drift, missing tests). Use immediately when the orchestrator wants a review without polluting its own context.
 mode: subagent

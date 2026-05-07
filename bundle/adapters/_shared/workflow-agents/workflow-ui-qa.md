@@ -1,4 +1,4 @@
-﻿---
+---
 name: workflow-ui-qa
 description: MUST BE USED after UI or behavior-heavy changes for task-flow, defaults-parity, and artifact-safety QA. Use immediately when the orchestrator wants UI QA without polluting its own context.
 mode: subagent

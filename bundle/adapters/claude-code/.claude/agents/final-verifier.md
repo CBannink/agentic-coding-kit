@@ -1,4 +1,4 @@
-﻿---
+---
 name: final-verifier
 description: MUST BE USED before claiming any task is complete. Use immediately after build/test/lint runs to enforce the Iron Law: no completion claims without fresh verification evidence. Use when the user asks to verify the work is actually done, prove tests pass, confirm completion, or run a final completion gate. Triggers: 'verify it works', 'prove tests pass', 'confirm completion', 'are we sure', 'did the build pass', 'completion gate', 'final verification', 'is it really done'. Enforces the Iron Law: no completion without fresh build/test/lint evidence.
 tools: ["*"]

@@ -105,7 +105,14 @@ function Render-Template {
         $content = $content.Replace($k, $Vars[$k])
     }
     New-Item -ItemType Directory -Path (Split-Path -Parent $Destination) -Force | Out-Null
-    Set-Content -Path $Destination -Value $content -Encoding utf8
+    # Strip BOM from source if present, write UTF-8 NO BOM. Set-Content -Encoding utf8
+    # in Windows PowerShell 5.1 writes WITH BOM; Claude Code's YAML frontmatter parser
+    # silently rejects agent / skill files that start with BOM. Symptom: the agent
+    # appears installed on disk but does NOT show up in `claude -p "list agents"`.
+    if ($content.Length -gt 0 -and [int][char]$content[0] -eq 0xFEFF) {
+        $content = $content.Substring(1)
+    }
+    [System.IO.File]::WriteAllText($Destination, $content, (New-Object System.Text.UTF8Encoding($false)))
 }
 
 function Get-WorkflowAdapterTemplateVars {
@@ -859,7 +866,9 @@ $endMarker
             $newFm += "`r`n---`r`n"
             $outName = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) + '.agent.md'
             $dst = Join-Path $DestDir $outName
-            Set-Content -Path $dst -Value ($newFm + $body) -Encoding UTF8
+            # UTF-8 NO BOM. Copilot CLI's agent loader rejects files starting with BOM
+            # the same way Claude Code does. Set-Content -Encoding UTF8 in PS 5.1 adds BOM.
+            [System.IO.File]::WriteAllText($dst, ($newFm + $body), (New-Object System.Text.UTF8Encoding($false)))
             $count++
         }
         if ($count -gt 0) { Write-Host "  $Label agents: $count installed at $DestDir (.agent.md format, minimal frontmatter)" }

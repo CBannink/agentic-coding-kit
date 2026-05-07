@@ -1,4 +1,4 @@
-﻿---
+---
 name: workflow-explorer
 description: MUST BE USED before workflow-implementer when the implementation surface is unclear, file/contract discovery is needed, or pattern tracing is required. Use PROACTIVELY when a build or investigation needs ≥2 file reads. Returns facts only; keeps exploration out of the orchestrator's context.
 mode: subagent
