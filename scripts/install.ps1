@@ -268,7 +268,51 @@ if ($Upgrade -and (Test-Path $AgentsRoot)) {
 # Everything kit-related lives under ~/.agents/. Codex CLI users who want their
 # own ~/.codex/ config can set it up separately -- it's not the kit's concern.
 if ($InstallGlobal) {
+    # Preserve user-mutable runtime state across the Copy-Tree -ReplaceDestination
+    # wipe. The bundle does NOT ship these subpaths, so they are 100% user-owned
+    # and a non-destructive install must keep them intact:
+    #   - session-state/            per-session handoffs.md, plan.md, run-packet.json
+    #   - context/handoffs.md       cross-session handoff log
+    #   - context/reflections.md    accumulated workflow reflections
+    #   - inspiration/              user-fetched design references (bulk-fetch-inspiration.ps1)
+    # Snapshot each into a temp location, run the wipe, then restore. User state
+    # wins on conflict: if the bundle started shipping any of these (it does not
+    # today), the user's copy is kept.
+    $preserveRelativePaths = @(
+        'session-state',
+        'context/handoffs.md',
+        'context/reflections.md',
+        'inspiration'
+    )
+    $preserveSnapshots = @{}
+    foreach ($rel in $preserveRelativePaths) {
+        $abs = Join-Path $AgentsRoot $rel
+        if (Test-Path $abs) {
+            $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("agentic-kit-preserve-" + [Guid]::NewGuid().ToString('N'))
+            Move-Item -Force $abs $tmp
+            $preserveSnapshots[$rel] = $tmp
+        }
+    }
+
     Copy-Tree -Source (Join-Path $BundleGlobal ".agents") -Destination $AgentsRoot -ReplaceDestination
+
+    # Restore preserved subpaths.
+    foreach ($rel in $preserveSnapshots.Keys) {
+        $tmp = $preserveSnapshots[$rel]
+        $abs = Join-Path $AgentsRoot $rel
+        New-Item -ItemType Directory -Path (Split-Path -Parent $abs) -Force | Out-Null
+        if (Test-Path $abs) {
+            # Bundle re-introduced this path during this install. Keep the user's copy;
+            # archive the bundle's version alongside for inspection (rare; future-proof).
+            $archived = "$abs.bundle-shipped-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+            Move-Item -Force $abs $archived
+            Write-Host "  Preserved user state at $rel ; bundle copy archived to $archived"
+        }
+        Move-Item -Force $tmp $abs
+    }
+    if ($preserveSnapshots.Count -gt 0) {
+        Write-Host "  Preserved $($preserveSnapshots.Count) user-mutable runtime path(s) across install."
+    }
 
     # Render skill-memory-index.json from template with absolute paths
     $tmpl = Join-Path $AgentsRoot "context/skill-memory-index.json.tmpl"
