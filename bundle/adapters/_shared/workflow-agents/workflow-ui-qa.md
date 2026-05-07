@@ -1,6 +1,6 @@
----
+﻿---
 name: workflow-ui-qa
-description: Use proactively after UI or behavior-heavy changes to review task flow, defaults, script parity, and artifact safety without keeping the full QA pass in the main session.
+description: MUST BE USED after UI or behavior-heavy changes for task-flow, defaults-parity, and artifact-safety QA. Use immediately when the orchestrator wants UI QA without polluting its own context.
 mode: subagent
 model: sonnet
 tools: Read, Grep, Glob, Bash

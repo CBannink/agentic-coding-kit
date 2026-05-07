@@ -1,6 +1,6 @@
----
+﻿---
 name: code-quality-reviewer
-description: "Use when the user asks to review code, audit a change, check correctness, review tests, or get a general code review. Triggers: 'review code', 'code review', 'audit this change', 'check correctness', 'review tests', 'is this OK', 'find problems', 'check conventions', 'maintainability'. Inside `/build` and `/review`, runs the deep quality pass."
+description: Use immediately after writing or modifying code. MUST BE USED for all code reviews and audits. Use PROACTIVELY when reviewing tests, observability, conventions, or correctness. Use when the user asks to review code, audit a change, check correctness, review tests, or get a general code review. Triggers: 'review code', 'code review', 'audit this change', 'check correctness', 'review tests', 'is this OK', 'find problems', 'check conventions', 'maintainability'. Inside `/build` and `/review`, runs the deep quality pass.
 tools: ["*"]
 model: claude-sonnet-4-6
 ---

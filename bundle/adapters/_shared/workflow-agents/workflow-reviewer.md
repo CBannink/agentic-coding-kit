@@ -1,6 +1,6 @@
----
+﻿---
 name: workflow-reviewer
-description: Use proactively after non-trivial code changes to review a scoped diff for correctness, regressions, contract drift, and missing tests without polluting the main session.
+description: MUST BE USED after non-trivial code changes for scoped diff review (correctness, regressions, contract drift, missing tests). Use immediately when the orchestrator wants a review without polluting its own context.
 mode: subagent
 model: sonnet
 tools: Read, Grep, Glob, Bash

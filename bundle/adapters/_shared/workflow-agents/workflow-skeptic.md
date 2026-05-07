@@ -1,6 +1,6 @@
----
+﻿---
 name: workflow-skeptic
-description: Use proactively for non-trivial build and review work to challenge a plan or diff for hidden regressions, failure modes, and scope drift.
+description: MUST BE USED to challenge plans, diffs, and proposed approaches for hidden regressions, failure modes, and scope drift. Use PROACTIVELY for non-trivial build and review work BEFORE shipping.
 mode: subagent
 model: sonnet
 tools: Read, Grep, Glob, Bash
