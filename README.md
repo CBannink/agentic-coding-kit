@@ -222,7 +222,7 @@ doesn't know about, those are KEPT — repo wins on those by default.
 | **Claude Code** | ✅ `~/.claude/commands/` | ✅ `~/.claude/agents/` | ✅ | ✅ via `settings.json` | ✅ | ✅ |
 | **Codex CLI** | ❌ no native discovery | ❌ | ❌ | ✅ via `~/.codex/config.toml` (Bash/apply_patch/MCP only — issue #20204) | ✅ | ⚠️ partial |
 | **OpenCode** | ✅ `~/.config/opencode/commands/` | ✅ `~/.config/opencode/agents/` | ✅ | ✅ via plugin `tool.execute.before` | ✅ | ✅ via plugin events |
-| **Copilot CLI** | ❌ | ❌ | ❌ | ❌ | ❌ | manual via instruction file |
+| **Copilot CLI** | ❌ (issue #1113) | ✅ `~/.copilot/agents/` + `<repo>/.github/agents/` (`.agent.md`, since v0.0.396) | ❌ no documented surface | ✅ via `<repo>/.github/hooks/preToolUse.json` (since v0.0.397) | ✅ same | ✅ `sessionStart`, `sessionEnd`, `subagentStop`, etc. (repo scope only — no documented user-level hooks dir) |
 | **Kilo Code** | ❌ (modes, not commands) | ❌ | ❌ | ❌ | ❌ | none |
 | **Generic** (Aider/Cline/etc.) | ❌ | ❌ | ❌ | ❌ | ❌ | manual |
 

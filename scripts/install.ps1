@@ -117,6 +117,16 @@ function Get-WorkflowAdapterTemplateVars {
                 "__HOST_NAME__" = "OpenCode"
             }
         }
+        "copilot-cli" {
+            # Copilot CLI has no documented user-level skills directory; the
+            # kit's procedural content lives inline in copilot-instructions.md
+            # and the orchestrator follows it. __SKILL_ROOT__ is left pointing
+            # at ~/.copilot for any future skill auto-discovery surface.
+            return @{
+                "__SKILL_ROOT__" = "~/.copilot/skills"
+                "__HOST_NAME__" = "Copilot CLI"
+            }
+        }
         default { return $null }
     }
 }
@@ -154,6 +164,31 @@ function Get-WorkflowAdapterDestinations {
                 Agents = Join-Path $Root ".opencode/agents"
             }
         }
+        "copilot-cli" {
+            # Copilot CLI surfaces (May 2026):
+            #   - Custom agents:  ~/.copilot/agents/<name>.agent.md (user)
+            #                     <repo>/.github/agents/<name>.agent.md (per-repo)
+            #   - Hooks:          <repo>/.github/hooks/*.json (per-repo only;
+            #                     no documented user-level hook path)
+            #   - User-defined slash commands: NOT supported (issue #1113).
+            # Without a slash-command surface, "Commands" returns null; install
+            # writes only Agents (and Hooks via Install-CopilotHooks separately).
+            if ($DeviceWideScope) {
+                return [pscustomobject]@{
+                    Label = "Copilot CLI"
+                    Commands = $null
+                    Agents = Join-Path $Root ".copilot/agents"
+                    AgentSuffix = ".agent.md"
+                }
+            }
+            return [pscustomobject]@{
+                Label = "Copilot CLI"
+                Commands = $null
+                Agents = Join-Path $Root ".github/agents"
+                Hooks = Join-Path $Root ".github/hooks"
+                AgentSuffix = ".agent.md"
+            }
+        }
         default { return $null }
     }
 }
@@ -166,6 +201,9 @@ function Install-RenderedMarkdownDirectory {
         [string]$Label,
         [string]$AssetKind,
         [switch]$SkipIfExists,
+        # Override destination filename suffix. Default: keep source's `.md`.
+        # Used for Copilot CLI agents which require `.agent.md` extension.
+        [string]$OutputSuffix = ".md",
         # When set, enumerate destination *.md files NOT present in $SourceDir
         # and delete them. Closes the f714a3b drift class where the bundle
         # consolidated per-host commands into _shared/ but install left the
@@ -192,9 +230,14 @@ function Install-RenderedMarkdownDirectory {
 
     $count = 0
     foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File | Sort-Object Name)) {
-        $dst = Join-Path $DestDir $f.Name
+        $outName = if ($OutputSuffix -ne ".md") {
+            [System.IO.Path]::GetFileNameWithoutExtension($f.Name) + $OutputSuffix
+        } else {
+            $f.Name
+        }
+        $dst = Join-Path $DestDir $outName
         if ($SkipIfExists -and (Test-Path $dst) -and (-not $Force)) {
-            Write-Host "  $Label ${AssetKind}: $($f.Name) already exists at $dst (skipped, pass -Force to overwrite)"
+            Write-Host "  $Label ${AssetKind}: $outName already exists at $dst (skipped, pass -Force to overwrite)"
             continue
         }
         Render-Template -Source $f.FullName -Destination $dst -Vars $Vars
@@ -248,25 +291,31 @@ function Install-WorkflowAdapterAssets {
     $destinations = Get-WorkflowAdapterDestinations -AdapterName $AdapterName -Root $Root -DeviceWideScope:$DeviceWideScope
     if (-not $vars -or -not $destinations) { return }
 
-    Install-RenderedMarkdownDirectory `
-        -SourceDir $SharedWorkflowCommandsRoot `
-        -DestDir $destinations.Commands `
-        -Vars $vars `
-        -Label $destinations.Label `
-        -AssetKind "commands" `
-        -SkipIfExists:$SkipExistingCommands `
-        -PruneStale:$PruneStale `
-        -DryRunPrune:$DryRunPrune
+    if ($destinations.Commands) {
+        Install-RenderedMarkdownDirectory `
+            -SourceDir $SharedWorkflowCommandsRoot `
+            -DestDir $destinations.Commands `
+            -Vars $vars `
+            -Label $destinations.Label `
+            -AssetKind "commands" `
+            -SkipIfExists:$SkipExistingCommands `
+            -PruneStale:$PruneStale `
+            -DryRunPrune:$DryRunPrune
+    }
 
     # Workflow-agents directory is shared with specialist agents installed by
     # Install-DeviceWideAgents; cannot prune from this side without losing the
     # specialists. Plain write only.
-    Install-RenderedMarkdownDirectory `
-        -SourceDir $SharedWorkflowAgentsRoot `
-        -DestDir $destinations.Agents `
-        -Vars $vars `
-        -Label $destinations.Label `
-        -AssetKind "workflow agents"
+    if ($destinations.Agents) {
+        $agentSuffix = if ($destinations.PSObject.Properties['AgentSuffix']) { $destinations.AgentSuffix } else { ".md" }
+        Install-RenderedMarkdownDirectory `
+            -SourceDir $SharedWorkflowAgentsRoot `
+            -DestDir $destinations.Agents `
+            -Vars $vars `
+            -Label $destinations.Label `
+            -AssetKind "workflow agents" `
+            -OutputSuffix $agentSuffix
+    }
 }
 
 function Install-Adapter {
@@ -278,6 +327,22 @@ function Install-Adapter {
     }
     Copy-Tree -Source $src -Destination $TargetRepo
     Install-WorkflowAdapterAssets -AdapterName $Name -Root $TargetRepo -PruneStale:$PruneStaleAssets -DryRunPrune:$DryRunPrune
+
+    # Copilot CLI per-repo: install repo-scope hooks (.github/hooks/*.json).
+    # Hooks are repo-scope only on Copilot per the official hooks reference;
+    # there is no documented user-level hooks path.
+    if ($Name -eq "copilot-cli") {
+        $hookSrc = Join-Path $src ".github/hooks"
+        $hookDst = Join-Path $TargetRepo ".github/hooks"
+        if (Test-Path $hookSrc) {
+            New-Item -ItemType Directory -Path $hookDst -Force | Out-Null
+            foreach ($f in (Get-ChildItem -Path $hookSrc -Filter "*.json" -File)) {
+                Copy-Item -Force $f.FullName (Join-Path $hookDst $f.Name)
+            }
+            Write-Host "  Installed Copilot CLI hooks into $hookDst"
+        }
+    }
+
     Write-Host "  Installed '$Name' adapter into $TargetRepo"
 }
 
@@ -716,6 +781,62 @@ $endMarker
         if ($count -gt 0) { Write-Host "  $Label skills: $count installed at $DestRoot" }
     }
 
+    # Copy Copilot CLI hook configs (.github/hooks/*.json). Per docs, hooks
+    # are repo-scope only -- there's no documented user-level hook directory.
+    # SourceDir: bundle/adapters/copilot-cli/.github/hooks
+    # DestDir:   <repo>/.github/hooks
+    function Install-CopilotHooks {
+        param(
+            [string]$SourceDir,
+            [string]$DestDir,
+            [string]$Label
+        )
+        if (-not (Test-Path $SourceDir)) { return }
+        New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+        $count = 0
+        foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.json" -File)) {
+            Copy-Item -Force $f.FullName (Join-Path $DestDir $f.Name)
+            $count++
+        }
+        if ($count -gt 0) { Write-Host "  $Label hooks: $count installed at $DestDir" }
+    }
+
+    # Convert Claude/OpenCode-format agent .md files into Copilot's `.agent.md`
+    # format with minimal documented frontmatter (name + description). Strips
+    # Claude-only keys (model: sonnet, permissionMode, maxTurns, tools, mode)
+    # which are not in Copilot's documented schema.
+    function Install-CopilotAgentsFromClaudeSource {
+        param(
+            [string]$SourceDir,
+            [string]$DestDir,
+            [string]$Label
+        )
+        if (-not (Test-Path $SourceDir)) { return }
+        New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+        $count = 0
+        foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
+            $raw = Get-Content $f.FullName -Raw -Encoding UTF8
+            if ($raw -notmatch '(?s)^---\r?\n(.*?)\r?\n---\r?\n(.*)$') { continue }
+            $fm = $matches[1]
+            $body = $matches[2]
+            $name = ''
+            $desc = ''
+            foreach ($line in ($fm -split "`r?`n")) {
+                if ($line -match '^\s*name\s*:\s*(.+?)\s*$')        { $name = $matches[1].Trim('"').Trim("'") }
+                elseif ($line -match '^\s*description\s*:\s*(.+?)\s*$') { $desc = $matches[1].Trim('"').Trim("'") }
+            }
+            if (-not $name) { $name = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) }
+            $newFm = "---`r`nname: $name"
+            if ($desc) { $newFm += "`r`ndescription: $desc" }
+            $newFm += "`r`n---`r`n"
+            $outName = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) + '.agent.md'
+            $dst = Join-Path $DestDir $outName
+            Set-Content -Path $dst -Value ($newFm + $body) -Encoding UTF8
+            $count++
+        }
+        if ($count -gt 0) { Write-Host "  $Label agents: $count installed at $DestDir (.agent.md format, minimal frontmatter)" }
+    }
+
     # Copies bundled agent definition files to a CLI's native auto-mount agents dir.
     function Install-DeviceWideAgents {
         param(
@@ -1036,8 +1157,15 @@ $endMarker
                     -ExistingPath (Join-Path $HomeRoot ".copilot/copilot-instructions.md") `
                     -Label       "GitHub Copilot"
 
-                Write-Host "  GitHub Copilot repo-level adapters remain optional overrides:"
-                Write-Host "    pwsh ./install.ps1 -BootstrapHarness -TargetRepo <path>"
+                # Custom agents at user scope (~/.copilot/agents/<name>.agent.md).
+                # Bundled agents are pre-converted under copilot-cli/.github/agents/.
+                Install-CopilotAgentsFromClaudeSource `
+                    -SourceDir (Join-Path $AdaptersRoot "copilot-cli/.github/agents") `
+                    -DestDir   (Join-Path $HomeRoot ".copilot/agents") `
+                    -Label     "GitHub Copilot"
+
+                Write-Host "  GitHub Copilot CLI hooks are repo-scope only (.github/hooks/*.json)."
+                Write-Host "  Per-repo install: pwsh ./install.ps1 -TargetRepo <path> -InstallAdapter copilot"
             }
             "kilocode" {
                 Write-Host "  Kilo Code has no device-wide config -- it reads"

@@ -1,10 +1,30 @@
 # GitHub Copilot Instructions -- Caspar Bannink Agentic Coding Kit
 
-Copilot Chat / Copilot CLI reads this file. **Copilot has no native session
-lifecycle hooks**, so the lifecycle calls below are baked into the workflow
-itself: when the user invokes /build, /review, /plan, etc., YOU (the agent)
-call the harness scripts directly. This is the only path to keep the
-self-improvement loop closed under Copilot.
+Copilot Chat / Copilot CLI reads this file. Copilot CLI shipped native
+session/tool hooks (Jan 2026, v0.0.397) and custom agents (Jan 2026,
+v0.0.396) plus subagents (Feb 2026, v0.0.406). The kit installs those
+surfaces when present:
+
+- Hooks (repo scope only, per docs): `<repo>/.github/hooks/*.json` --
+  installed by `pwsh ./install.ps1 -TargetRepo <r> -InstallAdapter copilot`.
+  These fire deterministically (`sessionStart`, `sessionEnd`, `postToolUse`,
+  `subagentStop`) and call the kit's PowerShell lifecycle scripts at
+  `~/.agents/tools/`. Non-zero exits are logged-and-skipped on Copilot
+  (NOT exit-2-blocking like Claude Code), so do NOT rely on hooks to
+  abort tool calls; treat them as side-effect recorders.
+- Custom agents (user + repo scope): `~/.copilot/agents/<name>.agent.md`
+  and `<repo>/.github/agents/<name>.agent.md`. The kit installs both
+  workflow-transport agents (workflow-explorer, workflow-implementer,
+  workflow-reviewer, workflow-skeptic, workflow-ui-qa) and specialist
+  agents (code-quality-reviewer, security-reviewer, modularity-expert,
+  etc.) via the device-wide and per-repo install paths.
+- User-defined slash commands: NOT supported by Copilot CLI (issue #1113).
+  The kit's procedural workflow content lives inline in this file and in
+  `~/.copilot/agentic-kit.md`.
+
+When you (the agent) cannot find a hook firing, fall back to calling the
+harness scripts directly from the workflow body -- the lifecycle calls
+below remain valid even when hooks are missing.
 
 ## Core operating rules
 
@@ -63,7 +83,7 @@ problem instead of layering more Copilot-specific exceptions.
 
 ## Lifecycle baked into every command
 
-Because Copilot has no hooks, every workflow command must explicitly call
+Even with hooks installed, every workflow command should explicitly call
 the lifecycle scripts. **Do this without asking the user; it's the contract.**
 
 ### When the user says /build (or asks to implement, fix, refactor):
@@ -91,7 +111,7 @@ the lifecycle scripts. **Do this without asking the user; it's the contract.**
 ```
 
 The build semantics themselves still come from `~/.agents/skills/build/SKILL.md`.
-Copilot lacks Claude's native agent surface, but the workflow contract is the
+Copilot's custom-agent surface (.agent.md files) is now wired by the kit; subagents are spawnable. The workflow contract is the
 same: respect the same phases, gates, memory routing, and read-stop discipline
 instead of inventing a smaller Copilot-only build.
 
