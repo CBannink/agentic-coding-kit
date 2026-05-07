@@ -89,8 +89,12 @@ if (-not ($disabledHooks -contains "dangerous-fs")) {
     if ($cmdStripped -match '\bchmod\s+777\b') {
         Block-WithReason "Blocked by kit hook (bash-dispatcher/dangerous-fs): 'chmod 777' opens permissions to everyone. Use a more restrictive mode. To bypass: KIT_DISABLED_HOOKS=dangerous-fs."
     }
-    if ($cmdStripped -match '>\s*(/etc/|/dev/|/sys/)') {
-        Block-WithReason "Blocked by kit hook (bash-dispatcher/dangerous-fs): redirect to /etc/, /dev/, or /sys/ is destructive at system level."
+    # Whitelist /dev/null (universal bit-bucket) and /dev/std{in,out,err} BEFORE
+    # the broader /dev/ check. Without this, every `2>/dev/null` redirect was
+    # a false-positive that broke common shell idioms.
+    $devCheck = $cmdStripped -replace '\d?>\s*/dev/(null|stdin|stdout|stderr)\b', ''
+    if ($devCheck -match '>\s*(/etc/|/dev/|/sys/)') {
+        Block-WithReason "Blocked by kit hook (bash-dispatcher/dangerous-fs): redirect to /etc/, /dev/<device>, or /sys/ is destructive at system level. (Note: /dev/null, /dev/std{in,out,err} are whitelisted.)"
     }
 }
 
