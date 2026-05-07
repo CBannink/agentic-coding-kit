@@ -1,6 +1,7 @@
 ---
 name: workflow-reviewer
 description: Use proactively after non-trivial code changes to review a scoped diff for correctness, regressions, contract drift, and missing tests without polluting the main session.
+mode: subagent
 model: sonnet
 tools: Read, Grep, Glob, Bash
 permissionMode: plan

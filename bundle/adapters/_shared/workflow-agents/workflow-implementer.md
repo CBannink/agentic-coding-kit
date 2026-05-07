@@ -1,6 +1,7 @@
 ---
 name: workflow-implementer
 description: Use proactively for any code change beyond a one-file mechanical fix, especially multi-file edits, novel logic, or changes that would otherwise keep coding inline in the main session.
+mode: subagent
 model: sonnet
 tools: Read, Grep, Glob, Bash, Edit, Write
 permissionMode: acceptEdits

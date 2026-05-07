@@ -115,7 +115,12 @@ function Get-WorkflowAdapterTemplateVars {
 function Get-WorkflowAdapterDestinations {
     param(
         [string]$AdapterName,
-        [string]$Root
+        [string]$Root,
+        # Device-wide installs use ~/.config/opencode/ (the OpenCode global home).
+        # Per-repo installs use <repo>/.opencode/ (the OpenCode project scope).
+        # The OpenCode docs make this distinction explicit; mixing them up means
+        # `/build` does not appear in a user's repo.
+        [switch]$DeviceWideScope
     )
 
     switch ($AdapterName) {
@@ -127,10 +132,17 @@ function Get-WorkflowAdapterDestinations {
             }
         }
         "opencode" {
+            if ($DeviceWideScope) {
+                return [pscustomobject]@{
+                    Label = "OpenCode"
+                    Commands = Join-Path $Root ".config/opencode/commands"
+                    Agents = Join-Path $Root ".config/opencode/agents"
+                }
+            }
             return [pscustomobject]@{
                 Label = "OpenCode"
-                Commands = Join-Path $Root ".config/opencode/commands"
-                Agents = Join-Path $Root ".config/opencode/agents"
+                Commands = Join-Path $Root ".opencode/commands"
+                Agents = Join-Path $Root ".opencode/agents"
             }
         }
         default { return $null }
@@ -168,11 +180,14 @@ function Install-WorkflowAdapterAssets {
     param(
         [string]$AdapterName,
         [string]$Root,
-        [switch]$SkipExistingCommands
+        [switch]$SkipExistingCommands,
+        # Forward to Get-WorkflowAdapterDestinations: pick global home (~/.config/opencode/)
+        # vs project-scope (<repo>/.opencode/) for OpenCode.
+        [switch]$DeviceWideScope
     )
 
     $vars = Get-WorkflowAdapterTemplateVars -AdapterName $AdapterName
-    $destinations = Get-WorkflowAdapterDestinations -AdapterName $AdapterName -Root $Root
+    $destinations = Get-WorkflowAdapterDestinations -AdapterName $AdapterName -Root $Root -DeviceWideScope:$DeviceWideScope
     if (-not $vars -or -not $destinations) { return }
 
     Install-RenderedMarkdownDirectory `
@@ -891,16 +906,20 @@ $endMarker
                     -DocPath (Join-Path $HomeRoot ".config/opencode/agentic-kit.md") `
                     -Label   "OpenCode"
 
-                # Minimal always-on rules block in prompt.md
+                # Always-on rules in OpenCode's documented global rules file:
+                # ~/.config/opencode/AGENTS.md (per opencode.ai/docs). The kit
+                # previously wrote to prompt.md, which OpenCode does not
+                # auto-load -- the canonical block was silently ignored.
                 Install-DeviceWideAlwaysOnRules `
-                    -ExistingPath  (Join-Path $HomeRoot ".config/opencode/prompt.md") `
+                    -ExistingPath  (Join-Path $HomeRoot ".config/opencode/AGENTS.md") `
                     -LongFormPath  (Join-Path $HomeRoot ".config/opencode/agentic-kit.md") `
                     -Label         "OpenCode"
 
                 Install-WorkflowAdapterAssets `
                     -AdapterName "opencode" `
                     -Root $HomeRoot `
-                    -SkipExistingCommands
+                    -SkipExistingCommands `
+                    -DeviceWideScope
 
                 # Skills -- ~/.config/opencode/skills/<name>/SKILL.md auto-discovers.
                 Install-DeviceWideSkills `
@@ -908,10 +927,12 @@ $endMarker
                     -DestRoot   (Join-Path $HomeRoot ".config/opencode/skills") `
                     -Label      "OpenCode"
 
-                # Host-specific reviewer / expert agents. Workflow transport
-                # agents are rendered from shared templates above.
+                # Host-specific reviewer / expert agents. Source moved from
+                # opencode/.config/opencode/agents/ to opencode/.opencode/agents/
+                # in P6 (the source tree now matches OpenCode's project-scope
+                # naming convention).
                 Install-DeviceWideAgents `
-                    -SourceDir (Join-Path $AdaptersRoot "opencode/.config/opencode/agents") `
+                    -SourceDir (Join-Path $AdaptersRoot "opencode/.opencode/agents") `
                     -DestDir   (Join-Path $HomeRoot ".config/opencode/agents") `
                     -Label     "OpenCode"
 

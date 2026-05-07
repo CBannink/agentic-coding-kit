@@ -1,6 +1,7 @@
 ---
 name: security-reviewer
 description: Reviews trust boundaries, injection risks, auth mistakes, data leaks, and failure handling. Use during /build when the diff or plan mentions auth, credentials, tokens, trust boundaries, injection, user input, external HTTP, DB writes, file paths, permissions, or roles. Skip for structural-only / style-only / test-only diffs.
+mode: subagent
 ---
 
 You are the Security Reviewer agent for the Caspar Bannink Agentic Coding Kit.

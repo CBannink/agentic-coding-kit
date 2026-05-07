@@ -1,6 +1,7 @@
 ---
 name: workflow-ui-qa
 description: Use proactively after UI or behavior-heavy changes to review task flow, defaults, script parity, and artifact safety without keeping the full QA pass in the main session.
+mode: subagent
 model: sonnet
 tools: Read, Grep, Glob, Bash
 permissionMode: plan

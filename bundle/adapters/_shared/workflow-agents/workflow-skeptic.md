@@ -1,6 +1,7 @@
 ---
 name: workflow-skeptic
 description: Use proactively for non-trivial build and review work to challenge a plan or diff for hidden regressions, failure modes, and scope drift.
+mode: subagent
 model: sonnet
 tools: Read, Grep, Glob, Bash
 permissionMode: plan
