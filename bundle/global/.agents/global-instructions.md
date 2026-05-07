@@ -1,9 +1,10 @@
-<!-- agentic-kit:begin -->
 <!--
-  CANONICAL kit-managed block. Source of truth: ~/.agents/global-instructions.md
+  CANONICAL kit content. Source of truth: ~/.agents/global-instructions.md
   Synced into Claude / Gemini / Codex / OpenCode by ~/.agents/tools/sync-all-hosts.ps1
+  and the install-*-kit.ps1 helpers. Each writer wraps this content with
+  <!-- agentic-kit:begin --> / <!-- agentic-kit:end --> markers at write time --
+  the markers are NOT embedded here, to avoid nested-marker corruption.
   DO NOT edit this block in the host file directly -- edit the canonical and re-sync.
-  Anything outside the agentic-kit:begin/end markers is host-specific and preserved.
 -->
 
 # CASPAR BANNINK AGENTIC CODING KIT — GLOBAL RULES
@@ -301,5 +302,3 @@ Layer them: Superpowers' TDD discipline inside `/build` Phase 2, then GStack's
 Full command semantics, scope/tier classification, swarm gating, frontend visual
 gate, session lifecycle details: `~/.claude/agentic-kit.md` (mirrored to each
 host as `<host_root>/agentic-kit.md`).
-
-<!-- agentic-kit:end -->

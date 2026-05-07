@@ -168,24 +168,43 @@ execution misses.
 
 "@
         # Marker-based sync: replace canonical block in place, preserve host preamble + any custom user content outside markers.
+        # Canonical is marker-less; wrap with markers at write time.
         $beginMarker = '<!-- agentic-kit:begin -->'
         $endMarker   = '<!-- agentic-kit:end -->'
+        $wrapped = "$beginMarker`r`n" + $content.TrimEnd() + "`r`n$endMarker"
 
         if (Test-Path $geminiMd) {
             $current = Get-Content -Raw -Encoding utf8 -LiteralPath $geminiMd
-            if ($current -match [regex]::Escape($beginMarker)) {
-                $pattern = "(?s)" + [regex]::Escape($beginMarker) + ".*?" + [regex]::Escape($endMarker)
-                $updated = [regex]::Replace($current, $pattern, $content.TrimEnd())
+
+            # Strip every known kit-block variant first; prevents marker-schism
+            # duplicates from older kit versions accumulating.
+            $stripPatterns = @(
+                "(?s)<!-- agentic-kit:begin -->.*?<!-- agentic-kit:end -->\s*",
+                "(?s)<!-- agentic-kit:include -->.*?<!-- /agentic-kit:include -->\s*",
+                "(?s)<!-- agentic-kit:include -->.*?<!-- agentic-kit:end -->\s*",
+                "(?s)<!-- agentic-kit:begin -->.*?<!-- /agentic-kit:include -->\s*"
+            )
+            $hadKitBlock = $false
+            $cleaned = $current
+            foreach ($p in $stripPatterns) {
+                $before = $cleaned
+                $cleaned = [regex]::Replace($cleaned, $p, '')
+                if ($before -ne $cleaned) { $hadKitBlock = $true }
+            }
+
+            if ($hadKitBlock) {
+                # Reuse cleaned host content, prepend fresh wrapped canonical block.
+                $updated = $wrapped.TrimEnd() + "`r`n`r`n" + $cleaned.TrimStart()
                 Write-NoBom $geminiMd $updated
                 Do-It "replaced canonical block in $geminiMd (host preamble preserved)"
             } else {
-                # No markers present: do a full rewrite with preamble + canonical (legacy behavior).
+                # No prior kit block: full rewrite with preamble + wrapped canonical.
                 Backup $geminiMd
-                Write-NoBom $geminiMd ($preamble + $content)
-                Do-It "wrote $geminiMd (full rewrite -- markers added for next sync)"
+                Write-NoBom $geminiMd ($preamble + $wrapped)
+                Do-It "wrote $geminiMd (full rewrite -- canonical wrapped with begin/end markers)"
             }
         } else {
-            Write-NoBom $geminiMd ($preamble + $content)
+            Write-NoBom $geminiMd ($preamble + $wrapped)
             Do-It "created $geminiMd"
         }
     } else { Skip "would generate $geminiMd" }

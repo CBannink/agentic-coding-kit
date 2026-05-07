@@ -38,7 +38,11 @@ param(
     [string]$DeviceWide = "",
     [switch]$Upgrade,
     [switch]$Force,
-    [switch]$BootstrapHarness
+    [switch]$BootstrapHarness,
+    # When set, strips ALL kit blocks (current `:begin/:end` AND legacy `:include`
+    # pairs) from every target host's instruction file and rewrites a single
+    # canonical block. Use after a marker-schism duplicate accumulates.
+    [switch]$RepairKitBlock
 )
 
 $ScriptRoot   = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -370,14 +374,43 @@ if ($resolvedFor) {
     # truly global rules go here -- workflow-specific content stays in skills
     # at native auto-discovery dirs. Idempotent: skips if marker already
     # present. Backs up before appending.
+    # Strips every known kit-block marker pair from a given content string.
+    # Handles current (:begin/:end) and legacy (:include / /:include) variants
+    # plus orphans where one marker was hand-deleted. Returns cleaned content.
+    function Strip-AllKitBlocks {
+        param([string]$Content)
+        if (-not $Content) { return $Content }
+        $patterns = @(
+            "(?s)<!-- agentic-kit:begin -->.*?<!-- agentic-kit:end -->\s*",
+            "(?s)<!-- agentic-kit:include -->.*?<!-- /agentic-kit:include -->\s*",
+            "(?s)<!-- agentic-kit:include -->.*?<!-- agentic-kit:end -->\s*",
+            "(?s)<!-- agentic-kit:begin -->.*?<!-- /agentic-kit:include -->\s*"
+        )
+        $cleaned = $Content
+        foreach ($p in $patterns) {
+            $cleaned = [regex]::Replace($cleaned, $p, '')
+        }
+        # Collapse a duplicated canonical heading that may have leaked outside
+        # all marker pairs (e.g., user manually merged a duplicate at some point).
+        $heading = '# CASPAR BANNINK AGENTIC CODING KIT — GLOBAL RULES'
+        $hits = [regex]::Matches($cleaned, [regex]::Escape($heading))
+        if ($hits.Count -gt 1) {
+            $cleaned = $cleaned.Substring(0, $hits[0].Index).TrimEnd() + "`r`n"
+        }
+        return $cleaned.TrimEnd() + "`r`n"
+    }
+
     function Install-DeviceWideAlwaysOnRules {
         param(
             [string]$ExistingPath,    # user's auto-loaded rules file
             [string]$LongFormPath,    # path to standalone agentic-kit.md (referenced from block)
             [string]$Label
         )
-        $marker = "<!-- agentic-kit:include -->"
-        $endMarker = "<!-- /agentic-kit:include -->"
+        # Canonical marker pair used by ALL kit writers (install.ps1, sync-all-hosts.ps1,
+        # install-{opencode,codex,copilot,gemini}-kit.ps1). Legacy `:include` pairs are
+        # stripped via Strip-AllKitBlocks below for backward compat.
+        $marker    = "<!-- agentic-kit:begin -->"
+        $endMarker = "<!-- agentic-kit:end -->"
         $block = @"
 
 $marker
@@ -474,17 +507,28 @@ $endMarker
             $backup = "$ExistingPath.before-agentic-kit-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
             Copy-Item -Force $ExistingPath $backup
 
-            if ($existing -match [regex]::Escape($marker)) {
-                $pattern = "(?s)$([regex]::Escape($marker)).*?$([regex]::Escape($endMarker))"
-                $updated = [regex]::Replace($existing, $pattern, $block.TrimEnd())
-                Set-Content -Path $ExistingPath -Value $updated -Encoding UTF8
-                Write-Host "  $Label always-on rules: refreshed managed block in $ExistingPath (backup: $backup)"
+            # Always strip ALL prior kit blocks (any marker variant, any number of
+            # duplicates) BEFORE writing. This is what fixes the marker-schism bug
+            # where install.ps1 used `:include` while sync-all-hosts.ps1 used
+            # `:begin/:end`, causing every re-run to append another duplicate.
+            $stripped = Strip-AllKitBlocks $existing
+
+            if ($RepairKitBlock) {
+                # Repair mode: cleanup only, do not append a new block.
+                Set-Content -Path $ExistingPath -Value $stripped -Encoding UTF8
+                Write-Host "  $Label always-on rules: REPAIRED -- removed all kit blocks from $ExistingPath (backup: $backup). Re-run without -RepairKitBlock to install fresh."
                 return
             }
 
-            Add-Content -Path $ExistingPath -Value $block -Encoding UTF8
-            Write-Host "  $Label always-on rules: appended to $ExistingPath (backup: $backup)"
+            $updated = $stripped.TrimEnd() + "`r`n" + $block.TrimEnd() + "`r`n"
+            Set-Content -Path $ExistingPath -Value $updated -Encoding UTF8
+            $changed = if ($existing -ne $stripped) { "deduped + " } else { "" }
+            Write-Host "  $Label always-on rules: ${changed}refreshed managed block in $ExistingPath (backup: $backup)"
         } else {
+            if ($RepairKitBlock) {
+                Write-Host "  $Label always-on rules: $ExistingPath does not exist; nothing to repair."
+                return
+            }
             New-Item -ItemType Directory -Path (Split-Path -Parent $ExistingPath) -Force | Out-Null
             Set-Content -Path $ExistingPath -Value $block.TrimStart() -Encoding UTF8
             Write-Host "  $Label always-on rules: created $ExistingPath"
@@ -569,11 +613,12 @@ $endMarker
         Set-Content -Path $CompanionPath -Value $kitContent -Encoding UTF8
         Write-Host "  $Label companion: $CompanionPath"
 
-        # Append the kit rules block to the existing config (if it exists,
-        # preserve content). The block is INLINE (~100 lines) so the rules are
-        # always loaded -- not a pointer the agent might skip.
-        $marker = "<!-- agentic-kit:include -->"
-        $endMarker = "<!-- /agentic-kit:include -->"
+        # NOTE: Install-DeviceWideCompanion is currently DEAD CODE -- not invoked
+        # from the dispatch switch below. Kept for reference; flagged for removal
+        # in TIER-C-TODO.md. Markers unified to :begin/:end for consistency with
+        # the live writers (Install-DeviceWideAlwaysOnRules, sync-all-hosts.ps1).
+        $marker    = "<!-- agentic-kit:begin -->"
+        $endMarker = "<!-- agentic-kit:end -->"
         $includeBlock = @"
 
 $marker

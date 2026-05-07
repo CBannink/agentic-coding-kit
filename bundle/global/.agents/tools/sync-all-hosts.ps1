@@ -42,9 +42,13 @@ function Write-NoBom([string]$path, [string]$content) {
 }
 
 # ---------- canonical-block sync into a host file ----------
-# Replaces between <!-- agentic-kit:begin --> and <!-- agentic-kit:end -->.
-# If no markers present: prepends the canonical block at top.
-# Returns: 'replaced' | 'prepended' | 'created'
+# The canonical source ($AgentsRoot/global-instructions.md) is MARKER-LESS;
+# this writer wraps it with <!-- agentic-kit:begin --> / <!-- agentic-kit:end -->
+# at write time. Strips legacy `:include / /:include` pairs (and any duplicate
+# `:begin/:end` blocks from older runs) before writing. Returns:
+#   'replaced'  -- replaced an existing kit block
+#   'prepended' -- prepended fresh kit block (no prior kit block found)
+#   'created'   -- created the target file with the kit block
 function Sync-CanonicalBlock {
     param(
         [Parameter(Mandatory)] [string]$TargetPath,
@@ -59,25 +63,43 @@ function Sync-CanonicalBlock {
 
     $beginMarker = '<!-- agentic-kit:begin -->'
     $endMarker   = '<!-- agentic-kit:end -->'
+    $wrapped     = "$beginMarker`r`n" + $content.TrimEnd() + "`r`n$endMarker"
 
     if (-not (Test-Path $TargetPath)) {
         if (-not $DryRun) {
             New-Item -ItemType Directory -Path (Split-Path -Parent $TargetPath) -Force | Out-Null
-            Write-NoBom $TargetPath $content
+            Write-NoBom $TargetPath $wrapped
         }
         return 'created'
     }
 
     $current = Get-Content -Raw -Encoding utf8 -LiteralPath $TargetPath
-    if ($current -match [regex]::Escape($beginMarker)) {
-        $pattern = "(?s)" + [regex]::Escape($beginMarker) + ".*?" + [regex]::Escape($endMarker)
-        $updated = [regex]::Replace($current, $pattern, $content.TrimEnd())
+
+    # Strip every known kit-block variant first so re-runs don't accumulate
+    # duplicates regardless of which historical writer placed them.
+    $stripPatterns = @(
+        "(?s)<!-- agentic-kit:begin -->.*?<!-- agentic-kit:end -->\s*",
+        "(?s)<!-- agentic-kit:include -->.*?<!-- /agentic-kit:include -->\s*",
+        "(?s)<!-- agentic-kit:include -->.*?<!-- agentic-kit:end -->\s*",
+        "(?s)<!-- agentic-kit:begin -->.*?<!-- /agentic-kit:include -->\s*"
+    )
+    $hadKitBlock = $false
+    $cleaned = $current
+    foreach ($p in $stripPatterns) {
+        $before = $cleaned
+        $cleaned = [regex]::Replace($cleaned, $p, '')
+        if ($before -ne $cleaned) { $hadKitBlock = $true }
+    }
+
+    if ($hadKitBlock) {
+        # Replace: drop existing kit blocks, prepend fresh one.
+        $updated = $wrapped.TrimEnd() + "`r`n`r`n" + $cleaned.TrimStart()
         if (-not $DryRun) { Write-NoBom $TargetPath $updated }
         return 'replaced'
     }
 
-    # No markers -- prepend the canonical block above the existing content.
-    $updated = $content.TrimEnd() + "`r`n`r`n" + $current
+    # No prior kit block -- prepend fresh wrapped canonical above existing content.
+    $updated = $wrapped.TrimEnd() + "`r`n`r`n" + $current
     if (-not $DryRun) { Write-NoBom $TargetPath $updated }
     return 'prepended'
 }

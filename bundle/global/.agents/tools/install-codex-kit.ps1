@@ -95,23 +95,41 @@ Say "`n[1/4] AGENTS.md (sync canonical block)" 'Cyan'
 $agentsMdPath = Join-Path $CodexRoot 'AGENTS.md'
 $canonical = Get-Content -Raw -Encoding utf8 -LiteralPath (Join-Path $AgentsRoot 'global-instructions.md')
 
+$beginMarker = '<!-- agentic-kit:begin -->'
+$endMarker   = '<!-- agentic-kit:end -->'
+# Canonical is now marker-less; wrap with markers at write time.
+$wrapped = "$beginMarker`r`n" + $canonical.TrimEnd() + "`r`n$endMarker"
+
 if (-not (Test-Path $agentsMdPath)) {
     if ($DryRun) { Skip "would create $agentsMdPath with canonical block" }
-    else { Write-NoBom $agentsMdPath $canonical; Do-It "created $agentsMdPath" }
+    else { Write-NoBom $agentsMdPath $wrapped; Do-It "created $agentsMdPath" }
 } else {
     $current = Get-Content -Raw -Encoding utf8 -LiteralPath $agentsMdPath
-    $beginMarker = '<!-- agentic-kit:begin -->'
-    $endMarker   = '<!-- agentic-kit:end -->'
 
-    if ($current -match [regex]::Escape($beginMarker)) {
-        # Replace existing block in-place
-        $pattern = "(?s)" + [regex]::Escape($beginMarker) + ".*?" + [regex]::Escape($endMarker)
-        $updated = [regex]::Replace($current, $pattern, $canonical.TrimEnd())
+    # Strip every known kit-block variant before writing -- prevents
+    # marker-schism duplicates accumulating across kit versions.
+    $stripPatterns = @(
+        "(?s)<!-- agentic-kit:begin -->.*?<!-- agentic-kit:end -->\s*",
+        "(?s)<!-- agentic-kit:include -->.*?<!-- /agentic-kit:include -->\s*",
+        "(?s)<!-- agentic-kit:include -->.*?<!-- agentic-kit:end -->\s*",
+        "(?s)<!-- agentic-kit:begin -->.*?<!-- /agentic-kit:include -->\s*"
+    )
+    $hadKitBlock = $false
+    $cleaned = $current
+    foreach ($p in $stripPatterns) {
+        $before = $cleaned
+        $cleaned = [regex]::Replace($cleaned, $p, '')
+        if ($before -ne $cleaned) { $hadKitBlock = $true }
+    }
+
+    if ($hadKitBlock) {
+        # Replace existing block(s): drop them, prepend fresh wrapped canonical.
+        $updated = $wrapped.TrimEnd() + "`r`n`r`n" + $cleaned.TrimStart()
         if ($DryRun) { Skip "would replace canonical block in $agentsMdPath" }
         else { Write-NoBom $agentsMdPath $updated; Do-It "replaced canonical block in $agentsMdPath" }
     } else {
-        # Prepend canonical block at top
-        $updated = $canonical.TrimEnd() + "`r`n`r`n" + $current
+        # No prior kit block -- prepend wrapped canonical at top.
+        $updated = $wrapped.TrimEnd() + "`r`n`r`n" + $current
         if ($DryRun) { Skip "would prepend canonical block to $agentsMdPath" }
         else { Write-NoBom $agentsMdPath $updated; Do-It "prepended canonical block to $agentsMdPath" }
     }

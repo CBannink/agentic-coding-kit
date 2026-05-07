@@ -155,14 +155,22 @@ foreach ($spec in @(
 )) {
     if (Test-Path $spec.Path) {
         $content = Get-Content $spec.Path -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
-        $isInstalled = $content -match "agentic-kit:include"
+        # Accept either current `:begin/:end` markers (canonical) or legacy `:include`
+        # markers (older installs that have not been refreshed yet).
+        $isInstalled = ($content -match "agentic-kit:begin") -or ($content -match "agentic-kit:include")
         if ($spec.Label -eq "Copilot instructions" -and $content -match "^# GitHub Copilot Instructions -- Caspar Bannink Agentic Coding Kit") {
             $isInstalled = $true
         }
+        # Detect the marker-schism duplication bug: more than one kit block present.
+        $blockHits = ([regex]::Matches($content, 'agentic-kit:(begin|include)')).Count
         if ($isInstalled) {
-            Add-Check "$($spec.Label) include marker" "PASS" ""
+            if ($blockHits -gt 1) {
+                Add-Check "$($spec.Label) marker block" "WARN" "DUPLICATED ($blockHits open markers found) -- run install.ps1 -RepairKitBlock or rerun install.ps1 normally to dedupe"
+            } else {
+                Add-Check "$($spec.Label) marker block" "PASS" ""
+            }
         } else {
-            Add-Check "$($spec.Label) include marker" "WARN" "Missing -- companion file won't be loaded by this CLI"
+            Add-Check "$($spec.Label) marker block" "WARN" "Missing -- companion file won't be loaded by this CLI"
         }
     }
 }

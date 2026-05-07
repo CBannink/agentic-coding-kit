@@ -62,30 +62,40 @@ Say "`n[1/3] prompt.md (sync canonical block)" 'Cyan'
 $promptPath = Join-Path $OpenCodeRoot 'prompt.md'
 $canonical = Get-Content -Raw -Encoding utf8 -LiteralPath (Join-Path $AgentsRoot 'global-instructions.md')
 
+$beginMarker = '<!-- agentic-kit:begin -->'
+$endMarker   = '<!-- agentic-kit:end -->'
+# Canonical is now marker-less; wrap with markers at write time.
+$wrapped = "$beginMarker`r`n" + $canonical.TrimEnd() + "`r`n$endMarker"
+
 if (-not (Test-Path $promptPath)) {
     if ($DryRun) { Skip "would create $promptPath" }
-    else { Write-NoBom $promptPath $canonical; Do-It "created $promptPath" }
+    else { Write-NoBom $promptPath $wrapped; Do-It "created $promptPath" }
 } else {
     $current = Get-Content -Raw -Encoding utf8 -LiteralPath $promptPath
-    $beginMarker = '<!-- agentic-kit:begin -->'
-    $endMarker   = '<!-- agentic-kit:end -->'
-    $legacyMarker = '<!-- agentic-kit:include -->'
 
-    if ($current -match [regex]::Escape($beginMarker)) {
-        $pattern = "(?s)" + [regex]::Escape($beginMarker) + ".*?" + [regex]::Escape($endMarker)
-        $updated = [regex]::Replace($current, $pattern, $canonical.TrimEnd())
+    # Strip every known kit-block variant first; prevents marker-schism duplicates
+    # accumulating regardless of which historical writer placed them.
+    $stripPatterns = @(
+        "(?s)<!-- agentic-kit:begin -->.*?<!-- agentic-kit:end -->\s*",
+        "(?s)<!-- agentic-kit:include -->.*?<!-- /agentic-kit:include -->\s*",
+        "(?s)<!-- agentic-kit:include -->.*?<!-- agentic-kit:end -->\s*",
+        "(?s)<!-- agentic-kit:begin -->.*?<!-- /agentic-kit:include -->\s*"
+    )
+    $hadKitBlock = $false
+    $cleaned = $current
+    foreach ($p in $stripPatterns) {
+        $before = $cleaned
+        $cleaned = [regex]::Replace($cleaned, $p, '')
+        if ($before -ne $cleaned) { $hadKitBlock = $true }
+    }
+
+    if ($hadKitBlock) {
+        $updated = $wrapped.TrimEnd() + "`r`n`r`n" + $cleaned.TrimStart()
         if ($DryRun) { Skip "would replace canonical block in $promptPath" }
         else { Write-NoBom $promptPath $updated; Do-It "replaced canonical block in $promptPath" }
-    } elseif ($current -match [regex]::Escape($legacyMarker)) {
-        # Replace from legacy marker to end-of-file with the new canonical block
-        $idx = $current.IndexOf($legacyMarker)
-        $preamble = $current.Substring(0, $idx).TrimEnd()
-        $updated = $preamble + "`r`n`r`n" + $canonical.TrimEnd() + "`r`n"
-        if ($DryRun) { Skip "would migrate legacy <!-- agentic-kit:include --> block in $promptPath" }
-        else { Write-NoBom $promptPath $updated; Do-It "migrated legacy include marker -> begin/end block" }
     } else {
-        # Prepend canonical at top
-        $updated = $canonical.TrimEnd() + "`r`n`r`n" + $current
+        # No prior kit block -- prepend wrapped canonical at top.
+        $updated = $wrapped.TrimEnd() + "`r`n`r`n" + $current
         if ($DryRun) { Skip "would prepend canonical block to $promptPath" }
         else { Write-NoBom $promptPath $updated; Do-It "prepended canonical block to $promptPath" }
     }
