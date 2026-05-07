@@ -1,143 +1,18 @@
 ---
 name: redesign
-description: Greenfield UI work and multi-component visual redesign. Swarm-eligible. Combines the swarm skill with playwright-explorer (current-state capture) and design-driver (per-component visual judgment). Not for targeted feature polish — use /build for that.
+description: User-typed /redesign entry point. Spawns the `redesign-orchestrator` subagent via the Task tool so the kit's full phased pipeline runs (aesthetic-lock, capture, per-component design, implement, visual-diff). MUST BE USED when the user types `/redesign` or asks to greenfield UI, multi-component visual redesign, fresh design. Use PROACTIVELY rather than running the workflow inline.
 ---
 
-# Redesign Skill
+# /redesign
 
-Use for **greenfield UI** or **multi-component redesigns** where independent
-components / screens can be redesigned in parallel.
+Spawn the `redesign-orchestrator` subagent via the **Task tool** with the user's verbatim request as the prompt. The orchestrator handles every phase (aesthetic-lock, capture, per-component design, implement, visual-diff) and returns when done.
 
-## Eligibility
+## Action
 
-All must hold:
-- task verb is "redesign", "explore designs", "rebuild UI", or similar
-- scope covers ≥3 independent components or screens
-- there's a working local dev server (or one can be started) for screenshot capture
-- the user opted in (default for `/redesign` command)
+Use the Task tool now. `subagent_type` = `redesign-orchestrator`. `description` = `redesign workflow`. `prompt` = the user's verbatim request plus any clarifying context they supplied.
 
-If only one component / one screen is in scope → use `/build` with the
-`design-driver` skill, not this.
+## What you DO NOT do
 
-## Steps
-
-### 1. Capture current state
-
-```powershell
-# Auto-start dev server if not already running (returns pid + port)
-pwsh ~/.agents/tools/dev-server-runner.ps1 -RepoRoot .
-
-# Then capture every screen in screen-flows.yaml
-pwsh ~/.agents/tools/playwright-runner.ps1 -ConfigPath .agents/screen-flows.yaml -OutDir ${session_dir}/screenshots/before
-```
-
-`playwright-explorer` skill drives the runner to navigate every screen in
-`.agents/screen-flows.yaml` and capture stable, full-page screenshots at
-2x DPI. If `screen-flows.yaml` doesn't exist or a screen is missing, spawn
-`playwright-navigator` (skill: `~/.agents/skills/playwright-navigator/SKILL.md`)
-to discover the route, auth, and selectors and emit the YAML block. Then
-re-run the runner.
-
-When done, stop the dev server: `pwsh ~/.agents/tools/dev-server-runner.ps1 -Stop -ProcessId <pid>`.
-
-### 2. Read existing design system (or create one first)
-
-Required reads before any redesign:
-- `.wiki/features.md` — what the UI must support
-- any `DESIGN.md`, `design-system.md`, `tailwind.config.*`, theme files
-- the current screenshots from step 1
-
-**If no `DESIGN.md` exists**, halt the redesign and invoke `aesthetic-director`
-(skill: `~/.agents/skills/aesthetic-director/SKILL.md`) first. That skill
-proposes 2-3 named directions, the user picks, and a locked `DESIGN.md` is
-written. Without a locked direction, parallel redesign agents will each
-default to the same LLM aesthetic (Inter + purple gradient + rounded cards)
-and produce variations of one boring look — not real design exploration.
-
-After `aesthetic-director` returns, re-read the new `DESIGN.md` and proceed.
-
-### 3. Decompose
-
-List the screens / components to redesign. One agent per item.
-
-Bad decomposition example: ["fix the typography" "fix the colors" "fix the layout"]
-— these touch every screen, so they collide.
-
-Good decomposition example: ["dashboard" "settings" "profile" "onboarding flow"]
-— each agent owns one surface end-to-end.
-
-### 4. Fan out — UX pass first, UI pass second
-
-For each screen, spawn the agent pair sequentially (UX first, then UI):
-
-**4a. UX pass (parallel across screens, sequential per screen)**
-
-One `ux-driver` per screen, all in parallel. Each receives:
-- the screen's current screenshot(s)
-- `~/.agents/context/design-references.md`
-- `.wiki/features.md`
-- the user's brief
-
-Each ux-driver returns a structural verdict: `structure_ok=<true|false>`.
-
-If ANY screen returns `structure_ok=false`: stop the swarm. The
-synthesizer reconciles the structural changes across screens, the user
-approves, the structural changes are implemented, then re-screenshot and
-re-run UX pass before proceeding.
-
-**4b. UI pass (parallel across screens, only on structure_ok screens)**
-
-For each screen with `structure_ok=true`, spawn one `ui-driver` agent.
-All run in parallel. Each receives:
-- the screen's screenshot(s)
-- the upstream `UX-VERDICT` block (so it doesn't re-litigate structure)
-- design system constraints
-- `~/.agents/context/design-references.md`
-- the user's brief
-- one-concrete-change-at-a-time policy
-
-See `ux-driver/SKILL.md` and `ui-driver/SKILL.md` for the agent contracts.
-
-### 5. Capture after-state
-
-```powershell
-pwsh ~/.agents/tools/playwright-runner.ps1 -ConfigPath .agents/screen-flows.yaml -OutDir ${session_dir}/screenshots/after
-```
-
-### 6. Visual diff
-
-```powershell
-pwsh ~/.agents/tools/visual-diff.ps1 -BeforeDir ${session_dir}/screenshots/before -AfterDir ${session_dir}/screenshots/after -OutDir ${session_dir}/screenshots/diff
-```
-
-Each diff is reviewed by the synthesizer. Regressions (unintended changes)
-are flagged.
-
-### 7. Synthesize design system
-
-One synthesizer agent reads all per-component changes and unifies them into:
-- updated design tokens (color, spacing, typography)
-- updated `DESIGN.md` (or creates one)
-- a list of cross-component patterns that emerged
-
-### 8. Verify
-
-- run the app, navigate every screen manually OR via playwright-runner
-- confirm no console errors, no a11y regressions
-- confirm `.wiki/features.md` flows still work end-to-end
-
-### 9. Write evidence
-
-```powershell
-pwsh ~/.agents/tools/workflow-evidence.ps1 -SessionId $SessionId -Tier SWARM -TierReason "redesign + N components" -AddNote "redesign:items=<list>|before=<count>|after=<count>"
-```
-
-## Anti-patterns
-
-- **Redesigning while shipping a feature** — separate the concerns. Do the
-  redesign in its own session.
-- **No before-state capture** — without baselines, regressions are invisible.
-- **Skipping the synthesizer** — N independently-redesigned components ≠
-  redesigned product. The synthesis IS the design system work.
-- **Auto-applying changes without screenshots** — visual work must be
-  visually verified.
+- Do NOT run the workflow inline. The orchestrator's body is the canonical pipeline — running phases here in the main session defeats the design.
+- Do NOT skip the Task spawn even if the request looks small. `redesign-orchestrator` will classify scope (ISOLATED / SHARED / CRITICAL) and pick the right depth itself.
+- Do NOT spawn other subagents directly from this skill. The orchestrator does the fan-out.
