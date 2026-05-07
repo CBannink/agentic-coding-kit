@@ -1,18 +1,23 @@
+﻿---
+description: User-typed entry point for review-orchestrator. Spawns the orchestrator subagent which runs the full phased pipeline.
+---
+
 # /review
 
-Read and follow `__SKILL_ROOT__/review/SKILL.md` exactly.
+You are running on __HOST_NAME__ via the kit's shared workflow-commands.
 
-__HOST_NAME__ adapter note:
+This slash command is a thin entry point. The actual workflow lives in the
+`review-orchestrator` subagent at `__SKILL_ROOT__/../agents/review-orchestrator.md` (Claude Code) or
+the equivalent location for OpenCode / Copilot CLI.
 
-1. This command is a workflow entrypoint, not a general chat shortcut.
-2. Use the installed review agents and specialists when the review skill
-   delegates surface, interaction, synthesis, or adversarial passes.
-3. Keep the main session as coordinator; do not collapse a non-trivial review
-   into a single inline pass when the host already has the required agents.
+## Action
 
-Run hierarchical review:
-1. surface reviewers
-2. interaction reviewers
-3. synthesis reviewer
-4. adversarial pass
-5. false-positive verification
+Spawn the `review-orchestrator` subagent via the Task tool with the user's request as
+the prompt. The orchestrator handles every phase (scope, exploration,
+implementation/review/verify, handoff). Do NOT inline the workflow here --
+that defeats the description-routing pattern that makes the kit work.
+
+The orchestrator's `description:` is sticky enough that on most user
+prompts auto-routing will fire it BEFORE this slash command even runs.
+This file exists so users who explicitly type `/review` reach the same
+endpoint.

@@ -1,23 +1,23 @@
+﻿---
+description: User-typed entry point for refactor-orchestrator. Spawns the orchestrator subagent which runs the full phased pipeline.
+---
+
 # /refactor
 
-Read and follow `__SKILL_ROOT__/refactor/SKILL.md` exactly.
+You are running on __HOST_NAME__ via the kit's shared workflow-commands.
 
-__HOST_NAME__ adapter note:
+This slash command is a thin entry point. The actual workflow lives in the
+`refactor-orchestrator` subagent at `__SKILL_ROOT__/../agents/refactor-orchestrator.md` (Claude Code) or
+the equivalent location for OpenCode / Copilot CLI.
 
-1. This command is a workflow entrypoint, not a general chat shortcut.
-2. Use the installed explorer / reviewer agents when the refactor skill says to
-   map structure, trace consequences, or pressure-test architectural changes.
-3. Preserve behavior; do not treat `/refactor` as permission to redesign inline
-   in the main session without the workflow's consequence and review passes.
+## Action
 
-Principle-driven restructuring with consequence tracing.
+Spawn the `refactor-orchestrator` subagent via the Task tool with the user's request as
+the prompt. The orchestrator handles every phase (scope, exploration,
+implementation/review/verify, handoff). Do NOT inline the workflow here --
+that defeats the description-routing pattern that makes the kit work.
 
-You must:
-1. classify scope first (`scope-classifier.ps1`); CRITICAL scope is rarely a
-   refactor -- challenge whether this is the right framing
-2. trace consequences (`consequence` skill) before any edit
-3. preserve behavior -- refactor changes structure, not behavior
-4. verify with the existing test suite; if no tests, write characterization
-   tests first
-5. for multi-module refactors with independent files, swarm is allowed
-   (parallel-safe verb + fan-out-able scope); otherwise sequential
+The orchestrator's `description:` is sticky enough that on most user
+prompts auto-routing will fire it BEFORE this slash command even runs.
+This file exists so users who explicitly type `/refactor` reach the same
+endpoint.

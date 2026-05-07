@@ -1,17 +1,23 @@
+﻿---
+description: User-typed entry point for investigate-orchestrator. Spawns the orchestrator subagent which runs the full phased pipeline.
+---
+
 # /investigate
 
-Read and follow `__SKILL_ROOT__/investigate/SKILL.md` exactly.
+You are running on __HOST_NAME__ via the kit's shared workflow-commands.
 
-__HOST_NAME__ adapter note:
+This slash command is a thin entry point. The actual workflow lives in the
+`investigate-orchestrator` subagent at `__SKILL_ROOT__/../agents/investigate-orchestrator.md` (Claude Code) or
+the equivalent location for OpenCode / Copilot CLI.
 
-1. This command is a workflow entrypoint, not a general chat shortcut.
-2. Keep the session in root-cause mode: symptom -> hypotheses -> cheapest test
-   -> confirmed cause.
-3. If the investigate skill delegates evidence gathering or review, use the
-   installed agents instead of stretching the main session into a long inline loop.
+## Action
 
-Use root-cause-first debugging:
-1. state symptom
-2. list hypotheses
-3. run the cheapest distinguishing test
-4. confirm root cause before proposing a fix
+Spawn the `investigate-orchestrator` subagent via the Task tool with the user's request as
+the prompt. The orchestrator handles every phase (scope, exploration,
+implementation/review/verify, handoff). Do NOT inline the workflow here --
+that defeats the description-routing pattern that makes the kit work.
+
+The orchestrator's `description:` is sticky enough that on most user
+prompts auto-routing will fire it BEFORE this slash command even runs.
+This file exists so users who explicitly type `/investigate` reach the same
+endpoint.

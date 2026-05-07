@@ -1,14 +1,23 @@
+﻿---
+description: User-typed entry point for build-orchestrator. Spawns the orchestrator subagent which runs the full phased pipeline.
+---
+
 # /build
 
-Read and follow `__SKILL_ROOT__/build/SKILL.md` exactly.
+You are running on __HOST_NAME__ via the kit's shared workflow-commands.
 
-__HOST_NAME__ adapter note:
+This slash command is a thin entry point. The actual workflow lives in the
+`build-orchestrator` subagent at `__SKILL_ROOT__/../agents/build-orchestrator.md` (Claude Code) or
+the equivalent location for OpenCode / Copilot CLI.
 
-1. This command is a workflow entrypoint, not a general chat shortcut.
-2. The installed workflow agents (`workflow-explorer`, `workflow-implementer`,
-   `workflow-reviewer`, `workflow-skeptic`, `workflow-ui-qa`) are the
-   __HOST_NAME__ transport layer for the shared build workflow.
-3. Use `workflow-explorer` for cheap exploration and the delegated
-   implementation/review agents for non-trivial work.
-4. Do not keep non-trivial source reads or multi-file code edits inline in the
-   main session when the installed workflow agents are available.
+## Action
+
+Spawn the `build-orchestrator` subagent via the Task tool with the user's request as
+the prompt. The orchestrator handles every phase (scope, exploration,
+implementation/review/verify, handoff). Do NOT inline the workflow here --
+that defeats the description-routing pattern that makes the kit work.
+
+The orchestrator's `description:` is sticky enough that on most user
+prompts auto-routing will fire it BEFORE this slash command even runs.
+This file exists so users who explicitly type `/build` reach the same
+endpoint.

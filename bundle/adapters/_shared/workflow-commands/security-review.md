@@ -1,30 +1,23 @@
+﻿---
+description: User-typed entry point for security-review-orchestrator. Spawns the orchestrator subagent which runs the full phased pipeline.
+---
+
 # /security-review
 
-Read and follow `__SKILL_ROOT__/security-review/SKILL.md` exactly.
+You are running on __HOST_NAME__ via the kit's shared workflow-commands.
 
-__HOST_NAME__ adapter note:
+This slash command is a thin entry point. The actual workflow lives in the
+`security-review-orchestrator` subagent at `__SKILL_ROOT__/../agents/security-review-orchestrator.md` (Claude Code) or
+the equivalent location for OpenCode / Copilot CLI.
 
-1. This command is a workflow entrypoint, not a general chat shortcut.
-2. Use the installed specialists and swarm-safe fan-out when the security
-   review skill says to split by attack class.
-3. Keep the session in evidence mode: severity, proof, and false-positive
-   filtering before final conclusions.
+## Action
 
-Adversarial security audit. Swarm-eligible.
+Spawn the `security-review-orchestrator` subagent via the Task tool with the user's request as
+the prompt. The orchestrator handles every phase (scope, exploration,
+implementation/review/verify, handoff). Do NOT inline the workflow here --
+that defeats the description-routing pattern that makes the kit work.
 
-You must:
-1. confirm authorization context (own code, internal repo, or explicit pentest brief)
-2. fan out one agent per attack class:
-   - injection (SQL, command, prompt)
-   - authn / authz / session
-   - secrets / credentials
-   - supply chain / deps
-   - data exposure / IDOR / path traversal
-   - business logic abuse
-3. each agent produces findings with severity, evidence, repro steps
-4. synthesize into a single report with deduplicated findings
-5. run a false-positive verification pass before final report
-6. write findings to a session-private handoff, not to memory.md
-
-Swarm parallelism is appropriate here because attack classes are independent.
-For incident response on a known vulnerability, use `/investigate` instead.
+The orchestrator's `description:` is sticky enough that on most user
+prompts auto-routing will fire it BEFORE this slash command even runs.
+This file exists so users who explicitly type `/security-review` reach the same
+endpoint.

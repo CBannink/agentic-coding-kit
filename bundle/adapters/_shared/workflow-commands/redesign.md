@@ -1,24 +1,23 @@
+﻿---
+description: User-typed entry point for redesign-orchestrator. Spawns the orchestrator subagent which runs the full phased pipeline.
+---
+
 # /redesign
 
-Read and follow `__SKILL_ROOT__/redesign/SKILL.md` exactly.
+You are running on __HOST_NAME__ via the kit's shared workflow-commands.
 
-__HOST_NAME__ adapter note:
+This slash command is a thin entry point. The actual workflow lives in the
+`redesign-orchestrator` subagent at `__SKILL_ROOT__/../agents/redesign-orchestrator.md` (Claude Code) or
+the equivalent location for OpenCode / Copilot CLI.
 
-1. This command is a workflow entrypoint, not a general chat shortcut.
-2. Use the installed design and screenshot agents when the redesign skill
-   delegates capture, structure critique, or visual critique.
-3. Keep targeted UI fixes in `/build`; use `/redesign` for true multi-component
-   visual work or swarm-safe fan-out.
+## Action
 
-Greenfield UI work or multi-component visual redesign. Swarm-eligible.
+Spawn the `redesign-orchestrator` subagent via the Task tool with the user's request as
+the prompt. The orchestrator handles every phase (scope, exploration,
+implementation/review/verify, handoff). Do NOT inline the workflow here --
+that defeats the description-routing pattern that makes the kit work.
 
-You must:
-1. confirm scope is fan-out-able (independent components / screens, no shared state surgery)
-2. read `.wiki/features.md` and any existing design system before planning
-3. use `playwright-explorer` to capture current-state screenshots
-4. spawn one `design-driver` agent per component or screen (parallel)
-5. synthesize results into a single design system update
-6. verify visually with before/after screenshots before claiming completion
-
-If scope is targeted (one feature, tight coupling), drop back to sequential
-`/build` instead -- swarms add coordination cost without quality gain on focused work.
+The orchestrator's `description:` is sticky enough that on most user
+prompts auto-routing will fire it BEFORE this slash command even runs.
+This file exists so users who explicitly type `/redesign` reach the same
+endpoint.

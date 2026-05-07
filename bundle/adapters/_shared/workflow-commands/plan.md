@@ -1,19 +1,23 @@
+﻿---
+description: User-typed entry point for plan-orchestrator. Spawns the orchestrator subagent which runs the full phased pipeline.
+---
+
 # /plan
 
-Read and follow `__SKILL_ROOT__/plan/SKILL.md` exactly.
+You are running on __HOST_NAME__ via the kit's shared workflow-commands.
 
-__HOST_NAME__ adapter note:
+This slash command is a thin entry point. The actual workflow lives in the
+`plan-orchestrator` subagent at `__SKILL_ROOT__/../agents/plan-orchestrator.md` (Claude Code) or
+the equivalent location for OpenCode / Copilot CLI.
 
-1. This command is the approval gate for non-trivial `/build` work.
-2. Keep exploration cheap; if planning needs more than two source-file reads,
-   delegate to `workflow-explorer` instead of excavating inline in the main session.
-3. Do not start implementation until the plan artifact is approved.
+## Action
 
-Produce an approval-ready build plan.
+Spawn the `plan-orchestrator` subagent via the Task tool with the user's request as
+the prompt. The orchestrator handles every phase (scope, exploration,
+implementation/review/verify, handoff). Do NOT inline the workflow here --
+that defeats the description-routing pattern that makes the kit work.
 
-You must:
-1. inspect repo context
-2. identify likely files to change
-3. trace blast radius when needed
-4. pressure-test the plan
-5. stop for approval before implementation
+The orchestrator's `description:` is sticky enough that on most user
+prompts auto-routing will fire it BEFORE this slash command even runs.
+This file exists so users who explicitly type `/plan` reach the same
+endpoint.
