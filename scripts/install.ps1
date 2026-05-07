@@ -864,7 +864,15 @@ $endMarker
             $newFm = "---`r`nname: $name"
             if ($desc) { $newFm += "`r`ndescription: $desc" }
             $newFm += "`r`n---`r`n"
-            $outName = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) + '.agent.md'
+            # Compute output filename. If source already ends in `.agent.md` (i.e., it's
+            # already a Copilot-format file from bundle/adapters/copilot-cli/.github/agents/),
+            # preserve the name. Otherwise (Claude-source `.md`), append `.agent.md`.
+            $base = [System.IO.Path]::GetFileNameWithoutExtension($f.Name)
+            if ($base.EndsWith('.agent')) {
+                $outName = $f.Name  # already has .agent.md
+            } else {
+                $outName = $base + '.agent.md'
+            }
             $dst = Join-Path $DestDir $outName
             # UTF-8 NO BOM. Copilot CLI's agent loader rejects files starting with BOM
             # the same way Claude Code does. Set-Content -Encoding UTF8 in PS 5.1 adds BOM.
