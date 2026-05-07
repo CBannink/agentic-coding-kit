@@ -8,11 +8,58 @@ self-improvement loop closed under Copilot.
 
 ## Core operating rules
 
-1. Respect the `.codex` layout (`.kit/context/`, `.kit/workflows/`).
+1. Respect the `.kit` layout (`.kit/context/`, `.kit/workflows/`).
 2. `.wiki/features.md` + `.wiki/.features` carry user-visible capabilities.
 3. Session handoffs are session-private; repo memory is durable.
 4. Default sequential. Swarms require parallel-safe verb + fan-out-able
    scope + explicit opt-in.
+
+## Behavioral guardrails
+
+- Do not assume missing details. Name uncertainty and ask when it changes the approach.
+- Prefer the smallest change that solves the stated problem. Avoid speculative flexibility.
+- Keep evidence separate from conclusions. Mark assumptions and unverified claims explicitly.
+- For debugging, state the symptom before proposing causes. For analysis, surface tradeoffs instead of silently picking one.
+
+## Startup repo preflight
+
+At session start, check whether the current repo has the kit scaffold it needs:
+
+- `.kit/context/memory.md`
+- `.kit/workflows/`
+- `.wiki/index.md`
+- `.wiki/features.md`
+- `.wiki/.features`
+
+If `.kit` is missing, tell the user the repo is not bootstrapped for the kit yet and suggest one of:
+
+- `/bootstrap-harness` (preferred when the host exposes repo commands)
+- `pwsh <path-to-agentic-coding-kit>\scripts\install.ps1 -BootstrapHarness -TargetRepo "<repo>"`
+
+If `.wiki/index.md`, `.wiki/architecture.md`, `.wiki/codebase.md`, `.wiki/features.md`, or `.wiki/.features` is missing, suggest:
+
+- `/bootstrap-harness` if the repo is missing the full scaffold
+- or the same installer bootstrap command above if the repo is missing the whole scaffold
+
+`/bootstrap-harness` is the single high-level init path. It should scaffold the
+repo AND run the evidence-based init flows (`git-archaeology`, `kit-init`,
+`wiki-init`) so the repo is actually ready for coding afterward.
+
+Do not pretend the repo is fully kit-enabled when these files are absent. Continue for quick questions if needed, but warn that memory routing, wiki updates, and repo-local workflow overrides will be incomplete until the scaffold exists.
+
+## Verification freshness
+
+If any file changes after verification was captured, rerun verification before claiming completion. Treat prior evidence as stale after later edits.
+
+## Workflow source of truth
+
+The **global workflow skills** under `~/.agents/skills/` are the canonical
+workflow contract. This file exists to handle Copilot's host limitations
+(especially no native hooks), not to redefine how `/build`, `/review`, or the
+other workflows are supposed to behave.
+
+If this file drifts from the global workflow skills, fix the source-of-truth
+problem instead of layering more Copilot-specific exceptions.
 
 ## Lifecycle baked into every command
 
@@ -42,6 +89,11 @@ the lifecycle scripts. **Do this without asking the user; it's the contract.**
 5. RUN: pwsh ~/.agents/tools/post-session.ps1 -SessionId "<id>" -NonInteractive -AutoApprove
        This auto-consolidates reflections and gates on accumulated backlog.
 ```
+
+The build semantics themselves still come from `~/.agents/skills/build/SKILL.md`.
+Copilot lacks Claude's native agent surface, but the workflow contract is the
+same: respect the same phases, gates, memory routing, and read-stop discipline
+instead of inventing a smaller Copilot-only build.
 
 ### When the user says /review, /plan, /analyze, /investigate, /refactor:
 

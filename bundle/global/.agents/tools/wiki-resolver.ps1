@@ -38,6 +38,7 @@ param(
     [string]$RepoRoot = (Get-Location).Path,
     [int]$MaxSections = 5,
     [int]$MaxLinesPerSection = 200,
+    [int]$MaxLinesPerCrossCutting = 160,
     [switch]$VerboseLog
 )
 
@@ -74,20 +75,64 @@ if (Test-Path $indexPath) {
     $indexContent = Get-Content $indexPath -Raw -Encoding UTF8
 }
 
+$crossCuttingDocs = @()
+foreach ($spec in @(
+    @{ Name = "architecture"; Path = (Join-Path $wikiDir "architecture.md") },
+    @{ Name = "codebase"; Path = (Join-Path $wikiDir "codebase.md") }
+)) {
+    if (-not (Test-Path $spec.Path)) { continue }
+    $content = Get-Content $spec.Path -Raw -Encoding UTF8
+    $lines = $content -split "`r?`n"
+    $excerpt = if ($lines.Count -le $MaxLinesPerCrossCutting) {
+        $content
+    } else {
+        ($lines[0..($MaxLinesPerCrossCutting - 1)] -join "`n") + "`n`n[...truncated for context budget; read full at $($spec.Path.Substring($RepoRoot.Length + 1))...]"
+    }
+    $crossCuttingDocs += @{
+        name = $spec.Name
+        path = ($spec.Path.Substring($RepoRoot.Length + 1) -replace '\\', '/')
+        excerpt = $excerpt
+        lines = $lines.Count
+    }
+}
+
 if ($sections.Count -eq 0) {
     $promptBlock = ""
-    if ($indexContent) {
-        $relIndex = ($indexPath.Substring($RepoRoot.Length + 1) -replace '\\', '/')
-        $promptBlock = "## Wiki context`n`n### Wiki index -- $relIndex`n(always loaded: TOC + cross-cutting links; no section pages exist yet)`n`n$indexContent`n"
+    if ($indexContent -or $crossCuttingDocs.Count -gt 0) {
+        $sb = New-Object System.Text.StringBuilder
+        [void]$sb.AppendLine("## Wiki context")
+        [void]$sb.AppendLine("")
+        if ($indexContent) {
+            $relIndex = ($indexPath.Substring($RepoRoot.Length + 1) -replace '\\', '/')
+            [void]$sb.AppendLine("### Wiki index -- $relIndex")
+            [void]$sb.AppendLine("(always loaded: TOC + cross-cutting links; no section pages exist yet)")
+            [void]$sb.AppendLine("")
+            [void]$sb.AppendLine($indexContent)
+            [void]$sb.AppendLine("")
+        }
+        if ($crossCuttingDocs.Count -gt 0) {
+            [void]$sb.AppendLine("### Cross-cutting docs")
+            [void]$sb.AppendLine("")
+            foreach ($doc in $crossCuttingDocs) {
+                [void]$sb.AppendLine("#### $($doc.name) -- $($doc.path)")
+                [void]$sb.AppendLine("(always loaded cross-cutting context)")
+                [void]$sb.AppendLine("")
+                [void]$sb.AppendLine($doc.excerpt)
+                [void]$sb.AppendLine("")
+            }
+        }
+        $promptBlock = $sb.ToString()
     }
     Out-Json @{
         ok = $true
         wiki_present = $true
         index_present = ($indexContent -ne $null)
+        cross_cutting_present = ($crossCuttingDocs.Count -gt 0)
+        cross_cutting_docs = @($crossCuttingDocs | ForEach-Object { @{ name = $_.name; path = $_.path; lines = $_.lines } })
         matched_sections = @()
         prompt_block = $promptBlock
         suggestion = "No section pages in .wiki/sections/. Re-run /wiki-init or add pages manually."
-        stats = @{ total_sections = 0; matched = 0; index_lines = if ($indexContent) { ($indexContent -split "`r?`n").Count } else { 0 } }
+        stats = @{ total_sections = 0; matched = 0; cross_cutting = $crossCuttingDocs.Count; index_lines = if ($indexContent) { ($indexContent -split "`r?`n").Count } else { 0 } }
     } 0
 }
 
@@ -166,7 +211,7 @@ $matches = $matches | Sort-Object @{ Expression = { if ($_.reason -match '^files
 
 # Build the prompt block (index.md was loaded earlier; use that)
 $promptBlock = ""
-if ($indexContent -or $matches.Count -gt 0) {
+if ($indexContent -or $crossCuttingDocs.Count -gt 0 -or $matches.Count -gt 0) {
     $sb = New-Object System.Text.StringBuilder
     [void]$sb.AppendLine("## Wiki context")
     [void]$sb.AppendLine("")
@@ -178,6 +223,18 @@ if ($indexContent -or $matches.Count -gt 0) {
         [void]$sb.AppendLine("")
         [void]$sb.AppendLine($indexContent)
         [void]$sb.AppendLine("")
+    }
+
+    if ($crossCuttingDocs.Count -gt 0) {
+        [void]$sb.AppendLine("### Cross-cutting docs")
+        [void]$sb.AppendLine("(always loaded: architecture and codebase guidance)")
+        [void]$sb.AppendLine("")
+        foreach ($doc in $crossCuttingDocs) {
+            [void]$sb.AppendLine("#### $($doc.name) -- $($doc.path)")
+            [void]$sb.AppendLine("")
+            [void]$sb.AppendLine($doc.excerpt)
+            [void]$sb.AppendLine("")
+        }
     }
 
     if ($matches.Count -gt 0) {
@@ -201,7 +258,9 @@ Out-Json @{
     ok = $true
     wiki_present = $true
     index_present = ($indexContent -ne $null)
+    cross_cutting_present = ($crossCuttingDocs.Count -gt 0)
+    cross_cutting_docs = @($crossCuttingDocs | ForEach-Object { @{ name = $_.name; path = $_.path; lines = $_.lines } })
     matched_sections = @($matches | ForEach-Object { @{ name = $_.name; path = $_.path; reason = $_.reason; lines = $_.lines } })
     prompt_block = $promptBlock
-    stats = @{ total_sections = $sections.Count; matched = $matches.Count; index_lines = if ($indexContent) { ($indexContent -split "`r?`n").Count } else { 0 } }
+    stats = @{ total_sections = $sections.Count; matched = $matches.Count; cross_cutting = $crossCuttingDocs.Count; index_lines = if ($indexContent) { ($indexContent -split "`r?`n").Count } else { 0 } }
 }

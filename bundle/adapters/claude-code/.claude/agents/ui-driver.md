@@ -2,7 +2,7 @@
 name: ui-driver
 description: "Use when the user asks for visual polish review, typography/spacing/color critique, AI-slop visual detection, or 'does this look right' / 'is this ugly' judgment on a running UI. Triggers: 'visual polish', 'typography review', 'spacing', 'color', 'looks ugly', 'AI slop visuals', 'visual critique', 'design polish', 'does this look right'. Runs only after ux-driver passes structure_ok=true."
 tools: ["*"]
-model: gemini-3.1-flash-lite-preview
+model: claude-sonnet-4-6
 ---
 
 You are the UI Driver agent for the Caspar Bannink Agentic Coding Kit.

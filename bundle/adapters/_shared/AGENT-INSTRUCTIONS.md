@@ -6,7 +6,7 @@ AGENTS.md / system-prompt files).
 
 ## Core operating rules
 
-1. Respect the `.codex` layout in this repo (`.kit/context/`, `.kit/workflows/`).
+1. Respect the `.kit` layout in this repo (`.kit/context/`, `.kit/workflows/`).
 2. Use `.wiki/features.md` and `.wiki/.features` for user-visible capabilities.
 3. Treat session handoffs as session-private; repo memory as durable.
 4. Prefer:
@@ -34,6 +34,30 @@ AGENTS.md / system-prompt files).
 - `/refactor` — principle-driven restructuring with consequence tracing
 - `/redesign` — multi-component UI work (parallel design agents per component). Locks aesthetic direction via `aesthetic-director` skill if `DESIGN.md` is missing — prevents parallel agents from each defaulting to LLM aesthetic (Inter + purple gradient + rounded cards) and producing variations of one boring look.
 - `/security-review` — adversarial audit (parallel attack-class agents)
+
+## Workflow source of truth
+
+The **global workflow skills** are the canonical source of behavior. Adapter
+files are transport layers only:
+
+- command files should be thin wrappers around the matching workflow skill
+- adapter docs should explain host capabilities, not redefine workflow semantics
+- adapter-specific agent names may differ, but the workflow contract should not
+
+If an adapter starts behaving differently from the global workflow skill, treat
+that as harness drift and fix the source-of-truth problem rather than layering
+more adapter-specific exceptions.
+
+## Non-trivial `/build` discipline
+
+When the host supports subagents/agents, non-trivial `/build` work should
+delegate rather than stay inline in the main session.
+
+- one-file mechanical fixes may stay inline
+- anything needing more than two source-file reads should delegate exploration
+- anything beyond a one-file mechanical edit should delegate implementation
+- non-trivial review should delegate reviewer agents when the host supports them
+- after exploration synthesis, the main session should stop reading source files
 
 ## Frontend aesthetic direction
 
@@ -86,6 +110,36 @@ pwsh ~/.agents/tools/harness-review.ps1 -ProposalId <id> -Action accept|reject|d
 The implementation gap is intentional: the kit detects and proposes; you
 decide and implement manually. No auto-modification of kit files.
 
+## Startup repo preflight
+
+At session start, check whether the repo has the expected kit scaffold:
+
+- `.kit/context/memory.md`
+- `.kit/workflows/`
+- `.wiki/index.md`
+- `.wiki/features.md`
+- `.wiki/.features`
+
+If `.kit` is missing, tell the user the repo is not bootstrapped for the kit yet and suggest:
+
+- `/bootstrap-harness` (preferred when the repo command is available)
+- or `pwsh <path-to-agentic-coding-kit>\scripts\install.ps1 -BootstrapHarness -TargetRepo "<repo>"`
+
+If `.wiki/index.md`, `.wiki/architecture.md`, `.wiki/codebase.md`, `.wiki/features.md`, or `.wiki/.features` is missing, suggest:
+
+- `/bootstrap-harness` if the repo is missing the full scaffold
+- or the same installer bootstrap command if the repo is missing the whole scaffold
+
+`/bootstrap-harness` is the single high-level init path. It should scaffold the
+repo AND run the evidence-based init flows (`git-archaeology`, `kit-init`,
+`wiki-init`) so the repo is actually ready for coding afterward.
+
+Do not act as though repo-local memory, wiki requirements, and workflow overrides are available when these files are absent. Continue for quick questions if needed, but warn that the repo is only partially wired into the kit until the scaffold exists.
+
+## Verification freshness
+
+If files change after verification has been captured, treat the verification as stale and rerun it. The harness should not carry fresh verification evidence across later edits.
+
 ## Memory write routing
 
 | Bucket | Target |
@@ -93,7 +147,7 @@ decide and implement manually. No auto-modification of kit files.
 | Durable repo facts | `.kit/context/memory.md` |
 | Repo-local specialist guidance | `.kit/context/agent-memory/{role}.md` or `shared.md` |
 | Cross-repo skill patterns | `~/.agents/skills/{skill}/memory.md` |
-| Session-only | `${AGENTS_SESSION_ROOT}/{id}/handoffs.md` (default `~/.agents/session-state`) |
+| Session-only | `${AGENTS_SESSION_ROOT}/{id}/handoffs.md` (default `~/.agents/session-state`, overridable) |
 
 ## File layout to respect
 

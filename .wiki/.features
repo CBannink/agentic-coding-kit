@@ -2,6 +2,7 @@
 # Pair with .wiki/features.md (human-readable). Update both together.
 
 # Slash commands
+slash-command/bootstrap-harness
 slash-command/plan
 slash-command/build
 slash-command/review
@@ -15,6 +16,11 @@ slash-command/kit-init
 slash-command/kit-migrate
 
 # Sub-agents
+agent/workflow-explorer
+agent/workflow-implementer
+agent/workflow-reviewer
+agent/workflow-skeptic
+agent/workflow-ui-qa
 agent/ux-driver
 agent/ui-driver
 agent/playwright-navigator
@@ -27,11 +33,15 @@ agent/final-verifier
 agent/qa-reviewer
 
 # Skills
+skill/bootstrap-harness
 skill/analyze
 skill/build
 skill/wiki-init
 skill/kit-init
 skill/kit-migrate
+wiki/architecture-doc
+wiki/codebase-doc
+retrieval/wiki-crosscutting-docs
 skill/plan
 skill/review
 skill/investigate
@@ -93,6 +103,7 @@ tool/wiki-resolver
 tool/wiki-compress
 tool/review-evidence
 tool/merge-claude-settings
+tool/pretool-read-delegation-gate
 tool/validate-repo-skills-index
 tool/derive-repo-skills
 tool/scoped-derive-repo-skills
@@ -100,12 +111,17 @@ tool/scoped-derive-repo-skills
 # Installer + validators
 installer/install.ps1
 installer/install.sh
+installer/-BootstrapHarness
 installer/-For
 installer/-Auto
 installer/-TargetRepo
 installer/-InstallAdapter
 installer/-Upgrade
 installer/-Force
+installer/shared-workflow-templates
+hook/opencode-payload-normalization
+hook/agent-cap-hard-block
+installer/global-copilot-instructions
 validator/validate-bundle
 validator/doctor
 
@@ -114,6 +130,11 @@ adapter/claude-code
 adapter/opencode
 adapter/codex-cli
 adapter/copilot-cli
+adapter/copilot-cli-global
+adapter/startup-scaffold-preflight
+gate/verification-freshness
+gate/plan-approval
+gate/pre-delegation-read-budget
 adapter/kilocode
 adapter/generic
 

@@ -2,7 +2,7 @@
 name: modularity-expert
 description: "Use when the user asks to review architecture, check abstractions, audit DI or wiring, hunt duplicate logic, or judge whether code is over-engineered. Triggers: 'review architecture', 'check abstractions', 'audit DI', 'duplicate logic', 'over-engineered', 'pass-through wrapper', 'new file justified', 'reuse check', 'modularity'. Anti-slop architecture-integrity pass."
 tools: ["*"]
-model: gemini-3-flash-preview
+model: claude-sonnet-4-6
 ---
 
 You are the Modularity Expert agent for the Caspar Bannink Agentic Coding Kit.

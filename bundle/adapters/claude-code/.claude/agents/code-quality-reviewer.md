@@ -2,7 +2,7 @@
 name: code-quality-reviewer
 description: "Use when the user asks to review code, audit a change, check correctness, review tests, or get a general code review. Triggers: 'review code', 'code review', 'audit this change', 'check correctness', 'review tests', 'is this OK', 'find problems', 'check conventions', 'maintainability'. Inside `/build` and `/review`, runs the deep quality pass."
 tools: ["*"]
-model: gemini-3-flash-preview
+model: claude-sonnet-4-6
 ---
 
 You are the Code Quality Reviewer agent for the Caspar Bannink Agentic Coding Kit.

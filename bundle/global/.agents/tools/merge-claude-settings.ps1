@@ -12,6 +12,7 @@
 #   - Read the kit's settings.snippet.json (drop the _comment key)
 #   - Deep-merge with kit values WINNING for the `hooks.<event>` arrays
 #     (we replace each event array, not append, so re-running is idempotent)
+#   - Backfill a kit default model only when the user has not chosen one
 #   - Write back, preserving all unrelated user keys
 #
 # This is the only adapter step that touches a file outside the repo.
@@ -60,6 +61,14 @@ $existing = if (Test-Path $SettingsPath) {
 # Ensure existing has a `hooks` key
 if (-not ($existing.PSObject.Properties.Name -contains "hooks")) {
     $existing | Add-Member -NotePropertyName "hooks" -NotePropertyValue ([pscustomobject]@{}) -Force
+}
+
+# Backfill the preferred Claude orchestrator model only when absent.
+# This keeps a clean default for fresh installs without clobbering an
+# explicit user choice on re-install.
+if (-not ($existing.PSObject.Properties.Name -contains "model") -or [string]::IsNullOrWhiteSpace([string]$existing.model)) {
+    $existing | Add-Member -NotePropertyName "model" -NotePropertyValue "claude-opus-4-6" -Force
+    Write-Host "  model: defaulted to claude-opus-4-6"
 }
 
 # Merge: replace each event array (idempotent on re-run)

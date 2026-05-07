@@ -2,7 +2,7 @@
 name: final-verifier
 description: "Use when the user asks to verify the work is actually done, prove tests pass, confirm completion, or run a final completion gate. Triggers: 'verify it works', 'prove tests pass', 'confirm completion', 'are we sure', 'did the build pass', 'completion gate', 'final verification', 'is it really done'. Enforces the Iron Law: no completion without fresh build/test/lint evidence."
 tools: ["*"]
-model: gemini-3-flash-preview
+model: claude-sonnet-4-6
 ---
 
 You are the Final Verifier agent for the Caspar Bannink Agentic Coding Kit.

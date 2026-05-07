@@ -39,7 +39,10 @@ Write-Host ""
 
 # --- Check 1: every .ps1 parses ----------------------------------------------
 Write-Host "[1/5] PowerShell parse check"
-$psFiles = Get-ChildItem -Path $Bundle -Recurse -Filter "*.ps1"
+$psFiles = @(
+    Get-ChildItem -Path $Bundle -Recurse -Filter "*.ps1"
+    Get-ChildItem -Path $ScriptRoot -Recurse -Filter "*.ps1"
+) | Sort-Object FullName -Unique
 $parseFailures = 0
 foreach ($f in $psFiles) {
     # Read explicitly as UTF-8 so PS5.1 doesn't misinterpret as cp1252.
@@ -89,8 +92,11 @@ $badPatterns = @(
     'C:\\Users\\Caspar\.Bannink\\\.codex'
 )
 $searchExt = @("*.ps1", "*.md", "*.json", "*.tmpl")
+$searchRoots = @($Bundle, $ScriptRoot)
 foreach ($ext in $searchExt) {
-    $files = Get-ChildItem -Path $Bundle -Recurse -Filter $ext
+    $files = foreach ($root in $searchRoots) {
+        Get-ChildItem -Path $root -Recurse -Filter $ext -ErrorAction SilentlyContinue
+    }
     foreach ($f in $files) {
         $content = Get-Content $f.FullName -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
         if (-not $content) { continue }
@@ -121,6 +127,7 @@ $requiredTools = @(
     "review-evidence.ps1", "_run-ps.sh",
     "merge-codex-config.ps1",
     "hooks/pretool-bash-dispatcher.ps1",
+    "hooks/pretool-read-delegation-gate.ps1",
     "hooks/pretool-write-gateguard.ps1",
     "hooks/pretool-task-orchestrator-gate.ps1",
     "hooks/posttool-bash-verify-mark.ps1"
@@ -147,7 +154,37 @@ foreach ($a in $adapterRoots) {
         Add-Error "Adapter '$($a.Name)' has no instruction .md file"
     }
 }
-if ($adapterIssues -eq 0) { Add-Pass "all $($adapterRoots.Count) adapters have instruction files" }
+$requiredSharedTemplates = @(
+    "workflow-commands/analyze.md",
+    "workflow-commands/bootstrap-harness.md",
+    "workflow-commands/build.md",
+    "workflow-commands/investigate.md",
+    "workflow-commands/kit-init.md",
+    "workflow-commands/kit-migrate.md",
+    "workflow-commands/plan.md",
+    "workflow-commands/redesign.md",
+    "workflow-commands/refactor.md",
+    "workflow-commands/review.md",
+    "workflow-commands/security-review.md",
+    "workflow-commands/wiki-init.md",
+    "workflow-agents/workflow-explorer.md",
+    "workflow-agents/workflow-implementer.md",
+    "workflow-agents/workflow-reviewer.md",
+    "workflow-agents/workflow-skeptic.md",
+    "workflow-agents/workflow-ui-qa.md"
+)
+$sharedRoot = Join-Path $Bundle "adapters/_shared"
+$missingSharedTemplates = 0
+foreach ($template in $requiredSharedTemplates) {
+    $fullPath = Join-Path $sharedRoot $template
+    if (-not (Test-Path $fullPath)) {
+        $missingSharedTemplates++
+        Add-Error "Shared workflow template missing: $template"
+    }
+}
+if ($adapterIssues -eq 0 -and $missingSharedTemplates -eq 0) {
+    Add-Pass "all $($adapterRoots.Count) adapters have instruction files and $($requiredSharedTemplates.Count) shared workflow templates exist"
+}
 
 # --- Verdict -----------------------------------------------------------------
 Write-Host ""

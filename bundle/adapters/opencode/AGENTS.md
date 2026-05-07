@@ -6,7 +6,7 @@ for the canonical body.
 
 ## Core operating rules
 
-1. Respect the `.codex` layout (`.kit/context/`, `.kit/workflows/`).
+1. Respect the `.kit` layout (`.kit/context/`, `.kit/workflows/`).
 2. `.wiki/features.md` + `.wiki/.features` carry user-visible capabilities.
 3. Session handoffs are session-private; repo memory is durable.
 4. Prefer the sequenced commands: `/plan` → `/build` → `/review` →
@@ -30,6 +30,23 @@ Greenfield UI in `/build` or `/redesign` checks for `DESIGN.md` first. If missin
 - Provider-agnostic: works with Kimi K2, Anthropic, OpenAI, or any
   OpenAI-compatible endpoint. The kit doesn't care which model — the harness
   rules are the same.
+
+## Workflow source of truth
+
+The global workflow skills in `~/.agents/skills/` are the canonical workflow
+contract. OpenCode command and agent files are transport layers that should
+point back to that shared contract rather than redefining workflow semantics.
+
+## Non-trivial `/build` discipline
+
+When OpenCode has the workflow agents installed, non-trivial `/build` work
+should delegate instead of staying inline in the main session.
+
+- one-file mechanical fixes may stay inline
+- anything needing more than two source-file reads should delegate exploration
+- anything beyond a one-file mechanical edit should delegate implementation
+- non-trivial review should delegate reviewer agents when available
+- after exploration synthesis, the main session should stop reading source files
 
 ## Memory routing
 

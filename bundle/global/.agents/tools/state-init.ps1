@@ -32,6 +32,7 @@ $state = [ordered]@{
     current_step = 0
     gates        = [ordered]@{
         scope_classified            = $true
+        plan_approved               = ($Scope -eq "ISOLATED")
         context_loaded              = $false
         rubber_duck_consulted       = ($Scope -eq "ISOLATED")  # ISOLATED skips rubber-duck
         consequence_traced          = ($Scope -eq "ISOLATED")  # ISOLATED skips consequence

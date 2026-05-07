@@ -30,6 +30,22 @@ try {
 $sessionId = $payload.session_id
 if (-not $sessionId) { exit 0 }
 
+function Block-WithReason {
+    param([string]$Reason)
+    [Console]::Error.WriteLine($Reason)
+    exit 2
+}
+
+function Get-JsonFile {
+    param([string]$Path)
+    if (-not (Test-Path $Path)) { return $null }
+    try {
+        return Get-Content $Path -Raw -Encoding UTF8 | ConvertFrom-Json
+    } catch {
+        return $null
+    }
+}
+
 # Resolve sub-agent name from the Task tool input. Could be subagent_type
 # or description (Claude Code's two ways of naming).
 $agentName = $null
@@ -42,13 +58,61 @@ elseif ($payload.tool_input.description) {
 }
 if (-not $agentName) { exit 0 }
 
+$sessionDir = Join-Path $script:SessionRoot $sessionId
+$state = Get-JsonFile -Path (Join-Path $sessionDir "state.json")
+$runPacket = Get-JsonFile -Path (Join-Path $sessionDir "run-packet.json")
+$planPath = Join-Path $sessionDir "plan.md"
+
+$isImplementer = $agentName -match '(^|-)workflow-implementer$|(^|-)implementer$'
+$needsApprovedPlan =
+    $isImplementer -and
+    $state -and
+    (@("SHARED", "CRITICAL") -contains [string]$state.scope)
+
+if ($needsApprovedPlan) {
+    $approvalStatus = if ($runPacket) { [string]$runPacket.approval_status } else { "" }
+    $planApproved = $approvalStatus -ieq "approved"
+    if ((-not $planApproved) -or (-not (Test-Path $planPath))) {
+        Block-WithReason @"
+Blocked by kit hook (task-orchestrator-gate/plan-approval):
+
+This session attempted to spawn $agentName before the build contract was
+approved. For SHARED and CRITICAL build work, the plan must exist at
+~/.agents/session-state/$sessionId/plan.md and run-packet.json must record
+approval_status = approved before implementation starts.
+
+To resolve:
+  1. Run /plan (or refresh the existing plan) for this same session.
+  2. Record approval in run-packet.json.
+  3. Retry the implementer spawn.
+
+To bypass entirely:
+  Set KIT_DISABLED_HOOKS=task-orchestrator-gate and retry the Task call.
+"@
+    }
+}
+
 # Auto-run state-gate.ps1 -AddAgent
 $stateGate = Join-Path $script:Tools "state-gate.ps1"
 if (Test-Path $stateGate) {
     try {
-        & $script:AgentsShell -NoProfile -File $stateGate -SessionId $sessionId -AddAgent $agentName -EnforceAgentCap 2>&1 | Out-Null
+        if ($needsApprovedPlan -and -not $state.gates.plan_approved) {
+            & $script:AgentsShell -NoProfile -File $stateGate -SessionId $sessionId -Mark "plan_approved" 2>&1 | Out-Null
+        }
+        $addAgentOutput = & $script:AgentsShell -NoProfile -File $stateGate -SessionId $sessionId -AddAgent $agentName -EnforceAgentCap 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            $details = ($addAgentOutput | Out-String).Trim()
+            if (-not $details) {
+                $details = "state-gate.ps1 rejected agent registration."
+            }
+            Block-WithReason @"
+Blocked by kit hook (task-orchestrator-gate/agent-cap):
+
+$details
+"@
+        }
     } catch {
-        # Don't block on tooling failure -- record-but-allow
+        Block-WithReason "Blocked by kit hook (task-orchestrator-gate/state): failed to register '$agentName' in state-gate.ps1. $($_.Exception.Message)"
     }
 }
 
@@ -56,7 +120,7 @@ if (Test-Path $stateGate) {
 $wfEvidence = Join-Path $script:Tools "workflow-evidence.ps1"
 if (Test-Path $wfEvidence) {
     try {
-        & $script:AgentsShell -NoProfile -File $wfEvidence -SessionId $sessionId -AddAgent "$agentName|auto-recorded by task-orchestrator-gate hook" 2>&1 | Out-Null
+        & $script:AgentsShell -NoProfile -File $wfEvidence -SessionId $sessionId -AddAgent $agentName 2>&1 | Out-Null
     } catch {}
 }
 

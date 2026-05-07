@@ -50,12 +50,17 @@ This:
 - **Instruction file lives in the adapter dir** so it can be diffed and
   reviewed; the installer renders + injects it into the user's host
   config dir on install.
-- **Agent files** live as `.md` with YAML frontmatter at the kit's
-  canonical location (`bundle/adapters/claude-code/.claude/agents/`).
-  Per-host installers translate to host-specific format on install:
-  - Claude Code: copy as-is.
-  - Gemini CLI / OpenCode: copy or junction `.md` files; OpenCode
-    normalizes frontmatter (drops `tools:`, unquotes description).
+- **Shared workflow transport assets** (Claude/OpenCode command wrappers +
+  `workflow-*` agents) live once under
+  `bundle/adapters/_shared/{workflow-commands,workflow-agents}/` and are
+  rendered into host-native dirs by the installer.
+- **Host-specific expert/reviewer agent files** stay in each adapter dir when
+  their frontmatter or model metadata genuinely differs by host.
+- Per-host installers translate to host-specific format on install:
+  - Claude Code: copy host-specific expert agents as-is and render shared
+    workflow markdown into `~/.claude/...`.
+  - OpenCode: copy host-specific expert agents as-is, render shared workflow
+    markdown into `~/.config/opencode/...`, and normalize plugin payloads.
   - Codex CLI: convert to `.toml` (`name`, `description`,
     `developer_instructions` body).
   - Copilot CLI: no native subagent system; agent prompts are referenced

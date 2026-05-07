@@ -86,11 +86,11 @@ what it picked. You can override, but the default is the right answer.
 ### Why one shared brain across CLIs
 
 Every CLI has its own config conventions (`CLAUDE.md`, `AGENTS.md`, `prompt.md`,
-`.github/copilot-instructions.md`, `.kilocode/rules/`). Rather than fork the
+`~/.copilot/copilot-instructions.md`, `.kilocode/rules/`). Rather than fork the
 kit per CLI, the kit's logic lives in `~/.agents/` once, and a thin **adapter**
-per CLI writes a tiny include-marker into that CLI's home config pointing back
-at the shared content. Switch CLIs at any time — the workflows, gates, memory,
-and self-improvement loop are identical.
+per CLI writes the right global or repo-local instructions for that host.
+Switch CLIs at any time — the workflows, gates, memory, and self-improvement
+loop are identical.
 
 ## Requirements
 
@@ -103,11 +103,14 @@ and self-improvement loop are identical.
 
 ## Install
 
-### Quick start — pick the CLI you use, run one command
+### Quick start — machine install
 
 ```powershell
 # Use Claude Code
 pwsh ./scripts/install.ps1 -For claude
+
+# Use GitHub Copilot CLI / Chat
+pwsh ./scripts/install.ps1 -For copilot
 
 # Use OpenCode
 pwsh ./scripts/install.ps1 -For opencode
@@ -119,7 +122,7 @@ pwsh ./scripts/install.ps1 -For codex
 pwsh ./scripts/install.ps1 -For "claude,opencode"
 
 # Or install for every CLI that has a meaningful device-wide config
-# (Claude, Codex, OpenCode, plus a generic ~/AGENTS.md for Aider/Cline/Cursor/etc.)
+# (Claude, Codex, Copilot, OpenCode, plus a generic ~/AGENTS.md for Aider/Cline/Cursor/etc.)
 pwsh ./scripts/install.ps1 -For all
 
 # Or auto-detect what's on your PATH and install for those
@@ -129,8 +132,48 @@ pwsh ./scripts/install.ps1 -Auto
 Each `-For <cli>` does three things:
 
 1. **Populates `~/.agents/`** with skills, tools, protocols, and the workflow plugins skills reference (gstack / superpowers / caspar-workflows). Renders `skill-memory-index.json` with absolute paths.
-2. **Writes the kit instructions companion** to that CLI's config dir (e.g. `~/.claude/agentic-kit.md`, `~/.config/opencode/agentic-kit.md`, `~/.codex/agentic-kit.md`, or `~/.agentic-kit/AGENTS.md` for the generic case).
-3. **Wires lifecycle automation** — for Claude Code merges hooks into `~/.claude/settings.json`; for OpenCode installs the plugin at `~/.config/opencode/plugins/agentic-kit.ts`; for Copilot the lifecycle is baked into the per-repo instructions file.
+2. **Writes the kit instructions companion** to that CLI's config dir (e.g. `~/.claude/agentic-kit.md`, `~/.copilot/agentic-kit.md`, `~/.config/opencode/agentic-kit.md`, `~/.codex/agentic-kit.md`, or `~/.agentic-kit/AGENTS.md` for the generic case).
+3. **Wires lifecycle automation** — for Claude Code merges hooks into `~/.claude/settings.json`; for OpenCode installs the plugin at `~/.config/opencode/plugins/agentic-kit.ts`; for Copilot installs the workflow instructions globally at `~/.copilot/copilot-instructions.md` (with repo-level `.github/copilot-instructions.md` remaining an optional override).
+
+Re-running the installer replaces the kit-managed global assets under `~/.agents/` and rewrites the global Copilot instructions from the current kit source, so old generations do not accumulate in the active install.
+
+### One-command repo bootstrap
+
+If you want a repo fully wired for the harness in one go — `.kit/`, `.wiki/`, `AGENTS.md`, `CLAUDE.md`, and `.github/copilot-instructions.md` — use:
+
+```powershell
+pwsh ./scripts/install.ps1 -BootstrapHarness -TargetRepo C:\path\to\repo
+```
+
+That one command:
+
+1. refreshes `~/.agents/`
+2. installs device-wide rules for Claude, Copilot, and generic `AGENTS.md`
+3. drops the repo template into the target repo
+4. installs the repo adapters for Claude, Copilot, and generic agents
+5. seeds the cross-cutting wiki stubs `architecture.md` and `codebase.md`
+
+When the host supports repo slash commands, the preferred setup command to suggest is:
+
+```text
+/bootstrap-harness
+```
+
+That command should resolve to the shell bootstrap path above AND then continue
+through the evidence-based init flow:
+
+```text
+/bootstrap-harness
+  -> install.ps1 -BootstrapHarness
+  -> /git-archaeology   (when enough history exists)
+  -> /kit-init
+  -> /wiki-init
+```
+
+So `/bootstrap-harness` is the single high-level repo-init path, not just a
+thin shell alias.
+
+Use the older `-InstallRepoTemplate` / `-InstallAdapter` flags only for advanced partial installs.
 
 ### Setup when your repo already has rules / pipeline
 
@@ -157,6 +200,10 @@ routing, session state, lifecycle bookkeeping) into alignment with the
 kit's pattern, while *preserving* domain preferences (build/test commands,
 code style, agent personas, project-scoped `.claude/agents/`, custom
 skills, deploy gates).
+
+`/kit-init`, `/wiki-init`, and `/git-archaeology` remain the lower-level
+building blocks underneath `/bootstrap-harness`, but normal setup guidance
+should point to the single high-level command.
 
 **Litmus test for what converges vs what stays**:
 - Rule about *where state goes / how session is bookkept / how memory routes* → **STRUCTURAL**, converges to kit pattern
@@ -193,12 +240,12 @@ PermissionRequest model**; **OpenCode is fine for general use**. The kit
 ships adapters for all three so you can switch any time without
 re-installing.
 
-**A note on `copilot` and `kilocode`:** these tools have no useful device-wide
-config — Copilot only reads `.github/copilot-instructions.md` from each
-workspace, and Kilo Code only reads `.kilocode/rules/*.md` from each workspace.
-Passing `-For copilot` or `-For kilocode` prints a one-line message pointing
-you at the per-repo install instead. `-For all` therefore expands to
-`claude, codex, opencode, generic`.
+**A note on `copilot` and `kilocode`:** Copilot now has a useful device-wide
+install path at `~/.copilot/copilot-instructions.md`, which the kit rewrites
+from the current adapter source on each install so stale generations do not
+accumulate. Repo-level `.github/copilot-instructions.md` remains an optional
+override. Kilo Code still reads `.kilocode/rules/*.md` from each workspace, so
+it remains repo-local.
 
 Pre-flight runs `validate-bundle.ps1` and refuses to install a broken kit (override with `-Force`).
 
@@ -208,12 +255,12 @@ After install, restart your CLI. Verify with:
 pwsh ./scripts/doctor.ps1   # 17-check health report
 ```
 
-### Per-repo bootstrap (advanced — usually you don't need this)
+### Per-repo bootstrap (advanced / partial installs only)
 
 If you want the kit's repo-template (`.kit/context/`, `.kit/workflows/`, `.wiki/`) dropped into a specific repo:
 
 ```powershell
-pwsh ./scripts/install.ps1 -TargetRepo /path/to/repo -InstallRepoTemplate -InstallAdapter claude
+pwsh ./scripts/install.ps1 -BootstrapHarness -TargetRepo C:\path\to\repo
 ```
 
 ### Upgrade safely
@@ -230,17 +277,18 @@ The `-Upgrade` flag moves your existing `~/.agents/` to a timestamped backup bef
 |---|---|---|
 | **Claude Code** | `CLAUDE.md` + `.claude/commands/*.md` (8 commands) | ✅ `~/.claude/settings.json` hooks fire `pre-session` / `post-session` / `subagent-stop` / `pre-compact` automatically |
 | **OpenCode** | `prompt.md` + `~/.config/opencode/plugins/agentic-kit.ts` | ✅ TypeScript plugin wires `session.created` / `session.deleted` / `session.idle` / `session.compacted` |
-| **Copilot CLI** | `.github/copilot-instructions.md` | ✅ Lifecycle baked into instructions — agent calls `pre-session.ps1` at start of `/build`, `post-session.ps1` at end (no native hooks) |
+| **Copilot CLI** | `~/.copilot/copilot-instructions.md` (+ optional repo override at `.github/copilot-instructions.md`) | ✅ Lifecycle baked into instructions — agent calls `pre-session.ps1` at start of `/build`, `post-session.ps1` at end (no native hooks); startup preflight checks for `.kit` + `.wiki` scaffold |
 | **Codex CLI** | `AGENTS.md` | Manual — Codex hook surface varies by version, no fabricated config shipped |
 | **Kilo Code** | `AGENTS.md` + `.kilocode/rules/*.md` (5 modes) | Manual or via VSCode tasks.json |
 | **Generic** | `AGENTS.md` (canonical for Aider, Cline, Cursor, Continue, etc.) | Manual |
 
 ## Core operating model
 
-### Six workflow commands + two swarm-eligible
+### Six workflow commands + two swarm-eligible + one setup command
 
 | Command | What it does | Swarm? |
 |---|---|---|
+| `/bootstrap-harness` | one-shot repo init: scaffold repo surfaces, run archaeology, then initialize `.kit` and `.wiki` | sequential with light parallel evidence-gathering |
 | `/plan` | clarify scope, map files, trace blast radius, stop for approval | sequential |
 | `/build` | execute approved plan with freshness check + implement → review → verify gates | sequential (parallel-reviewers OK at FULL tier) |
 | `/review` | hierarchical: surface → interactions → synthesis → adversarial → false-positive verifier | sequential, optional `swarm-review` (parallel reviewers, sequential implementer) |

@@ -5,7 +5,7 @@ Aider, Cline, Cursor, Continue, etc.) gets the right behavior from this file.
 
 ## Core operating rules
 
-1. Respect the `.codex` layout (`.kit/context/`, `.kit/workflows/`).
+1. Respect the `.kit` layout (`.kit/context/`, `.kit/workflows/`).
 2. Use `.wiki/features.md` and `.wiki/.features` for user-visible capabilities.
 3. Treat session handoffs as session-private; repo memory is durable.
 4. Prefer:
@@ -31,6 +31,36 @@ Aider, Cline, Cursor, Continue, etc.) gets the right behavior from this file.
 | Repo-local specialist guidance | `.kit/context/agent-memory/{role}.md` or `shared.md` |
 | Cross-repo skill patterns | `~/.agents/skills/{skill}/memory.md` |
 | Session-only | `${AGENTS_SESSION_ROOT}/{id}/handoffs.md` (default `~/.agents/session-state`) |
+
+## Startup repo preflight
+
+At session start, check whether the repo has the expected kit scaffold:
+
+- `.kit/context/memory.md`
+- `.kit/workflows/`
+- `.wiki/index.md`
+- `.wiki/features.md`
+- `.wiki/.features`
+
+If `.kit` is missing, tell the user the repo is not bootstrapped for the kit yet and suggest:
+
+- `/bootstrap-harness` (preferred when the repo command is available)
+- or `pwsh <path-to-agentic-coding-kit>\scripts\install.ps1 -BootstrapHarness -TargetRepo "<repo>"`
+
+If `.wiki/index.md`, `.wiki/architecture.md`, `.wiki/codebase.md`, `.wiki/features.md`, or `.wiki/.features` is missing, suggest:
+
+- `/bootstrap-harness` if the repo is missing the full scaffold
+- or the same installer bootstrap command above if the repo is missing the whole scaffold
+
+`/bootstrap-harness` is the single high-level init path. It should scaffold the
+repo AND run the evidence-based init flows (`git-archaeology`, `kit-init`,
+`wiki-init`) so the repo is actually ready for coding afterward.
+
+Do not act as though repo-local memory, wiki requirements, and workflow overrides are available when these files are absent. Continue for quick questions if needed, but warn that the repo is only partially wired into the kit until the scaffold exists.
+
+## Verification freshness
+
+If files change after verification, rerun verification before claiming completion. Prior evidence becomes stale after later edits.
 
 ## File layout to respect
 

@@ -139,7 +139,7 @@ If lifecycle callbacks are available in the host or harness, use these scripts a
 - `code-quality-reviewer`
   Purpose: check maintainability, correctness, conventions, test quality, and observability. For the FULL step-9 deep pass, extend to: are all new behaviours specifically tested by name? Are mocks accurate? Are fixtures updated? Are error/edge cases covered? Are errors logged with context (not swallowed)? Is trace context forwarded?
 - `modularity-expert`
-  Purpose: run an anti-slop architecture-integrity pass. Check reuse-first discipline, new-file justification, module placement, duplicate helpers/types/classes, speculative abstractions, and pass-through wrapper files.
+  Purpose: run an anti-slop architecture-integrity pass. Check reuse-first discipline, new-file justification, module placement, duplicate helpers/types/classes, speculative abstractions, pass-through wrapper files, and adherence to `.wiki/architecture.md` / `.wiki/codebase.md` when present.
   Source bias: `~/.agents/skills/experts/modularity/SKILL.md`
 - `security-reviewer`
   Purpose: review trust boundaries, injection risks, auth mistakes, data leaks, and failure handling.
@@ -203,7 +203,7 @@ If `.wiki/` exists, run `wiki-resolver.ps1` FIRST and embed the returned `prompt
 pwsh ~/.agents/tools/wiki-resolver.ps1 -Task "{task slug}" -ChangedFiles "{comma-sep diff list}" -RepoRoot .
 ```
 
-The resolver returns `index.md` (always) plus matched sections (changed-file overlap or task-name match). Pass its `prompt_block` field verbatim into each implementer / reviewer prompt. **Never** bulk-read `.wiki/sections/`. **Never** spawn a subagent without first checking the resolver — even if you think the task doesn't touch the wiki.
+The resolver returns `index.md` (always), cross-cutting docs like `architecture.md` / `codebase.md` when present, plus matched sections (changed-file overlap or task-name match). Pass its `prompt_block` field verbatim into each implementer / reviewer prompt. **Never** bulk-read `.wiki/sections/`. **Never** spawn a subagent without first checking the resolver — even if you think the task doesn't touch the wiki.
 
 If `.wiki/` is missing, surface the warning from `pre-session.ps1` and recommend the user run `/wiki-init` before non-trivial work. Continue without wiki context only if the user opts in explicitly.
 
@@ -280,6 +280,33 @@ A sub-agent costs 5–20× more tokens than inline work. Spawn only when the tas
 - Implementation spanning ≥3 files with novel logic in each
 
 **Mechanical work is never a valid reason to spawn.** Field renames, import updates, model mirroring, simple wiring — these are always inline.
+
+### Host delegation gate (canonical across adapters)
+
+When the host CLI has reusable subagents/agents installed, `/build` must use
+them for **non-trivial** work rather than silently keeping implementation in the
+main session.
+
+- Direct repo-code editing in the main session is allowed only for a
+  **one-file mechanical fix**.
+- If understanding the task needs more than **two source-file reads**, delegate
+  exploration instead of continuing excavation in the main session.
+- If the change touches more than one source file, or includes novel logic in a
+  source file, delegate implementation instead of coding inline.
+- If review is non-trivial and the host has reviewer agents, use them rather
+  than keeping the full pass inline.
+
+If a host lacks subagent support, apply the same workflow inline as closely as
+possible. But when subagents exist, "I decided to just do it in the main
+session" is not an acceptable default for `/build`.
+
+On Claude Code and OpenCode, the adapter hooks enforce two concrete parts of
+this rule at the protocol layer:
+- SHARED / CRITICAL implementation delegation requires an approved same-session
+  `plan.md` + `run-packet.json`
+- the coordinator gets at most two unique source-file reads before first real
+  delegation, after which the next source read blocks until an explorer or
+  implementer is spawned
 
 When you skip an agent that the tier table might otherwise suggest, record the skip:
 
@@ -460,6 +487,11 @@ Follow the global context-budget rule in `~/.agents/instructions.md`.
 - **Role-memory gate**: if `.kit/context/agent-memory/shared.md` exists, pass only the relevant excerpt. If `.kit/context/agent-memory/{role}.md` exists, pass it only to the matching role. Do not spray specialist memory to unrelated agents.
 - **Mechanical role-memory gate**: before spawning any implementer or specialist reviewer, run `specialist-memory-resolver.ps1` for that exact role. If it returns `found=true`, inject the returned `prompt_block`. Do not hand-roll role-memory loading from memory files in the orchestrator.
 - **Read-stop gate (enforced)**: after explore synthesis, the orchestrator stops reading source files. File reads the implementer needs are embedded as instructions in its prompt, not done inline by the orchestrator. If you have done 3+ file reads post-synthesis, stop — you are in excavation mode, not orchestration mode. Redirect those reads to the implementer.
+- **Pre-delegation read budget**: before the first real delegation, the main
+  session gets at most **two source-file reads** for triage. Session docs,
+  plans, handoffs, skill files, and tool output do not count toward this budget.
+  If you need a third source-file read, you should almost certainly be spawning
+  an explorer or implementer instead.
 - **Plan-first execution rule**: when an approved same-session `/plan` artifact exists, `/build` should prefer executing against it over reopening broad exploration. Re-explore only on freshness failure or a specific missing fact.
 - **Plan-to-diff gate**: the changed-file set must still match the approved plan. If implementation adds an unplanned file, new abstraction, or moved module, either update the plan explicitly first or treat it as scope drift and have `spec-reviewer` + `modularity-expert` challenge it.
 - **Plan artifact gate**: for non-trivial builds, `~/.agents/session-state/{session_id}/plan.md` must exist before implementation begins. If the task changed materially after approval, refresh the plan and re-approve instead of silently drifting.

@@ -12,6 +12,14 @@ description: >
 
 # Analyze Workflow
 
+## Assumption discipline
+
+Before concluding anything:
+- Do not silently choose between multiple plausible interpretations.
+- Call out assumptions explicitly and downgrade them until verified.
+- Prefer the simplest explanation that still fits the evidence.
+- If one missing fact would change the recommendation, fetch it or ask instead of guessing.
+
 ## Plugin Registry (lazy — pass path to sub-agent, do NOT load upfront)
 
 The orchestrator does NOT read these files into its own context. Pass the relevant path inside the sub-agent's prompt so ONLY that sub-agent loads it. This keeps the orchestrator context clean. Baked-in content below is sufficient for all standard analysis tasks.

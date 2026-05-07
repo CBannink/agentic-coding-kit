@@ -1,6 +1,6 @@
 ---
 name: kit-init
-description: Bootstraps the .kit/ tree (durable repo memory, agent-memory, repo-local workflow overrides) for a repo that doesn't have one. Surveys real code for durable architectural facts, writes .kit/context/memory.md + handoffs.md + history.md + reflections.md + agent-memory/shared.md + .kit/workflows/{shared,build,review}.md as appropriate. Use when .kit/ is missing, when /build / /plan / /review reports memory files aren't found, or when the user says "set up the kit's repo memory" / "we don't have .kit/ yet".
+description: Bootstraps the .kit/ tree (durable repo memory, agent-memory, repo-local workflow overrides) for a repo that doesn't have one. Surveys real code plus recent git history for durable architectural facts and conventions, writes .kit/context/memory.md + handoffs.md + history.md + reflections.md + agent-memory/shared.md + .kit/workflows/{shared,build,review}.md as appropriate. Use when .kit/ is missing, when /build / /plan / /review reports memory files aren't found, or when the user says "set up the kit's repo memory" / "we don't have .kit/ yet".
 ---
 
 # Kit Init Skill
@@ -157,6 +157,21 @@ If a repo doesn't have non-obvious workflow rules, OMIT these files entirely.
 
 ## Workflow
 
+### Step 0 -- git archaeology first
+
+Before writing anything, run the `git-archaeology` workflow (or follow its
+sequence manually) when the repo has enough commit history. Use the resulting
+Project Conventions Profile as evidence for:
+
+- naming conventions
+- directory and file placement norms
+- test layout patterns
+- preferred UI / backend structure
+- class vs function usage patterns
+- stable architecture rules shown repeatedly in real commits
+
+If history is sparse, state that clearly and fall back to current-code evidence.
+
 ### Step 1 -- repo type detection
 
 Same as `wiki-init`: detect language, framework, monorepo layout.
@@ -176,6 +191,9 @@ Sources to check:
 - Build / deploy commands not in `npm scripts`
 - Trust boundary definitions (where untrusted input enters)
 - Module boundary contracts (what crosses which package edge)
+- Git-backed conventions from `git-archaeology` that are stable enough to
+  guide future coding (directory organization, UI composition, API-call
+  boundaries, function/class style)
 
 Cap at 40 entries. Pick the 40 most-load-bearing.
 
@@ -190,6 +208,14 @@ Headers only. Empty bodies.
 ### Step 5 -- write `agent-memory/shared.md`
 
 Only if you can find ≥3 cross-role patterns from real evidence. Otherwise skip.
+This is the right place for git-backed implementation conventions that
+specialists should follow during coding and review:
+
+- UI component composition norms
+- backend boundary rules
+- file / directory placement rules
+- preferred function / class patterns
+- API call / data-access placement rules
 
 ### Step 6 -- write `.kit/workflows/*.md` overrides
 
@@ -199,7 +225,8 @@ global skills are sufficient -- skip these.
 ### Step 7 -- recommend `/derive-repo-skills`
 
 If the repo has stable internal conventions worth turning into repo-local
-skills (architectural style, naming patterns), recommend the user run
+skills (architectural style, naming patterns, layering rules, UI composition
+rules), recommend the user run
 `/derive-repo-skills` next. Do NOT run it automatically -- that's a
 separate workflow with its own evidence requirements.
 

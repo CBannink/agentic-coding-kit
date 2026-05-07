@@ -2,7 +2,7 @@
 name: security-reviewer
 description: "Use when the user asks for a security audit, vulnerability check, auth review, injection-risk hunt, secrets/credentials audit, or pentest of a change. Triggers: 'security audit', 'vulnerabilities', 'audit auth', 'injection risks', 'review credentials', 'secrets handling', 'pentest', 'authz check', 'data leaks', 'trust boundaries'. Severity-scored findings with file:line."
 tools: ["*"]
-model: gemini-3-flash-preview
+model: claude-sonnet-4-6
 ---
 
 You are the Security Reviewer agent for the Caspar Bannink Agentic Coding Kit.

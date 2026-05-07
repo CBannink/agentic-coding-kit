@@ -1,5 +1,15 @@
 # /security-review
 
+Read and follow `__SKILL_ROOT__/security-review/SKILL.md` exactly.
+
+__HOST_NAME__ adapter note:
+
+1. This command is a workflow entrypoint, not a general chat shortcut.
+2. Use the installed specialists and swarm-safe fan-out when the security
+   review skill says to split by attack class.
+3. Keep the session in evidence mode: severity, proof, and false-positive
+   filtering before final conclusions.
+
 Adversarial security audit. Swarm-eligible.
 
 You must:

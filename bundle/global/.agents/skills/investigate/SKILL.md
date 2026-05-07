@@ -12,6 +12,14 @@ description: >
 
 # Investigate Workflow
 
+## Assumption discipline
+
+Before generating fixes:
+- State the symptom separately from the suspected cause.
+- Do not collapse multiple plausible causes into one guess.
+- If reproduction conditions, scope, or timing are unclear, ask or gather that evidence first.
+- Prefer the cheapest test that rules hypotheses out over broad source reading or speculative fixes.
+
 ## Step 0 — Wiki context pre-flight (BEFORE any hypothesis-generator / evidence-explorer spawn)
 
 If `.wiki/` exists, run `wiki-resolver.ps1` FIRST and embed its `prompt_block` in EVERY agent prompt. The wiki tells you which subsystems exist, what they interact with, and where the boundaries are -- exactly the context an investigation needs to narrow hypotheses.

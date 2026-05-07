@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# install.sh -- Caspar Bannink Agentic Coding Kit installer (Mac/Linux/WSL).
+# install.sh -- thin Bash wrapper around install.ps1 (Mac/Linux/WSL).
 #
-# This is the bootstrap path for systems that don't have pwsh yet.
-# Once pwsh is installed, prefer install.ps1's cleaner -For / -Auto API:
+# Keeps the old short-flag UX for shells that launch bash first, but PowerShell
+# is now the canonical installer implementation and source of truth.
+# Use install.ps1 directly when possible:
 #   pwsh ./install.ps1 -For claude
 #   pwsh ./install.ps1 -For all
 #   pwsh ./install.ps1 -Auto
@@ -14,7 +15,7 @@
 #   ./install.sh -t /path/to/repo -r -a all         # + all adapters
 #
 # Adapters: claude | codex | copilot | opencode | kilocode | generic | all
-# Requires PowerShell 7+ (`pwsh`) for the runtime tools. Installer itself is bash.
+# Requires a PowerShell host because the wrapper delegates to install.ps1.
 
 set -euo pipefail
 
@@ -34,10 +35,6 @@ while getopts "h:t:ra:" opt; do
 done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-BUNDLE_GLOBAL="$REPO_ROOT/bundle/global"
-BUNDLE_REPO="$REPO_ROOT/bundle/repo-template"
-ADAPTERS_ROOT="$REPO_ROOT/bundle/adapters"
 
 # ── Pre-flight: PowerShell host detection ────────────────────────────────────
 # The kit's runtime scripts require pwsh (or fall back to powershell.exe on
@@ -85,46 +82,11 @@ if ! PS_HOST=$(detect_powershell); then
     echo "# Then re-run:  ./scripts/install.sh $@                              #"
     echo "######################################################################"
     echo ""
-    echo "To proceed in degraded mode anyway (lifecycle disabled), set"
-    echo "  KIT_ALLOW_NO_PWSH=1"
-    echo "and re-run. Not recommended."
-    echo ""
-    if [ "${KIT_ALLOW_NO_PWSH:-}" != "1" ]; then
-        exit 1
-    fi
-    echo "KIT_ALLOW_NO_PWSH=1 set -- continuing in degraded mode."
-    PS_HOST="(none)"
+    echo "install.sh now delegates to install.ps1, so a PowerShell host is mandatory."
+    exit 1
 fi
 echo "Detected PowerShell host: $PS_HOST"
 
-
-AGENTS_ROOT="$HOME_ROOT/.agents"
-
-copy_tree() {
-    local src="$1" dst="$2"
-    [[ -d "$src" ]] || return 0
-    mkdir -p "$dst"
-    # Copy contents (including dotfiles) without preserving an extra layer
-    cp -R "$src/." "$dst/"
-}
-
-render_template() {
-    local src="$1" dst="$2" agents_root="$3"
-    [[ -f "$src" ]] || return 0
-    mkdir -p "$(dirname "$dst")"
-    sed "s|__AGENTS_ROOT__|$agents_root|g" "$src" > "$dst"
-}
-
-install_adapter() {
-    local name="$1" target="$2"
-    local src="$ADAPTERS_ROOT/$name"
-    if [[ ! -d "$src" ]]; then
-        echo "  Adapter '$name' not found at $src -- skipping"
-        return
-    fi
-    copy_tree "$src" "$target"
-    echo "  Installed '$name' adapter into $target"
-}
 
 resolve_adapter() {
     case "$1" in
@@ -137,41 +99,21 @@ resolve_adapter() {
     esac
 }
 
-# Global install -- everything kit-related lives under ~/.agents/.
-copy_tree "$BUNDLE_GLOBAL/.agents" "$AGENTS_ROOT"
-
-# Render skill-memory-index.json from template with absolute paths
-TMPL="$AGENTS_ROOT/context/skill-memory-index.json.tmpl"
-OUT="$AGENTS_ROOT/context/skill-memory-index.json"
-if [[ -f "$TMPL" ]]; then
-    render_template "$TMPL" "$OUT" "$AGENTS_ROOT"
-    rm -f "$TMPL"
-    echo "  Rendered skill-memory-index.json with AGENTS_ROOT=$AGENTS_ROOT"
+PS_SCRIPT="$SCRIPT_DIR/install.ps1"
+if [[ ! -f "$PS_SCRIPT" ]]; then
+    echo "install.ps1 not found at $PS_SCRIPT"
+    exit 1
 fi
 
-echo "Installed global assets into $HOME_ROOT"
-
-# Repo template
-if [[ -n "$TARGET_REPO" && "$INSTALL_REPO_TEMPLATE" -eq 1 ]]; then
-    copy_tree "$BUNDLE_REPO" "$TARGET_REPO"
-    echo "Installed repo template into $TARGET_REPO"
+ps_args=(-NoProfile -File "$PS_SCRIPT" -HomeRoot "$HOME_ROOT")
+if [[ -n "$TARGET_REPO" ]]; then
+    ps_args+=(-TargetRepo "$TARGET_REPO")
+fi
+if [[ "$INSTALL_REPO_TEMPLATE" -eq 1 ]]; then
+    ps_args+=(-InstallRepoTemplate)
+fi
+if [[ -n "$INSTALL_ADAPTER" ]]; then
+    ps_args+=(-InstallAdapter "$(resolve_adapter "$INSTALL_ADAPTER")")
 fi
 
-# Adapters
-if [[ -n "$TARGET_REPO" && -n "$INSTALL_ADAPTER" ]]; then
-    if [[ "$INSTALL_ADAPTER" == "all" ]]; then
-        adapters=(claude-code codex-cli copilot-cli opencode kilocode generic)
-    else
-        adapters=("$(resolve_adapter "$INSTALL_ADAPTER")")
-    fi
-    for a in "${adapters[@]}"; do
-        install_adapter "$a" "$TARGET_REPO"
-    done
-fi
-
-if [[ -z "$TARGET_REPO" ]]; then
-    echo
-    echo "Global install complete."
-    echo "Next: bootstrap a repo with:"
-    echo "  ./install.sh -t <path> -r -a all"
-fi
+exec "$PS_HOST" "${ps_args[@]}"

@@ -6,6 +6,7 @@
 #   pwsh ./install.ps1 -For "claude,opencode"    # multiple
 #   pwsh ./install.ps1 -For all                  # everything
 #   pwsh ./install.ps1 -Auto                     # detect CLIs on PATH and install for those
+#   pwsh ./install.ps1 -BootstrapHarness -TargetRepo C:\path\to\repo   # one-shot repo bootstrap
 #
 # Per-repo (advanced):
 #   pwsh ./install.ps1 -TargetRepo C:\path\to\repo -InstallRepoTemplate -InstallAdapter claude
@@ -36,7 +37,8 @@ param(
     # Legacy flag, kept for back-compat. Same behavior as -For.
     [string]$DeviceWide = "",
     [switch]$Upgrade,
-    [switch]$Force
+    [switch]$Force,
+    [switch]$BootstrapHarness
 )
 
 $ScriptRoot   = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -44,6 +46,8 @@ $RepoRoot     = Split-Path -Parent $ScriptRoot
 $BundleGlobal = Join-Path $RepoRoot "bundle/global"
 $BundleRepo   = Join-Path $RepoRoot "bundle/repo-template"
 $AdaptersRoot = Join-Path $RepoRoot "bundle/adapters"
+$SharedWorkflowCommandsRoot = Join-Path $AdaptersRoot "_shared/workflow-commands"
+$SharedWorkflowAgentsRoot = Join-Path $AdaptersRoot "_shared/workflow-agents"
 
 $AgentsRoot = Join-Path $HomeRoot ".agents"
 
@@ -60,8 +64,15 @@ if (Test-Path $validator) {
 }
 
 function Copy-Tree {
-    param([string]$Source, [string]$Destination)
+    param(
+        [string]$Source,
+        [string]$Destination,
+        [switch]$ReplaceDestination
+    )
     if (-not (Test-Path $Source)) { return }
+    if ($ReplaceDestination -and (Test-Path $Destination)) {
+        Remove-Item -Recurse -Force $Destination
+    }
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
     Copy-Item -Recurse -Force (Join-Path $Source '*') $Destination
 }
@@ -77,6 +88,105 @@ function Render-Template {
     Set-Content -Path $Destination -Value $content -Encoding utf8
 }
 
+function Get-WorkflowAdapterTemplateVars {
+    param([string]$AdapterName)
+
+    switch ($AdapterName) {
+        "claude-code" {
+            return @{
+                "__SKILL_ROOT__" = "~/.claude/skills"
+                "__HOST_NAME__" = "Claude"
+            }
+        }
+        "opencode" {
+            return @{
+                "__SKILL_ROOT__" = "~/.config/opencode/skills"
+                "__HOST_NAME__" = "OpenCode"
+            }
+        }
+        default { return $null }
+    }
+}
+
+function Get-WorkflowAdapterDestinations {
+    param(
+        [string]$AdapterName,
+        [string]$Root
+    )
+
+    switch ($AdapterName) {
+        "claude-code" {
+            return [pscustomobject]@{
+                Label = "Claude Code"
+                Commands = Join-Path $Root ".claude/commands"
+                Agents = Join-Path $Root ".claude/agents"
+            }
+        }
+        "opencode" {
+            return [pscustomobject]@{
+                Label = "OpenCode"
+                Commands = Join-Path $Root ".config/opencode/commands"
+                Agents = Join-Path $Root ".config/opencode/agents"
+            }
+        }
+        default { return $null }
+    }
+}
+
+function Install-RenderedMarkdownDirectory {
+    param(
+        [string]$SourceDir,
+        [string]$DestDir,
+        [hashtable]$Vars,
+        [string]$Label,
+        [string]$AssetKind,
+        [switch]$SkipIfExists
+    )
+
+    if (-not (Test-Path $SourceDir)) { return }
+    New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+    $count = 0
+    foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File | Sort-Object Name)) {
+        $dst = Join-Path $DestDir $f.Name
+        if ($SkipIfExists -and (Test-Path $dst) -and (-not $Force)) {
+            Write-Host "  $Label ${AssetKind}: $($f.Name) already exists at $dst (skipped, pass -Force to overwrite)"
+            continue
+        }
+        Render-Template -Source $f.FullName -Destination $dst -Vars $Vars
+        $count++
+    }
+    if ($count -gt 0) {
+        Write-Host "  $Label ${AssetKind}: $count installed at $DestDir"
+    }
+}
+
+function Install-WorkflowAdapterAssets {
+    param(
+        [string]$AdapterName,
+        [string]$Root,
+        [switch]$SkipExistingCommands
+    )
+
+    $vars = Get-WorkflowAdapterTemplateVars -AdapterName $AdapterName
+    $destinations = Get-WorkflowAdapterDestinations -AdapterName $AdapterName -Root $Root
+    if (-not $vars -or -not $destinations) { return }
+
+    Install-RenderedMarkdownDirectory `
+        -SourceDir $SharedWorkflowCommandsRoot `
+        -DestDir $destinations.Commands `
+        -Vars $vars `
+        -Label $destinations.Label `
+        -AssetKind "commands" `
+        -SkipIfExists:$SkipExistingCommands
+
+    Install-RenderedMarkdownDirectory `
+        -SourceDir $SharedWorkflowAgentsRoot `
+        -DestDir $destinations.Agents `
+        -Vars $vars `
+        -Label $destinations.Label `
+        -AssetKind "workflow agents"
+}
+
 function Install-Adapter {
     param([string]$Name, [string]$TargetRepo)
     $src = Join-Path $AdaptersRoot $Name
@@ -85,42 +195,56 @@ function Install-Adapter {
         return
     }
     Copy-Tree -Source $src -Destination $TargetRepo
+    Install-WorkflowAdapterAssets -AdapterName $Name -Root $TargetRepo
     Write-Host "  Installed '$Name' adapter into $TargetRepo"
 }
 
-# Copies slash command markdown files from an adapter's commands dir into the
-# CLI's device-wide commands dir. Both Claude (~/.claude/commands/) and
-# OpenCode (~/.config/opencode/commands/) auto-mount commands from these
-# locations into every session in every repo.
-function Install-DeviceWideCommands {
-    param(
-        [string]$SourceDir,        # bundle/adapters/<cli>/.../commands
-        [string]$DestDir,          # ~/.claude/commands or ~/.config/opencode/commands
-        [string]$Label
-    )
-    if (-not (Test-Path $SourceDir)) { return }
-    New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
-    $count = 0
-    foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
-        $dst = Join-Path $DestDir $f.Name
-        if ((Test-Path $dst) -and (-not $Force)) {
-            # Skip if user has a custom command at this name. Tell them.
-            Write-Host "  $Label command: $($f.Name) already exists at $dst (skipped, pass -Force to overwrite)"
+function Resolve-AdapterTargets {
+    param([string]$Spec)
+
+    if (-not $Spec) { return @() }
+
+    $resolved = [System.Collections.Generic.List[string]]::new()
+    $requested = @($Spec -split '[,;]' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+
+    foreach ($item in $requested) {
+        if ($item -eq "all") {
+            foreach ($adapter in @("claude-code", "codex-cli", "copilot-cli", "opencode", "kilocode", "generic")) {
+                if (-not $resolved.Contains($adapter)) {
+                    $resolved.Add($adapter)
+                }
+            }
             continue
         }
-        Copy-Item -Force $f.FullName $dst
-        $count++
-    }
-    if ($count -gt 0) { Write-Host "  $Label commands: $count installed at $DestDir" }
 
-    # Claude Code: additively merge SessionEnd hooks into ~/.claude/settings.json
-    if ($Name -eq "claude-code") {
-        $merger = Join-Path $AgentsRoot "tools/merge-claude-settings.ps1"
-        $snippet = Join-Path $TargetRepo ".claude/settings.snippet.json"
-        if ((Test-Path $merger) -and (Test-Path $snippet)) {
-            Write-Host "  Wiring Claude Code SessionEnd hooks into ~/.claude/settings.json..."
-            & pwsh -NoProfile -File $merger -SnippetPath $snippet
+        $adapterName = switch ($item) {
+            "claude"   { "claude-code" }
+            "codex"    { "codex-cli" }
+            "copilot"  { "copilot-cli" }
+            "opencode" { "opencode" }
+            "kilocode" { "kilocode" }
+            "kilo"     { "kilocode" }
+            default    { $item }
         }
+
+        if (-not $resolved.Contains($adapterName)) {
+            $resolved.Add($adapterName)
+        }
+    }
+
+    return @($resolved)
+}
+
+if ($BootstrapHarness) {
+    if (-not $TargetRepo) {
+        $TargetRepo = (Get-Location).Path
+    }
+    $InstallRepoTemplate = $true
+    if (-not $InstallAdapter) {
+        $InstallAdapter = "claude,copilot,generic"
+    }
+    if (-not $For -and -not $DeviceWide -and -not $Auto) {
+        $For = "claude,copilot,generic"
     }
 }
 
@@ -140,7 +264,7 @@ if ($Upgrade -and (Test-Path $AgentsRoot)) {
 # Everything kit-related lives under ~/.agents/. Codex CLI users who want their
 # own ~/.codex/ config can set it up separately -- it's not the kit's concern.
 if ($InstallGlobal) {
-    Copy-Tree -Source (Join-Path $BundleGlobal ".agents") -Destination $AgentsRoot
+    Copy-Tree -Source (Join-Path $BundleGlobal ".agents") -Destination $AgentsRoot -ReplaceDestination
 
     # Render skill-memory-index.json from template with absolute paths
     $tmpl = Join-Path $AgentsRoot "context/skill-memory-index.json.tmpl"
@@ -165,27 +289,14 @@ if ($TargetRepo -and $InstallRepoTemplate) {
 
 # ── Adapter install ───────────────────────────────────────────────────────────
 if ($TargetRepo -and $InstallAdapter) {
-    $adapters = if ($InstallAdapter -eq "all") {
-        @("claude-code", "codex-cli", "copilot-cli", "opencode", "kilocode", "generic")
-    } else {
-        @($InstallAdapter)
-    }
+    $adapters = Resolve-AdapterTargets -Spec $InstallAdapter
 
-    foreach ($a in $adapters) {
-        $resolved = switch ($a) {
-            "claude"   { "claude-code" }
-            "codex"    { "codex-cli" }
-            "copilot"  { "copilot-cli" }
-            "opencode" { "opencode" }
-            "kilocode" { "kilocode" }
-            "kilo"     { "kilocode" }
-            default    { $a }
-        }
+    foreach ($resolved in $adapters) {
         Install-Adapter -Name $resolved -TargetRepo $TargetRepo
     }
 }
 
-if (-not $TargetRepo -and -not $DeviceWide -and -not $For -and -not $Auto) {
+if (-not $TargetRepo -and -not $DeviceWide -and -not $For -and -not $Auto -and -not $BootstrapHarness) {
     Write-Host ""
     Write-Host "Global assets installed at $AgentsRoot."
     Write-Host ""
@@ -195,8 +306,8 @@ if (-not $TargetRepo -and -not $DeviceWide -and -not $For -and -not $Auto) {
     Write-Host "  pwsh ./install.ps1 -For all                        # all five"
     Write-Host "  pwsh ./install.ps1 -Auto                            # detect CLIs on PATH"
     Write-Host ""
-    Write-Host "Or bootstrap a single repo:"
-    Write-Host "  pwsh ./install.ps1 -TargetRepo <path> -InstallRepoTemplate -InstallAdapter all"
+    Write-Host "Or bootstrap a repo end-to-end:"
+    Write-Host "  pwsh ./install.ps1 -BootstrapHarness -TargetRepo <path>"
 }
 
 # ── Resolve which CLIs to install for (-For, -Auto, -DeviceWide all converge) ─
@@ -290,6 +401,15 @@ PreToolUse / PostToolUse hooks that enforce a small set of rules at the
 - Skills + sub-agents + slash commands + hooks are the kit's contribution.
   Use them where they fit; ignore them where the repo has better.
 
+### Workflow source of truth
+
+- The global workflow skills are the canonical workflow contract.
+- Adapter command files are thin wrappers; they should not redefine workflow behavior.
+- If a host supports subagents, non-trivial ``/build`` should delegate instead
+  of keeping implementation inline in the main session.
+- If ``AGENTS_SESSION_ROOT`` is set, session-private artifacts are written
+  there; otherwise the default is ``~/.agents/session-state/``.
+
 ### What the kit enforces (via hooks, not prose)
 
 These rules fire deterministically because they're protocol-layer hooks
@@ -351,12 +471,17 @@ $endMarker
 
         if (Test-Path $ExistingPath) {
             $existing = Get-Content $ExistingPath -Raw -Encoding UTF8
-            if ($existing -match [regex]::Escape($marker)) {
-                Write-Host "  $Label always-on rules: already present (skipped)"
-                return
-            }
             $backup = "$ExistingPath.before-agentic-kit-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
             Copy-Item -Force $ExistingPath $backup
+
+            if ($existing -match [regex]::Escape($marker)) {
+                $pattern = "(?s)$([regex]::Escape($marker)).*?$([regex]::Escape($endMarker))"
+                $updated = [regex]::Replace($existing, $pattern, $block.TrimEnd())
+                Set-Content -Path $ExistingPath -Value $updated -Encoding UTF8
+                Write-Host "  $Label always-on rules: refreshed managed block in $ExistingPath (backup: $backup)"
+                return
+            }
+
             Add-Content -Path $ExistingPath -Value $block -Encoding UTF8
             Write-Host "  $Label always-on rules: appended to $ExistingPath (backup: $backup)"
         } else {
@@ -364,6 +489,31 @@ $endMarker
             Set-Content -Path $ExistingPath -Value $block.TrimStart() -Encoding UTF8
             Write-Host "  $Label always-on rules: created $ExistingPath"
         }
+    }
+
+    # Copilot CLI reads ~/.copilot/copilot-instructions.md directly, so the
+    # kit should install that file as a kit-managed overwrite instead of
+    # layering appended blocks from multiple generations of the kit.
+    function Install-DeviceWideInlineInstructions {
+        param(
+            [string]$SourcePath,
+            [string]$ExistingPath,
+            [string]$Label
+        )
+        if (-not (Test-Path $SourcePath)) {
+            Write-Host "  $Label inline rules: source not found at $SourcePath"
+            return
+        }
+
+        if (Test-Path $ExistingPath) {
+            $backup = "$ExistingPath.before-agentic-kit-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+            Copy-Item -Force $ExistingPath $backup
+            Write-Host "  $Label inline rules: replacing existing file (backup: $backup)"
+        }
+        New-Item -ItemType Directory -Path (Split-Path -Parent $ExistingPath) -Force | Out-Null
+        $body = Get-Content $SourcePath -Raw -Encoding UTF8
+        Set-Content -Path $ExistingPath -Value $body -Encoding UTF8
+        Write-Host "  $Label inline rules: wrote $ExistingPath"
     }
 
     # Copies kit skills to a CLI's native auto-discovery skills dir.
@@ -549,12 +699,10 @@ $endMarker
 
     # `all` covers every CLI that has a meaningful device-wide install location,
     # plus the generic AGENTS.md for any tool that reads the canonical home file.
-    # copilot and kilocode have no device-wide config (Copilot reads
-    # `.github/copilot-instructions.md` from the workspace; Kilo Code reads
-    # `.kilocode/rules/*.md` from the workspace) -- they short-circuit with a
-    # message pointing at -TargetRepo.
+    # Kilo Code still needs a per-repo install because it reads
+    # `.kilocode/rules/*.md` from the workspace.
     $targets = if ($DeviceWide -eq "all") {
-        @("claude", "codex", "opencode", "generic")
+        @("claude", "codex", "copilot", "opencode", "generic")
     } else {
         # Allow comma-separated lists too: "claude,opencode"
         @(($DeviceWide -split '[,;]' | ForEach-Object { $_.Trim() } | Where-Object { $_ }))
@@ -579,11 +727,10 @@ $endMarker
                     -LongFormPath  (Join-Path $HomeRoot ".claude/agentic-kit.md") `
                     -Label         "Claude Code"
 
-                # Slash commands -- ~/.claude/commands/<name>.md is auto-mounted.
-                Install-DeviceWideCommands `
-                    -SourceDir (Join-Path $AdaptersRoot "claude-code/.claude/commands") `
-                    -DestDir   (Join-Path $HomeRoot ".claude/commands") `
-                    -Label     "Claude Code"
+                Install-WorkflowAdapterAssets `
+                    -AdapterName "claude-code" `
+                    -Root $HomeRoot `
+                    -SkipExistingCommands
 
                 # Skills -- ~/.claude/skills/<name>/SKILL.md is auto-discovered
                 # via the `description:` frontmatter. This is THE canonical
@@ -593,8 +740,8 @@ $endMarker
                     -DestRoot   (Join-Path $HomeRoot ".claude/skills") `
                     -Label      "Claude Code"
 
-                # Subagents -- ~/.claude/agents/<name>.md is auto-mounted as
-                # `subagent_type` options for the Task tool.
+                # Host-specific reviewer / expert agents. Workflow transport
+                # agents are rendered from shared templates above.
                 Install-DeviceWideAgents `
                     -SourceDir (Join-Path $AdaptersRoot "claude-code/.claude/agents") `
                     -DestDir   (Join-Path $HomeRoot ".claude/agents") `
@@ -651,11 +798,10 @@ $endMarker
                     -LongFormPath  (Join-Path $HomeRoot ".config/opencode/agentic-kit.md") `
                     -Label         "OpenCode"
 
-                # Slash commands -- ~/.config/opencode/commands/<name>.md auto-mounts.
-                Install-DeviceWideCommands `
-                    -SourceDir (Join-Path $AdaptersRoot "opencode/.config/opencode/commands") `
-                    -DestDir   (Join-Path $HomeRoot ".config/opencode/commands") `
-                    -Label     "OpenCode"
+                Install-WorkflowAdapterAssets `
+                    -AdapterName "opencode" `
+                    -Root $HomeRoot `
+                    -SkipExistingCommands
 
                 # Skills -- ~/.config/opencode/skills/<name>/SKILL.md auto-discovers.
                 Install-DeviceWideSkills `
@@ -663,7 +809,8 @@ $endMarker
                     -DestRoot   (Join-Path $HomeRoot ".config/opencode/skills") `
                     -Label      "OpenCode"
 
-                # Subagents -- ~/.config/opencode/agents/<name>.md auto-mounts.
+                # Host-specific reviewer / expert agents. Workflow transport
+                # agents are rendered from shared templates above.
                 Install-DeviceWideAgents `
                     -SourceDir (Join-Path $AdaptersRoot "opencode/.config/opencode/agents") `
                     -DestDir   (Join-Path $HomeRoot ".config/opencode/agents") `
@@ -693,10 +840,17 @@ $endMarker
                     -Label         "Generic"
             }
             "copilot" {
-                Write-Host "  GitHub Copilot has no device-wide config -- it reads"
-                Write-Host "  .github/copilot-instructions.md from each workspace."
-                Write-Host "  Per-repo install:"
-                Write-Host "    pwsh ./install.ps1 -TargetRepo <path> -InstallAdapter copilot"
+                Install-DeviceWideRulesDoc `
+                    -DocPath (Join-Path $HomeRoot ".copilot/agentic-kit.md") `
+                    -Label   "GitHub Copilot"
+
+                Install-DeviceWideInlineInstructions `
+                    -SourcePath  (Join-Path $AdaptersRoot "copilot-cli/.github/copilot-instructions.md") `
+                    -ExistingPath (Join-Path $HomeRoot ".copilot/copilot-instructions.md") `
+                    -Label       "GitHub Copilot"
+
+                Write-Host "  GitHub Copilot repo-level adapters remain optional overrides:"
+                Write-Host "    pwsh ./install.ps1 -BootstrapHarness -TargetRepo <path>"
             }
             "kilocode" {
                 Write-Host "  Kilo Code has no device-wide config -- it reads"
@@ -718,4 +872,14 @@ $endMarker
     Write-Host ""
     Write-Host "Device-wide install complete."
     Write-Host "Restart your CLI for changes to take effect."
+}
+
+if ($BootstrapHarness) {
+    Write-Host ""
+    Write-Host "Harness bootstrap complete for $TargetRepo"
+    Write-Host "Installed:"
+    Write-Host "  - global ~/.agents assets"
+    Write-Host "  - device-wide rules for claude, copilot, generic"
+    Write-Host "  - repo scaffold (.kit/, .wiki/)"
+    Write-Host "  - repo adapters (CLAUDE.md, AGENTS.md, .github/copilot-instructions.md)"
 }

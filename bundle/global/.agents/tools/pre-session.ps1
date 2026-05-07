@@ -270,7 +270,16 @@ if ($reflectCount -gt 0 -or $reflectNeeded) {
 }
 
 # ── Step 3.8: Wiki + Build Brief Detection ───────────────────────────────────────
-$wikiExists = Test-Path ".wiki/features.md"
+$wikiDir = Join-Path (Get-Location).Path ".wiki"
+$wikiIndexPath = $null
+if (Test-Path $wikiDir -PathType Container) {
+    $wikiIndexPath = Get-ChildItem -LiteralPath $wikiDir -File |
+        Where-Object { $_.Name -ieq "index.md" } |
+        Select-Object -ExpandProperty FullName -First 1
+}
+$wikiFeaturesExists = Test-Path ".wiki/features.md"
+$wikiExists = [bool]$wikiIndexPath -and $wikiFeaturesExists
+$wikiIndexName = if ($wikiIndexPath) { Split-Path $wikiIndexPath -Leaf } else { "index.md" }
 $buildBriefPath = ""
 $buildBriefSource = ""
 if ($Mode -eq "build") {
@@ -286,11 +295,11 @@ if ($Mode -eq "build") {
     }
 }
 if ($wikiExists) {
-    Write-Host "  Wiki: .wiki/features.md exists"
+    Write-Host "  Wiki: .wiki/$wikiIndexName + features.md exist"
 } else {
     # Loud, actionable warning. Mandatory per global always-on rules.
     Write-Host "${YELLOW}  WIKI: MISSING -- .wiki/ does not exist in this repo.${RESET}"
-    Write-Host "${YELLOW}        The kit's always-on rules require .wiki/features.md before non-trivial work.${RESET}"
+    Write-Host "${YELLOW}        The kit's always-on rules require .wiki/index.md (any casing) and .wiki/features.md before non-trivial work.${RESET}"
     Write-Host "${YELLOW}        Run /wiki-init to bootstrap it from real code evidence.${RESET}"
 }
 
@@ -338,7 +347,7 @@ $brief = @"
 - SCOPE: $scope ($scopeReason)
 - TIER_REC: $tierRec ($tierReason -- orchestrator may override UPWARD only)
 - REFLECT_NEEDED: $(if ($reflectNeeded) { "YES ($reflectCount unaddressed entries -- run /reflect first)" } else { "no ($reflectCount entries)" })
-- WIKI: $(if ($wikiExists) { "yes -- read .wiki/index.md FIRST (TOC, ~100 lines), then use wiki-resolver.ps1 for on-demand section loading. NEVER bulk-read .wiki/sections/." } else { "MISSING -- run /wiki-init to bootstrap (mandatory per global rules)" })
+- WIKI: $(if ($wikiExists) { "yes -- read .wiki/$wikiIndexName FIRST (TOC, ~100 lines), then use wiki-resolver.ps1 for on-demand section loading. NEVER bulk-read .wiki/sections/." } else { "MISSING -- run /wiki-init to bootstrap (mandatory per global rules)" })
 - KIT: $(if ($codexExists) { "yes -- read .kit/context/memory.md + handoffs.md + agent-memory/shared.md per skill 'Load Context First' steps. Use specialist-memory-resolver.ps1 for per-role memory." } else { "MISSING -- run /kit-init to bootstrap repo memory tree (memory.md + handoffs index + agent-memory/)" })
 - BUILD_BRIEF: $(if ($buildBriefPath) { "YES -- read handoff at $buildBriefPath BEFORE planning (source: $buildBriefSource)" } else { "none" })
 - PARALLEL_INSTANCE: $(if ($parallelWarning) { $parallelWarning } else { "none detected" })

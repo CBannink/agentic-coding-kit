@@ -5,12 +5,19 @@ whenever a slash command, sub-agent, tool, adapter, validator, install flag,
 or lifecycle hook is added, removed, or materially changed. Surgical edits
 only -- never rewrite.
 
-## Workflow slash commands (8)
+## Workflow slash commands (9)
 
 Auto-mounted at `~/.claude/commands/` and `~/.config/opencode/commands/`.
+Each workflow wrapper now explicitly points back to the matching installed
+`SKILL.md`, so Claude Code and OpenCode treat `/build`, `/review`, `/analyze`,
+`/investigate`, `/plan`, `/refactor`, `/redesign`, and `/security-review` as
+skill-backed workflow entrypoints rather than freeform chat prompts.
+The Claude/OpenCode command wrappers now come from a single shared installer-
+rendered template set instead of duplicated per-adapter markdown trees.
 
 | Command | Purpose |
 |---|---|
+| `/bootstrap-harness` | Single high-level repo-init workflow: scaffold the repo, run archaeology, initialize `.kit`, and initialize `.wiki` |
 | `/plan` | Clarify scope, map files, trace blast radius, stop for approval |
 | `/build` | Execute approved plan: implement → review → verify gates |
 | `/review` | Hierarchical code review (surface → interactions → synthesis → adversarial → false-positive verifier) |
@@ -20,13 +27,21 @@ Auto-mounted at `~/.claude/commands/` and `~/.config/opencode/commands/`.
 | `/redesign` | Greenfield UI / multi-component visual rebuild (swarm-eligible) |
 | `/security-review` | Adversarial audit by attack class (swarm-eligible) |
 
-## Sub-agents (10)
+## Sub-agents (15)
 
 Auto-mounted at `~/.claude/agents/` and `~/.config/opencode/agents/`.
 Available as `subagent_type` for the Task tool.
+The five `workflow-*` transport agents for Claude Code and OpenCode are also
+installed from shared templates; host-specific expert/reviewer agents remain in
+their adapter directories because their frontmatter differs by host.
 
 | Agent | Role |
 |---|---|
+| `workflow-explorer` | Cheap build-context explorer transport agent for Claude Code and OpenCode (`haiku`). |
+| `workflow-implementer` | Main delegated build implementer transport agent for Claude Code and OpenCode (`sonnet`). |
+| `workflow-reviewer` | Structured delegated reviewer transport agent for Claude Code and OpenCode (`sonnet`, read-only). |
+| `workflow-skeptic` | Adversarial delegated skeptic transport agent for Claude Code and OpenCode (`sonnet`, read-only). |
+| `workflow-ui-qa` | Delegated UI/behavior QA transport agent for Claude Code and OpenCode (`sonnet`, read-only). |
 | `ux-driver` | Screenshot-based UX critic — structure, hierarchy, flow, a11y. Runs first in design loops. |
 | `ui-driver` | Screenshot-based UI critic — typography, color, spacing, slop. Runs after ux-driver. |
 | `playwright-navigator` | Discovers route + auth + selectors for unmapped screens. |
@@ -38,12 +53,12 @@ Available as `subagent_type` for the Task tool.
 | `final-verifier` | Iron Law gate — blocks completion without fresh verification evidence. |
 | `qa-reviewer` | Browser / user-flow QA for UI or behavior-heavy changes. |
 
-## Skills (27)
+## Skills (28)
 
 Auto-discovered at `~/.claude/skills/<name>/SKILL.md` and `~/.config/opencode/skills/<name>/SKILL.md`.
 
-Workflow skills: `analyze`, `build`, `plan`, `review`, `investigate`, `refactor`,
-`redesign`, `security-review`.
+Workflow skills: `analyze`, `bootstrap-harness`, `build`, `plan`, `review`,
+`investigate`, `refactor`, `redesign`, `security-review`.
 
 Specialized skills: `ux-driver`, `ui-driver`, `playwright-navigator`,
 `playwright-explorer`, `design-driver`, `aesthetic-director`, `swarm`, `tdd`,
@@ -54,7 +69,20 @@ Specialized skills: `ux-driver`, `ui-driver`, `playwright-navigator`,
 GStack-derived: `gstack-investigate`, `gstack-office-hours`,
 `gstack-plan-eng-review`, `gstack-qa`, `gstack-review`.
 
-## Tools (29 PowerShell + 1 Python)
+## Repo initialization and retrieval
+
+- `/bootstrap-harness` is now the single high-level repo-init command: scaffold
+  first, then run `git-archaeology`, `kit-init`, and `wiki-init` so the repo is
+  actually ready for coding.
+- `/kit-init` now uses current code plus `git-archaeology` evidence to seed
+  durable repo memory and repo-specific implementation conventions.
+- `/wiki-init` now treats `.wiki/architecture.md` and `.wiki/codebase.md` as
+  first-class cross-cutting docs, alongside `.wiki/index.md` and feature files.
+- `wiki-resolver.ps1` now always loads `index.md`, `architecture.md`, and
+  `codebase.md` when present, so those docs are actually consumed during
+  coding/review workflows instead of sitting idle.
+
+## Tools (30 PowerShell + 1 Python)
 
 Live at `~/.agents/tools/` after install. Cross-platform (pwsh 7+ recommended,
 PS 5.1 supported with BOM-prefixed scripts).
@@ -64,6 +92,10 @@ PS 5.1 supported with BOM-prefixed scripts).
 **Lifecycle**: `pre-session.ps1`, `post-session.ps1`, `state-gate.ps1`,
 `session-start-hook.ps1`, `session-end-hook.ps1`, `subagent-stop-hook.ps1`,
 `precompact-hook.ps1`.
+
+**Hook gates**: `pretool-bash-dispatcher.ps1`,
+`pretool-read-delegation-gate.ps1`, `pretool-write-gateguard.ps1`,
+`pretool-task-orchestrator-gate.ps1`, `posttool-bash-verify-mark.ps1`.
 
 **Memory**: `specialist-memory-resolver.ps1`, `auto-consolidate.ps1`,
 `compress-memory.ps1`.
@@ -86,8 +118,8 @@ backend), `visual-diff.ps1`, `design-fetcher.ps1`,
 
 | Entry point | Purpose |
 |---|---|
-| `scripts/install.ps1` | Main installer (PowerShell, cross-platform via pwsh) |
-| `scripts/install.sh` | Bash counterpart for Mac/Linux/WSL bootstrapping |
+| `scripts/install.ps1` | Canonical installer (PowerShell, cross-platform via pwsh; renders shared workflow commands/agents into host-native dirs and replaces kit-managed globals including Copilot instructions) |
+| `scripts/install.sh` | Thin Bash wrapper that delegates to `install.ps1` on Mac/Linux/WSL |
 | `scripts/validate-bundle.ps1` | 5-check pre-flight (parse, encoding, paths, tools, adapters) |
 | `scripts/doctor.ps1` | 17-check post-install health diagnostic |
 
@@ -95,9 +127,10 @@ backend), `visual-diff.ps1`, `design-fetcher.ps1`,
 
 - `-For <cli-list>` — install for specific CLIs (e.g., `claude`, `opencode`, `claude,opencode`, `all`)
 - `-Auto` — detect CLIs on PATH and install for those
+- `-BootstrapHarness` — one-command repo bootstrap: global assets + repo template + Claude/Copilot/generic repo adapters
 - `-TargetRepo <path>` — per-repo install (writes `.kit/`, `.wiki/`, etc. into target)
-- `-InstallRepoTemplate` — drop the repo template into target
-- `-InstallAdapter <name|all>` — install per-CLI adapter into target
+- `-InstallRepoTemplate` — advanced partial install: drop only the repo template into target
+- `-InstallAdapter <name|all>` — advanced partial install: install per-CLI adapter into target
 - `-Upgrade` — backup `~/.agents/` before re-install
 - `-Force` — overwrite existing files
 
@@ -110,9 +143,25 @@ Per-CLI wiring at `bundle/adapters/<cli>/`.
 | `claude-code` | ✅ skills + agents + commands + hooks | ✅ |
 | `opencode` | ✅ skills + agents + commands + plugin | ✅ |
 | `codex-cli` | ✅ standalone reference + always-on rules | ✅ |
-| `copilot-cli` | ❌ no native device-wide config | ✅ `.github/copilot-instructions.md` |
+| `copilot-cli` | ✅ global `~/.copilot/copilot-instructions.md` | ✅ `.github/copilot-instructions.md` override + startup preflight for missing `.kit` / `.wiki` scaffold |
 | `kilocode` | ❌ no native device-wide config | ✅ `.kilocode/rules/*.md` |
 | `generic` | ✅ standalone reference + always-on rules in `~/AGENTS.md` | ✅ |
+
+## Fresh verification enforcement
+
+The harness treats verification evidence as stale after later edits. If files change after verification, verification must be rerun before completion can be claimed.
+
+## Workflow enforcement
+
+- SHARED / CRITICAL `/build` sessions now block delegated implementation and
+  source-code edits until the same-session `plan.md` exists and
+  `run-packet.json` records `approval_status=approved`.
+- Claude Code and OpenCode now enforce a **two source-file read budget** before
+  the first real build delegation. The third source-file read blocks until
+  `workflow-explorer` or `workflow-implementer` is spawned.
+- Multi-file source editing in a build session now blocks until a delegated
+  `workflow-implementer` has been registered, so the top-level session cannot
+  silently keep all non-trivial coding inline.
 
 ## Lifecycle automation
 
@@ -121,9 +170,19 @@ Per-CLI wiring at `bundle/adapters/<cli>/`.
 - `SessionEnd` → `post-session.ps1`
 - `SubagentStop` → `subagent-stop-hook.ps1`
 - `PreCompact` → `precompact-hook.ps1`
+- `PreToolUse(Read)` → `pretool-read-delegation-gate.ps1`
+- `PreToolUse(Write/Edit)` → `pretool-write-gateguard.ps1`
+- `PreToolUse(Task)` → `pretool-task-orchestrator-gate.ps1`
+- `PostToolUse(Bash)` → `posttool-bash-verify-mark.ps1`
 
 **OpenCode** — `~/.config/opencode/plugins/agentic-kit.ts`:
-- `session.created` / `session.deleted` / `session.idle` / `session.compacted`
+- `session.created` / `session.deleted` / `session.error` / `session.compacted`
+- `tool.execute.before` routes Bash / Read / Write-Edit / Task to the same kit hooks
+- normalizes file-path payloads and forwards the repo cwd so the shared PowerShell hooks can enforce write/read gates correctly
+- `tool.execute.after` routes successful test commands to `posttool-bash-verify-mark.ps1`
+
+**Task orchestration**:
+- agent-cap enforcement now blocks before persisting over-cap agent registrations, rather than recording them and allowing the spawn anyway
 
 **Codex / Copilot / Kilo / Generic** — manual lifecycle (agent calls
 `pre-session.ps1` / `post-session.ps1` per the kit's instructions).

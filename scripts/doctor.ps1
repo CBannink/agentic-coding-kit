@@ -9,7 +9,7 @@
 #   4. AGENTS_HOME / AGENTS_SESSION_ROOT environment vars (optional overrides)
 #   5. Claude Code hooks wired in ~/.claude/settings.json
 #   6. OpenCode plugin at ~/.config/opencode/plugins/agentic-kit.ts
-#   7. Companion files at ~/.claude/agentic-kit.md, ~/.codex/agentic-kit.md, ~/.config/opencode/agentic-kit.md
+#   7. Companion files at ~/.claude/agentic-kit.md, ~/.codex/agentic-kit.md, ~/.copilot/agentic-kit.md, ~/.config/opencode/agentic-kit.md
 #   8. Include markers present in host-CLI config files
 #   9. Tools execute cleanly: scope-classifier, swarm-classifier, reflect-trigger
 #  10. Python + playwright (only required if using design loop)
@@ -95,15 +95,29 @@ Add-Check "Session state root" "PASS" $sessRoot
 $claudeSettings = Join-Path $HOME ".claude/settings.json"
 if (Test-Path $claudeSettings) {
     $sj = Get-Content $claudeSettings -Raw -Encoding UTF8
-    $hookEvents = @("SessionStart", "SessionEnd", "SubagentStop", "PreCompact")
+    $hookEvents = @("SessionStart", "SessionEnd", "SubagentStop", "PreCompact", "PreToolUse", "PostToolUse")
     $missing = @()
     foreach ($e in $hookEvents) {
         if ($sj -notmatch """$e""") { $missing += $e }
     }
-    if ($missing.Count -eq 0) {
-        Add-Check "Claude Code hooks wired" "PASS" "all 4 events present"
+    $matcherChecks = @(
+        @{ Name = "Read"; Pattern = '"matcher"\s*:\s*"Read"' },
+        @{ Name = "Write|Edit"; Pattern = '"matcher"\s*:\s*"Write\|Edit"' },
+        @{ Name = "Task"; Pattern = '"matcher"\s*:\s*"Task"' }
+    )
+    $missingMatchers = @()
+    foreach ($matcher in $matcherChecks) {
+        if ($sj -notmatch $matcher.Pattern) {
+            $missingMatchers += $matcher.Name
+        }
+    }
+    if ($missing.Count -eq 0 -and $missingMatchers.Count -eq 0) {
+        Add-Check "Claude Code hooks wired" "PASS" "all 6 events and Read/Write|Edit/Task matchers present"
     } else {
-        Add-Check "Claude Code hooks wired" "WARN" "Missing events: $($missing -join ', ') -- run merge-claude-settings.ps1"
+        $detail = @()
+        if ($missing.Count -gt 0) { $detail += "Missing events: $($missing -join ', ')" }
+        if ($missingMatchers.Count -gt 0) { $detail += "Missing matchers: $($missingMatchers -join ', ')" }
+        Add-Check "Claude Code hooks wired" "WARN" "$($detail -join '; ') -- run merge-claude-settings.ps1"
     }
 } else {
     Add-Check "Claude Code hooks wired" "WARN" "~/.claude/settings.json not found (Claude Code not installed?)"
@@ -120,7 +134,8 @@ if (Test-Path $ocPlugin) {
 # 7. Companion files (device-wide install)
 foreach ($spec in @(
     @{ Path = Join-Path $HOME ".claude/agentic-kit.md"; Label = "Claude" },
-    @{ Path = Join-Path $HOME ".kit/agentic-kit.md"; Label = "Codex" },
+    @{ Path = Join-Path $HOME ".codex/agentic-kit.md"; Label = "Codex" },
+    @{ Path = Join-Path $HOME ".copilot/agentic-kit.md"; Label = "Copilot" },
     @{ Path = Join-Path $HOME ".config/opencode/agentic-kit.md"; Label = "OpenCode" }
 )) {
     if (Test-Path $spec.Path) {
@@ -134,12 +149,17 @@ foreach ($spec in @(
 # 8. Include markers in host-CLI config files
 foreach ($spec in @(
     @{ Path = Join-Path $HOME ".claude/CLAUDE.md"; Label = "Claude CLAUDE.md" },
-    @{ Path = Join-Path $HOME ".kit/AGENTS.md"; Label = "Codex AGENTS.md" },
+    @{ Path = Join-Path $HOME ".codex/AGENTS.md"; Label = "Codex AGENTS.md" },
+    @{ Path = Join-Path $HOME ".copilot/copilot-instructions.md"; Label = "Copilot instructions" },
     @{ Path = Join-Path $HOME ".config/opencode/prompt.md"; Label = "OpenCode prompt.md" }
 )) {
     if (Test-Path $spec.Path) {
         $content = Get-Content $spec.Path -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
-        if ($content -match "agentic-kit:include") {
+        $isInstalled = $content -match "agentic-kit:include"
+        if ($spec.Label -eq "Copilot instructions" -and $content -match "^# GitHub Copilot Instructions -- Caspar Bannink Agentic Coding Kit") {
+            $isInstalled = $true
+        }
+        if ($isInstalled) {
             Add-Check "$($spec.Label) include marker" "PASS" ""
         } else {
             Add-Check "$($spec.Label) include marker" "WARN" "Missing -- companion file won't be loaded by this CLI"

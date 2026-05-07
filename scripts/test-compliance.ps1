@@ -162,13 +162,20 @@ if ($ForbidRepoHandoffs) {
 
 # Assertion 6: .wiki/ exists if expected
 if ($ExpectWiki) {
-    $wikiIdx = Join-Path $RepoRoot ".wiki/index.md"
+    $wikiDir = Join-Path $RepoRoot ".wiki"
+    $wikiIdx = $null
+    if (Test-Path $wikiDir -PathType Container) {
+        $wikiIdx = Get-ChildItem -LiteralPath $wikiDir -File |
+            Where-Object { $_.Name -ieq "index.md" } |
+            Select-Object -ExpandProperty FullName -First 1
+    }
     $wikiFeat = Join-Path $RepoRoot ".wiki/features.md"
-    if ((Test-Path $wikiIdx) -and (Test-Path $wikiFeat)) {
-        Add-Result "wiki_present" "PASS" "HIGH" ".wiki/index.md + features.md present"
+    if ($wikiIdx -and (Test-Path $wikiFeat)) {
+        $wikiIdxName = Split-Path $wikiIdx -Leaf
+        Add-Result "wiki_present" "PASS" "HIGH" ".wiki/$wikiIdxName + features.md present"
     } else {
         $missing = @()
-        if (-not (Test-Path $wikiIdx))  { $missing += "index.md" }
+        if (-not $wikiIdx)              { $missing += "index.md (any casing)" }
         if (-not (Test-Path $wikiFeat)) { $missing += "features.md" }
         Add-Result "wiki_present" "FAIL" "HIGH" ".wiki/ incomplete -- missing: $($missing -join ', ') -- agent skipped /wiki-init"
     }

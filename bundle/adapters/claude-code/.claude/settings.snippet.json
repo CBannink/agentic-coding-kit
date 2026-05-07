@@ -1,5 +1,5 @@
 {
-  "_comment": "Hook config for the Caspar Bannink Agentic Coding Kit. Includes both lifecycle hooks (SessionStart/End/SubagentStop/PreCompact) AND PreToolUse/PostToolUse enforcement hooks (bash dispatcher, write gateguard, task orchestrator gate, verify-mark). Pattern from affaan-m/everything-claude-code + disler/claude-code-hooks-mastery -- protocol-layer enforcement that fires deterministically. Universal opt-out via KIT_DISABLED_HOOKS env var (comma-separated rule names). All hooks route through ~/.agents/tools/_run-ps.sh which picks pwsh or powershell.",
+  "_comment": "Hook config for the Caspar Bannink Agentic Coding Kit. Includes both lifecycle hooks (SessionStart/End/SubagentStop/PreCompact) AND PreToolUse/PostToolUse enforcement hooks (bash dispatcher, read delegation gate, write gateguard, task orchestrator gate, verify-mark). Pattern from affaan-m/everything-claude-code + disler/claude-code-hooks-mastery -- protocol-layer enforcement that fires deterministically. Universal opt-out via KIT_DISABLED_HOOKS env var (comma-separated rule names). All hooks route through ~/.agents/tools/_run-ps.sh which picks pwsh or powershell.",
   "hooks": {
     "SessionStart": [
       {
@@ -56,6 +56,15 @@
           {
             "type": "command",
             "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/hooks/pretool-bash-dispatcher.ps1"
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/hooks/pretool-read-delegation-gate.ps1"
           }
         ]
       },

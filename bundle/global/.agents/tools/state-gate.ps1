@@ -11,8 +11,8 @@
 #   state-gate.ps1 -SessionId "abc123" -Mark "implementation_done" -AddAgent "implementer"
 #
 # Gates:
-#   scope_classified, context_loaded, rubber_duck_consulted, consequence_traced,
-#   implementation_done, false_positive_verified, test_quality_advised,
+#   scope_classified, plan_approved, context_loaded, rubber_duck_consulted,
+#   consequence_traced, implementation_done, false_positive_verified, test_quality_advised,
 #   error_handling_advised, verification_evidence, handoff_written
 
 param(
@@ -102,6 +102,9 @@ function Test-GateFilesystemTruth {
                 Write-Error "GATE BLOCKED: '$hf' is suspiciously small ($size bytes). Empty/placeholder handoffs are rejected."
                 return $false
             }
+            if (-not (Test-VerificationFreshness -SessionDir $SessionDir -RepoRoot $repoRoot)) {
+                return $false
+            }
             return $true
         }
         'implementation_done' {
@@ -148,9 +151,95 @@ function Test-GateFilesystemTruth {
                 Write-Error "GATE BLOCKED: cannot parse $evPath. $_"
                 return $false
             }
+            if (-not (Save-VerificationFreshnessSnapshot -SessionDir $SessionDir -RepoRoot $repoRoot)) {
+                return $false
+            }
             return $true
         }
     }
+    return $true
+}
+
+function Get-RepoStatusSnapshot {
+    param([string]$RepoRoot)
+
+    if (-not $RepoRoot -or -not (Test-Path $RepoRoot)) {
+        return $null
+    }
+
+    $git = Get-Command git -ErrorAction SilentlyContinue
+    if (-not $git) {
+        return $null
+    }
+
+    & $git.Source -C $RepoRoot rev-parse --show-toplevel *> $null
+    if ($LASTEXITCODE -ne 0) {
+        return $null
+    }
+
+    $statusLines = @(& $git.Source -C $RepoRoot status --porcelain=v1 --untracked-files=all)
+    $statusText = ($statusLines | Sort-Object) -join "`n"
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($statusText)
+        $hashBytes = $sha.ComputeHash($bytes)
+        $hash = ([System.BitConverter]::ToString($hashBytes)).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $sha.Dispose()
+    }
+
+    return [pscustomobject]@{
+        repo_root = $RepoRoot
+        status_hash = $hash
+        status_text = $statusText
+        captured_at = (Get-Date -Format 'o')
+    }
+}
+
+function Save-VerificationFreshnessSnapshot {
+    param(
+        [string]$SessionDir,
+        [string]$RepoRoot
+    )
+
+    $snapshot = Get-RepoStatusSnapshot -RepoRoot $RepoRoot
+    if (-not $snapshot) {
+        return $true
+    }
+
+    $snapshotPath = Join-Path $SessionDir 'verification-snapshot.json'
+    $snapshot | ConvertTo-Json -Depth 4 | Set-Content -Path $snapshotPath -Encoding utf8
+    return $true
+}
+
+function Test-VerificationFreshness {
+    param(
+        [string]$SessionDir,
+        [string]$RepoRoot
+    )
+
+    $snapshotPath = Join-Path $SessionDir 'verification-snapshot.json'
+    if (-not (Test-Path $snapshotPath)) {
+        return $true
+    }
+
+    try {
+        $previous = Get-Content -Raw $snapshotPath | ConvertFrom-Json
+    } catch {
+        Write-Error "GATE BLOCKED: cannot parse verification snapshot at $snapshotPath. Re-run verification."
+        return $false
+    }
+
+    $current = Get-RepoStatusSnapshot -RepoRoot $RepoRoot
+    if (-not $current) {
+        return $true
+    }
+
+    if ($current.status_hash -ne $previous.status_hash) {
+        Write-Error "GATE BLOCKED: repo changes were detected after verification evidence was recorded. Re-run verification and mark 'verification_evidence' again before completion."
+        return $false
+    }
+
     return $true
 }
 
@@ -213,6 +302,14 @@ if ($Mark -or $AddAgent -or $SkipAgent) {
         }
         $state.gates.$Mark = $true
     }
+    if ($AddAgent -and $EnforceAgentCap) {
+        $cap = Get-AgentCap $SessionId $state
+        $prospectiveCount = @($state.agents_run).Count + $(if ($state.agents_run -notcontains $AddAgent) { 1 } else { 0 })
+        if ($prospectiveCount -gt $cap) {
+            Write-Error "🚫 AGENT CAP EXCEEDED: $prospectiveCount agents would exceed tier cap of $cap."
+            exit 1
+        }
+    }
     if ($AddAgent -and $state.agents_run -notcontains $AddAgent) {
         $state.agents_run += $AddAgent
     }
@@ -223,15 +320,7 @@ if ($Mark -or $AddAgent -or $SkipAgent) {
         $state.current_step = $Step
     }
     Save-State $state $statePath
-
-    if ($AddAgent -and $EnforceAgentCap) {
-        $cap = Get-AgentCap $SessionId $state
-        $count = @($state.agents_run).Count
-        if ($count -gt $cap) {
-            Write-Error "🚫 AGENT CAP EXCEEDED: $count agents registered, tier cap is $cap."
-            exit 1
-        }
-    }
+    Sync-EvalArtifactMirror -SessionId $SessionId -SourcePath $statePath -TargetName "state.json"
 
     if ($Mark) {
         Write-Host "✅ Gate '$Mark' marked as passed"
@@ -252,6 +341,20 @@ if ($Gate) {
         exit 1
     }
     if ($state.gates.$Gate -eq $true) {
+        if ($Gate -eq 'verification_evidence') {
+            $sessionDir = Get-SessionDir $SessionId
+            $repoRoot = ''
+            $baselinePath = Join-Path $sessionDir 'baseline.json'
+            if (Test-Path $baselinePath) {
+                try {
+                    $baseline = Get-Content -Raw $baselinePath | ConvertFrom-Json
+                    $repoRoot = [string]$baseline.repo_root
+                } catch {}
+            }
+            if (-not (Test-VerificationFreshness -SessionDir $sessionDir -RepoRoot $repoRoot)) {
+                exit 1
+            }
+        }
         Write-Host "✅ Gate '$Gate' passed (scope: $($state.scope))"
         exit 0
     } else {

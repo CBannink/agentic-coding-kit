@@ -45,11 +45,37 @@ function runScript(script: string, args: string[]): { ok: boolean; stdout: strin
   };
 }
 
+function normalizeToolInput(input: any): Record<string, any> {
+  const raw = input?.args ?? input?.input ?? {};
+  if (!raw || typeof raw !== "object") {
+    return {};
+  }
+
+  const record = raw as Record<string, any>;
+  const targetPath =
+    record.path ??
+    record.file_path ??
+    record.filePath ??
+    record.targetFile ??
+    record.filename ??
+    "";
+
+  if (!targetPath) {
+    return { ...record };
+  }
+
+  return {
+    ...record,
+    path: targetPath,
+    file_path: targetPath,
+  };
+}
+
 // Run a PreTool/PostTool hook script via stdin JSON contract.
 // Mirrors how Claude Code's PreToolUse/PostToolUse hooks work:
 // the script reads the payload from stdin, decides allow/block via
 // exit code (2 = block, 0 = allow), reason on stderr.
-function runHookScript(hookScript: string, payload: any): { exitCode: number; stderr: string } {
+function runHookScript(hookScript: string, payload: any, cwd?: string): { exitCode: number; stderr: string } {
   const path = join(TOOLS, "hooks", hookScript);
   if (!existsSync(path)) {
     return { exitCode: 0, stderr: "" }; // missing hook = no-op (graceful)
@@ -60,6 +86,7 @@ function runHookScript(hookScript: string, payload: any): { exitCode: number; st
     encoding: "utf-8",
     shell: false,
     timeout: 30_000,
+    cwd: cwd || undefined,
   });
   return {
     exitCode: result.status ?? 0,
@@ -116,24 +143,29 @@ export const AgenticKit: Plugin = async ({ project, client, $, directory, worktr
     "tool.execute.before": async (input: any, output: any) => {
       const toolName = String(input?.tool ?? "").toLowerCase();
       const sessionId = input?.session?.id || "unknown";
+      const toolInput = normalizeToolInput(input);
+      const hookCwd = directory ?? process.cwd();
       // Build a Claude-Code-style payload so the PowerShell hook scripts
       // (which already work for Claude Code) parse the same JSON shape.
       const payload = {
         session_id: sessionId,
         tool_name: input?.tool,
-        tool_input: input?.args ?? input?.input ?? {},
+        tool_input: toolInput,
+        cwd: hookCwd,
         hook_event_name: "PreToolUse",
       };
       let hookScript: string | null = null;
       if (toolName === "bash" || toolName.includes("shell") || toolName.includes("execute")) {
         hookScript = "pretool-bash-dispatcher.ps1";
+      } else if (toolName === "read") {
+        hookScript = "pretool-read-delegation-gate.ps1";
       } else if (toolName === "write" || toolName === "edit" || toolName.includes("write") || toolName.includes("edit")) {
         hookScript = "pretool-write-gateguard.ps1";
       } else if (toolName === "task" || toolName.includes("agent") || toolName.includes("subagent") || toolName.includes("spawn")) {
         hookScript = "pretool-task-orchestrator-gate.ps1";
       }
       if (!hookScript) return;
-      const { exitCode, stderr } = runHookScript(hookScript, payload);
+      const { exitCode, stderr } = runHookScript(hookScript, payload, hookCwd);
       if (exitCode === 2) {
         // Block the tool call. OpenCode plugin contract: throw to abort,
         // OR set output.abort if available. Throw is most reliable.
@@ -163,6 +195,8 @@ export const AgenticKit: Plugin = async ({ project, client, $, directory, worktr
         return; // only PostBash needed for verify-auto-mark
       }
       const sessionId = input?.session?.id || "unknown";
+      const toolInput = normalizeToolInput(input);
+      const hookCwd = directory ?? process.cwd();
       // Translate OpenCode's output shape to Claude's tool_response.exit_code
       // so the PowerShell hook script (which expects Claude's contract) works.
       const exitCode =
@@ -174,11 +208,12 @@ export const AgenticKit: Plugin = async ({ project, client, $, directory, worktr
       const payload = {
         session_id: sessionId,
         tool_name: input?.tool,
-        tool_input: input?.args ?? input?.input ?? {},
+        tool_input: toolInput,
+        cwd: hookCwd,
         tool_response: { exit_code: exitCode },
         hook_event_name: "PostToolUse",
       };
-      const { stderr } = runHookScript("posttool-bash-verify-mark.ps1", payload);
+      const { stderr } = runHookScript("posttool-bash-verify-mark.ps1", payload, hookCwd);
       if (stderr && stderr.trim()) {
         // eslint-disable-next-line no-console
         console.error(stderr.trim());

@@ -1,6 +1,6 @@
 ---
 name: wiki-init
-description: Bootstraps the .wiki/ directory for a repo that doesn't have one. Surveys active code (entry points, routers, public exports, services, scheduled jobs, UI routes), identifies major sections, and writes per-section docs (purpose + key files + inputs/outputs + interacts-with) plus architecture.md, features.md, and .features rollups. Use when .wiki/ is missing, when /build / /plan / /review reports the wiki rule isn't satisfied, or when the user says "we don't have docs" / "bootstrap the wiki" / "set up .wiki".
+description: Bootstraps the .wiki/ directory for a repo that doesn't have one. Surveys active code plus recent git history (entry points, routers, public exports, services, scheduled jobs, UI routes, conventions), identifies major sections, and writes per-section docs plus architecture.md, codebase.md, features.md, and .features rollups. Use when .wiki/ is missing, when /build / /plan / /review reports the wiki rule isn't satisfied, or when the user says "we don't have docs" / "bootstrap the wiki" / "set up .wiki".
 ---
 
 # Wiki Init Skill
@@ -37,6 +37,7 @@ loops (`/redesign`, `playwright-explorer`, `ux-driver`, `ui-driver`).
    - `sections/<name>.md`: **≤150 lines** (target 80-120). Past 150,
      split or move detail into linked source comments.
    - `architecture.md`: **≤200 lines**.
+   - `codebase.md`: **≤200 lines**.
    - `features.md`: **≤300 lines**. Past that, split by category into
      `features/<category>.md` and keep `features.md` as the index.
    - Per "Non-obvious notes" subsection: **≤10 bullets**, drop stalest
@@ -55,8 +56,9 @@ pwsh ~/.agents/tools/wiki-resolver.ps1 -Task "<short task description>" -Changed
 
 The resolver returns a JSON object listing only the section pages whose
 "Key files" overlap with the changed-file set OR whose name appears in
-the task description. Skills embed only those returned pages in subagent
-prompts -- they do NOT pass the whole `.wiki/sections/` tree.
+the task description. It also always includes `index.md`, `architecture.md`,
+and `codebase.md` when present. Skills embed only those returned pages in
+subagent prompts -- they do NOT pass the whole `.wiki/sections/` tree.
 
 If the resolver returns nothing, skills proceed without wiki context (it
 wasn't relevant for this task). That's the desired behavior, not a failure.
@@ -65,7 +67,8 @@ wasn't relevant for this task). That's the desired behavior, not a failure.
 
 ```
 .wiki/
-├── index.md             # canonical entry point: lists sections + links architecture + features
+├── index.md             # canonical entry point: lists sections + links architecture + codebase + features
+├── codebase.md          # where important code lives + git-backed conventions profile
 ├── features.md          # user-visible features rollup (human)
 ├── .features            # machine-readable feature ID list
 ├── architecture.md      # cross-section overview, dependency arrows
@@ -105,6 +108,17 @@ historical context not visible in the code itself>
 ```
 
 ## Workflow
+
+### Step 0 -- git archaeology first
+
+Before writing the wiki, run the `git-archaeology` workflow (or follow its
+sequence manually) when the repo has enough history. Use the resulting
+Project Conventions Profile to document how the codebase actually tends to be
+structured: file placement, naming, test layout, UI composition patterns,
+backend layering, class-vs-function preferences, and other repeatable norms.
+
+If the repo has too little history, say so and fall back to current-code
+evidence only.
 
 ### Step 1 -- repo type detection
 
@@ -190,6 +204,28 @@ Plus a "Boundaries" section listing what crosses module boundaries (e.g.,
 "`api/` is the only section that talks to the HTTP layer; `auth/` is the
 only section that knows about JWT secrets").
 
+Also include an **Architecture principles** section covering the stable coding
+rules a new implementer must follow, grounded in current code plus git
+history: UI composition patterns, API/backend boundaries, data-access rules,
+shared contract movement, and preferred abstractions.
+
+### Step 5b -- write codebase.md
+
+`codebase.md` is the advanced coder's map of where important things live and
+how code is normally shaped in this repo. It should answer:
+
+- where the major surfaces live (UI, API, services, data, jobs, tests)
+- how directories are organized
+- what naming conventions are normal
+- how long functions tend to be
+- whether the repo prefers fewer larger functions or more extracted helpers
+- whether classes, hooks, services, or plain functions are the normal pattern
+- how UI talks to APIs / backend / data layer
+- which files are the primary entry points to read first
+
+Ground this in both code evidence and git-backed conventions. Keep it concise
+and navigational.
+
 ### Step 6 -- write features.md (user-visible rollup)
 
 Survey the active code for user-visible capabilities:
@@ -255,6 +291,7 @@ the production purpose (one sentence each).
 ## Cross-cutting
 
 - [`architecture.md`](architecture.md) -- system overview + section dependency table
+- [`codebase.md`](codebase.md) -- where major code lives + coding conventions profile
 - [`features.md`](features.md) -- user-visible features rollup
 - [`.features`](.features) -- machine-readable feature ID list
 
@@ -264,9 +301,10 @@ Skills do not bulk-load the wiki. They use the lazy-load resolver:
 ```
 pwsh ~/.agents/tools/wiki-resolver.ps1 -Task "<desc>" -ChangedFiles "<list>" -RepoRoot .
 ```
-The resolver returns only sections whose `Key files` overlap with the
-changed-file set. Update sections surgically when their files change --
-do not let pages drift.
+The resolver always loads `index.md`, `architecture.md`, and `codebase.md`
+when they exist, plus only the sections whose `Key files` overlap with the
+changed-file set. Update them surgically when their files change -- do not let
+pages drift.
 
 ## Last updated
 <YYYY-MM-DD by /wiki-init>
@@ -303,8 +341,8 @@ The user decides:
 ## Integration with other skills
 
 - **`/build`**: step 10 will UPDATE `.wiki/features.md` after wiki-init exists.
-- **`/plan`**: reads section pages to load context without re-exploration.
-- **`/review`**: cross-references findings to section pages, flags drift.
+- **`/plan`**: reads section pages plus `architecture.md` / `codebase.md` to load context without re-exploration.
+- **`/review`**: cross-references findings to section pages and architecture/codebase principles, flags drift.
 - **`/redesign` / `playwright-explorer`**: read `features.md` for UI flows
   to test.
 - **`pre-session.ps1`**: reports `WIKI: MISSING` and recommends running this
