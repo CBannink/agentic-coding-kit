@@ -51,7 +51,14 @@ param(
     [switch]$PruneStaleAssets,
     # Combined with -PruneStaleAssets: list pruning candidates and exit
     # without deleting. Useful before a real prune.
-    [switch]$DryRunPrune
+    [switch]$DryRunPrune,
+    # Wipe kit-managed destination directories (skills/, agents/, commands/)
+    # for each targeted host BEFORE rewriting. User-mutable runtime state
+    # (session-state/, context/handoffs.md, context/reflections.md, inspiration/
+    # under ~/.agents/) is still preserved via the P3 snapshot/restore. Use
+    # this when stale orphans from older kit versions accumulate (different
+    # skill names, deleted agents, etc.). Implies -PruneStaleAssets.
+    [switch]$CleanReinstall
 )
 
 $ScriptRoot   = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -509,6 +516,27 @@ if (-not $TargetRepo -and -not $DeviceWide -and -not $For -and -not $Auto -and -
     Write-Host ""
     Write-Host "Or bootstrap a repo end-to-end:"
     Write-Host "  pwsh ./install.ps1 -BootstrapHarness -TargetRepo <path>"
+}
+
+if ($CleanReinstall) { $PruneStaleAssets = $true }
+
+# Helper: wipe kit-managed dest directories before reinstall. Used by
+# -CleanReinstall to clear orphans from older kit versions (skills/agents/
+# commands that the bundle no longer ships). User-mutable runtime state in
+# ~/.agents/{session-state,context/handoffs.md,context/reflections.md,inspiration}
+# is preserved by the P3 snapshot/restore around the global Copy-Tree -- not
+# by this helper, which only operates on per-host install dirs.
+function Clean-HostInstallDirs {
+    param(
+        [string]$Label,
+        [string[]]$Paths
+    )
+    foreach ($p in $Paths) {
+        if (Test-Path $p) {
+            Remove-Item -Recurse -Force $p
+            Write-Host "  $Label clean-reinstall: wiped $p"
+        }
+    }
 }
 
 # ── Resolve which CLIs to install for (-For, -Auto, -DeviceWide all converge) ─
@@ -1014,6 +1042,13 @@ $endMarker
     foreach ($t in $targets) {
         switch ($t) {
             "claude" {
+                if ($CleanReinstall) {
+                    Clean-HostInstallDirs -Label "Claude Code" -Paths @(
+                        (Join-Path $HomeRoot ".claude/skills"),
+                        (Join-Path $HomeRoot ".claude/agents"),
+                        (Join-Path $HomeRoot ".claude/commands")
+                    )
+                }
                 # Standalone reference doc (not auto-loaded; for browsing).
                 Install-DeviceWideRulesDoc `
                     -DocPath (Join-Path $HomeRoot ".claude/agentic-kit.md") `
@@ -1087,6 +1122,14 @@ $endMarker
                 }
             }
             "opencode" {
+                if ($CleanReinstall) {
+                    Clean-HostInstallDirs -Label "OpenCode" -Paths @(
+                        (Join-Path $HomeRoot ".config/opencode/skills"),
+                        (Join-Path $HomeRoot ".config/opencode/agents"),
+                        (Join-Path $HomeRoot ".config/opencode/commands"),
+                        (Join-Path $HomeRoot ".config/opencode/plugins")
+                    )
+                }
                 # Standalone reference doc.
                 Install-DeviceWideRulesDoc `
                     -DocPath (Join-Path $HomeRoot ".config/opencode/agentic-kit.md") `
@@ -1148,6 +1191,11 @@ $endMarker
                     -Label         "Generic"
             }
             "copilot" {
+                if ($CleanReinstall) {
+                    Clean-HostInstallDirs -Label "GitHub Copilot" -Paths @(
+                        (Join-Path $HomeRoot ".copilot/agents")
+                    )
+                }
                 Install-DeviceWideRulesDoc `
                     -DocPath (Join-Path $HomeRoot ".copilot/agentic-kit.md") `
                     -Label   "GitHub Copilot"
