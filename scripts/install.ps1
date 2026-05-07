@@ -282,6 +282,16 @@ if ($InstallGlobal) {
         Write-Host "  Rendered skill-memory-index.json with AGENTS_ROOT=$agentsRootAbs"
     }
 
+    # Stage Copilot CLI's MODEL-ROUTING.md under ~/.agents/copilot/ so the
+    # standalone install-copilot-kit.ps1 entry point can find it without a
+    # hardcoded repo path. (Pre-fix the script hardcoded $HOME/Downloads/<maintainer-repo-name>.)
+    $copilotModelRoutingSrc = Join-Path $AdaptersRoot 'copilot-cli/MODEL-ROUTING.md'
+    if (Test-Path $copilotModelRoutingSrc) {
+        $copilotStageDir = Join-Path $AgentsRoot 'copilot'
+        New-Item -ItemType Directory -Path $copilotStageDir -Force | Out-Null
+        Copy-Item -Force $copilotModelRoutingSrc (Join-Path $copilotStageDir 'MODEL-ROUTING.md')
+    }
+
     Write-Host "Installed global assets into $HomeRoot"
 }
 
