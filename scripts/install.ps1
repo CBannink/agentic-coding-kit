@@ -42,7 +42,16 @@ param(
     # When set, strips ALL kit blocks (current `:begin/:end` AND legacy `:include`
     # pairs) from every target host's instruction file and rewrites a single
     # canonical block. Use after a marker-schism duplicate accumulates.
-    [switch]$RepairKitBlock
+    [switch]$RepairKitBlock,
+    # When set, after writing kit-managed *.md files at command destinations,
+    # prune any pre-existing *.md files that are no longer in the bundle.
+    # Closes the f714a3b drift class (per-host commands moved to _shared/ but
+    # old files were left orphaned at user destinations). Backs up each pruned
+    # file alongside as <name>.pruned-<timestamp> instead of hard deleting.
+    [switch]$PruneStaleAssets,
+    # Combined with -PruneStaleAssets: list pruning candidates and exit
+    # without deleting. Useful before a real prune.
+    [switch]$DryRunPrune
 )
 
 $ScriptRoot   = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -156,11 +165,31 @@ function Install-RenderedMarkdownDirectory {
         [hashtable]$Vars,
         [string]$Label,
         [string]$AssetKind,
-        [switch]$SkipIfExists
+        [switch]$SkipIfExists,
+        # When set, enumerate destination *.md files NOT present in $SourceDir
+        # and delete them. Closes the f714a3b drift class where the bundle
+        # consolidated per-host commands into _shared/ but install left the
+        # old per-host files orphaned at user destinations. Off by default
+        # because it's only safe when $SourceDir is the SOLE legal source for
+        # $DestDir (true for commands; not true for agents -- agents have a
+        # specialist source as well, so that union must be considered).
+        [switch]$PruneStale,
+        # When -PruneStale and -DryRunPrune are both set, list pruning
+        # candidates without deleting them. Overrides any deletion. Useful
+        # before a destructive run.
+        [switch]$DryRunPrune
     )
 
     if (-not (Test-Path $SourceDir)) { return }
     New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+
+    # Compute the legal-file set from source BEFORE writing so prune logic
+    # below can compare destination against it.
+    $legalNames = @{}
+    foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
+        $legalNames[$f.Name] = $true
+    }
+
     $count = 0
     foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File | Sort-Object Name)) {
         $dst = Join-Path $DestDir $f.Name
@@ -174,6 +203,28 @@ function Install-RenderedMarkdownDirectory {
     if ($count -gt 0) {
         Write-Host "  $Label ${AssetKind}: $count installed at $DestDir"
     }
+
+    if ($PruneStale) {
+        $stale = @(Get-ChildItem -Path $DestDir -Filter "*.md" -File -ErrorAction SilentlyContinue |
+                   Where-Object { -not $legalNames.ContainsKey($_.Name) })
+        if ($stale.Count -eq 0) { return }
+        if ($DryRunPrune) {
+            Write-Host "  $Label ${AssetKind}: WOULD prune $($stale.Count) stale file(s) at $DestDir (re-run without -DryRunPrune to delete):"
+            foreach ($s in $stale) { Write-Host "    - $($s.Name)" }
+            return
+        }
+        # Backup each pruned file alongside the deletion (one-time stamp per run).
+        $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+        $pruned = 0
+        foreach ($s in $stale) {
+            $bak = "$($s.FullName).pruned-$stamp"
+            Move-Item -Force $s.FullName $bak
+            $pruned++
+        }
+        if ($pruned -gt 0) {
+            Write-Host "  $Label ${AssetKind}: pruned $pruned stale file(s) at $DestDir (backups: *.pruned-$stamp)"
+        }
+    }
 }
 
 function Install-WorkflowAdapterAssets {
@@ -183,7 +234,14 @@ function Install-WorkflowAdapterAssets {
         [switch]$SkipExistingCommands,
         # Forward to Get-WorkflowAdapterDestinations: pick global home (~/.config/opencode/)
         # vs project-scope (<repo>/.opencode/) for OpenCode.
-        [switch]$DeviceWideScope
+        [switch]$DeviceWideScope,
+        # Prune stale .md files from the commands destination. SAFE because
+        # _shared/workflow-commands/ is the only legal source for that dir.
+        # NOT applied to the agents destination -- agents have a specialist
+        # source on top of workflow-agents, so naively pruning would delete
+        # the specialists. (Tier-C improvement: union-prune.)
+        [switch]$PruneStale,
+        [switch]$DryRunPrune
     )
 
     $vars = Get-WorkflowAdapterTemplateVars -AdapterName $AdapterName
@@ -196,8 +254,13 @@ function Install-WorkflowAdapterAssets {
         -Vars $vars `
         -Label $destinations.Label `
         -AssetKind "commands" `
-        -SkipIfExists:$SkipExistingCommands
+        -SkipIfExists:$SkipExistingCommands `
+        -PruneStale:$PruneStale `
+        -DryRunPrune:$DryRunPrune
 
+    # Workflow-agents directory is shared with specialist agents installed by
+    # Install-DeviceWideAgents; cannot prune from this side without losing the
+    # specialists. Plain write only.
     Install-RenderedMarkdownDirectory `
         -SourceDir $SharedWorkflowAgentsRoot `
         -DestDir $destinations.Agents `
@@ -214,7 +277,7 @@ function Install-Adapter {
         return
     }
     Copy-Tree -Source $src -Destination $TargetRepo
-    Install-WorkflowAdapterAssets -AdapterName $Name -Root $TargetRepo
+    Install-WorkflowAdapterAssets -AdapterName $Name -Root $TargetRepo -PruneStale:$PruneStaleAssets -DryRunPrune:$DryRunPrune
     Write-Host "  Installed '$Name' adapter into $TargetRepo"
 }
 
@@ -844,7 +907,9 @@ $endMarker
                 Install-WorkflowAdapterAssets `
                     -AdapterName "claude-code" `
                     -Root $HomeRoot `
-                    -SkipExistingCommands
+                    -SkipExistingCommands `
+                    -PruneStale:$PruneStaleAssets `
+                    -DryRunPrune:$DryRunPrune
 
                 # Skills -- ~/.claude/skills/<name>/SKILL.md is auto-discovered
                 # via the `description:` frontmatter. This is THE canonical
@@ -919,7 +984,9 @@ $endMarker
                     -AdapterName "opencode" `
                     -Root $HomeRoot `
                     -SkipExistingCommands `
-                    -DeviceWideScope
+                    -DeviceWideScope `
+                    -PruneStale:$PruneStaleAssets `
+                    -DryRunPrune:$DryRunPrune
 
                 # Skills -- ~/.config/opencode/skills/<name>/SKILL.md auto-discovers.
                 Install-DeviceWideSkills `
