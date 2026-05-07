@@ -15,6 +15,16 @@ param(
     [string]$AddModeDecision = "",
     [string]$AddReviewCheck = "",
     [string]$AddVerification = "",
+    # Structured verification proof. When -AddVerification is used with these
+    # set, the recording also lands in the verification_proofs array as a
+    # tuple { command, exit_code, output_hash, captured_at }. -WithExitCode
+    # is REQUIRED for the structured record; if non-zero, the call is
+    # rejected (the verification did NOT pass, so it is not evidence). Free-
+    # form -AddVerification without these stays back-compat: no enforcement,
+    # just recorded in verification_commands.
+    [Nullable[int]]$WithExitCode = $null,
+    [string]$WithCommand = "",
+    [string]$WithOutputHash = "",
     [Alias("WriteMemoryDecision", "Memory")]
     [string]$MemoryDecision = "",
     [Alias("WriteHistoryDecision", "History")]
@@ -59,6 +69,7 @@ if (Test-Path $path) {
         mode_decisions        = @()
         review_checks         = @()
         verification_commands = @()
+        verification_proofs   = @()
         write_decisions       = [pscustomobject]@{
             memory = ""
             history = ""
@@ -93,6 +104,27 @@ Add-UniqueValue -List $agentsSkipped -Value $AddSkippedAgent
 Add-UniqueValue -List $modeDecisions -Value $AddModeDecision
 Add-UniqueValue -List $reviewChecks -Value $AddReviewCheck
 Add-UniqueValue -List $verification -Value $AddVerification
+
+# Structured verification proof: only accept if exit_code == 0. A non-zero
+# exit means verification did NOT pass, so it cannot be recorded as evidence.
+if ($AddVerification -and $null -ne $WithExitCode) {
+    if ($WithExitCode -ne 0) {
+        Write-Error "REJECTED: verification record requires WithExitCode=0 but got $WithExitCode. The command did not pass; it is not evidence. Re-run, fix, or pass a free-form -AddVerification without -WithExitCode if you genuinely want to log a non-passing run."
+        exit 1
+    }
+    $proof = [pscustomobject]@{
+        command     = if ($WithCommand) { $WithCommand } else { $AddVerification }
+        exit_code   = [int]$WithExitCode
+        output_hash = $WithOutputHash
+        captured_at = (Get-Date -Format 'o')
+    }
+    $existingProofs = @()
+    if ($doc.PSObject.Properties['verification_proofs']) {
+        $existingProofs = @($doc.verification_proofs)
+    }
+    $doc | Add-Member -NotePropertyName verification_proofs -NotePropertyValue (@($existingProofs) + @($proof)) -Force
+}
+
 Add-UniqueValue -List $notes -Value $AddNote
 
 if ($Tier) { $doc.tier = $Tier }

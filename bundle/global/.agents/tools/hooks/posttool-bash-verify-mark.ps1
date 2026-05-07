@@ -53,9 +53,29 @@ if ($exitCode -ne 0) {
 $wfEvidence = Join-Path $script:Tools "workflow-evidence.ps1"
 $cmdSummary = ($pendingCmd -replace '\s+', ' ').Trim()
 if ($cmdSummary.Length -gt 80) { $cmdSummary = $cmdSummary.Substring(0, 80) }
+
+# Compute a short SHA256 of the captured stdout so the structured record
+# proves WHICH run produced this gate-mark. Output may be missing on hosts
+# whose PostToolUse payload doesn't include it; fall back to empty hash.
+$outputHash = ""
+if ($payload.tool_response -and $payload.tool_response.stdout) {
+    try {
+        $sha = [System.Security.Cryptography.SHA256]::Create()
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes([string]$payload.tool_response.stdout)
+        $hashBytes = $sha.ComputeHash($bytes)
+        $outputHash = ([System.BitConverter]::ToString($hashBytes)).Replace('-', '').ToLowerInvariant().Substring(0, 16)
+        $sha.Dispose()
+    } catch {}
+}
+
 if (Test-Path $wfEvidence) {
     try {
-        & $script:AgentsShell -NoProfile -File $wfEvidence -SessionId $sessionId -AddVerification $cmdSummary 2>&1 | Out-Null
+        & $script:AgentsShell -NoProfile -File $wfEvidence `
+            -SessionId $sessionId `
+            -AddVerification $cmdSummary `
+            -WithExitCode 0 `
+            -WithCommand $cmdSummary `
+            -WithOutputHash $outputHash 2>&1 | Out-Null
     } catch {}
 }
 $stateGate = Join-Path $script:Tools "state-gate.ps1"

@@ -137,15 +137,30 @@ function Test-GateFilesystemTruth {
         'verification_evidence' {
             $evPath = Join-Path $SessionDir 'workflow-evidence.json'
             if (-not (Test-Path $evPath)) {
-                Write-Error "GATE BLOCKED: 'verification_evidence' requires workflow-evidence.json with verification_commands."
+                Write-Error "GATE BLOCKED: 'verification_evidence' requires workflow-evidence.json with verification_commands or verification_proofs."
                 return $false
             }
             try {
                 $ev = Get-Content -Raw $evPath | ConvertFrom-Json
                 $cmds = @($ev.verification_commands)
-                if ($cmds.Count -lt 1) {
-                    Write-Error "GATE BLOCKED: 'verification_evidence' requires at least one verification command recorded. Use 'workflow-evidence.ps1 -AddVerification' as you run tests/builds, or pass -Waiver '<reason>'."
+                $proofs = @()
+                if ($ev.PSObject.Properties['verification_proofs']) {
+                    $proofs = @($ev.verification_proofs)
+                }
+                # Prefer structured proofs (exit_code+command+hash recorded by
+                # the posttool hook). Fall back to free-form verification
+                # commands for back-compat.
+                if ($proofs.Count -lt 1 -and $cmds.Count -lt 1) {
+                    Write-Error "GATE BLOCKED: 'verification_evidence' requires at least one verification record. Use 'workflow-evidence.ps1 -AddVerification <cmd> -WithExitCode 0 -WithCommand <cmd>' for structured proof, or -AddVerification alone for free-form, or pass -Waiver '<reason>'."
                     return $false
+                }
+                # If structured proofs exist, every one must be exit_code 0.
+                # A non-zero proof means a failed run was recorded -- not evidence.
+                foreach ($p in $proofs) {
+                    if ($null -ne $p.exit_code -and [int]$p.exit_code -ne 0) {
+                        Write-Error "GATE BLOCKED: verification_proofs contains a non-zero exit_code entry (command='$($p.command)', exit_code=$($p.exit_code)). Re-run and capture a passing run before marking the gate."
+                        return $false
+                    }
                 }
             } catch {
                 Write-Error "GATE BLOCKED: cannot parse $evPath. $_"
