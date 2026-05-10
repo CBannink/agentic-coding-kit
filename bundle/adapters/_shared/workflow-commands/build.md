@@ -66,3 +66,25 @@ One-paragraph summary: files changed (1 line each), behavior delivered, verifica
 - Do NOT spawn another orchestrator (no `build-orchestrator`, no `goal-orchestrator`) — you ARE the orchestrator, that's recursion.
 - Do NOT skip Phase 5 (Iron Law). "Tests probably pass" is forbidden.
 - Do NOT add scope. If the user asked for X and you notice Y, mention Y in handoff but don't fix it.
+## Phase 5b — Mechanical writeback gate (run this, do not skip)
+
+After verification passes, run the writeback gate via Bash:
+
+```
+pwsh ~/.agents/tools/verify-writeback.ps1 -SessionId "$CLAUDE_SESSION_ID"
+```
+
+Output ends with `OK writeback: ...` (proceed) or `WARN NO WRITEBACK -- ...`. If WARN: either update `.wiki/features.md` / `.kit/context/memory.md` and re-run, OR include the warning in your final response so the user sees the gap. Do NOT silently skip.
+
+## Phase 5c — Reflect trigger (mechanical)
+
+Check `~/.agents/context/reflections.md` length. If 5+ unaddressed entries: spawn the `reflect` skill via the Skill tool (or surface to user "5+ workflow reflections accumulated, recommend running /reflect"). Mechanical, not vibes.
+
+## Simplification policy
+
+For ISOLATED scope (Phase 0 classified) you may compress:
+- Phase 1 (explorer): skip if codebase is small / already understood.
+- Phase 3 (reviewers): code-quality-reviewer only (skip security + modularity unless triggers fire).
+- Phase 4 (adversarial): SKIP entirely.
+
+Min spawns for ISOLATED: 2 (workflow-implementer + final-verifier). Max for SHARED: 7. CRITICAL adds 1-2 more iterations on the fix-loop.

@@ -62,3 +62,6 @@ When user approves: update plan.md with `approval_status: approved` and tell the
 - Do NOT write code. /plan ends at approval.
 - Do NOT skip Phase 3 pressure test for non-trivial features.
 - Do NOT auto-invoke /build after approval. The user does that.
+## Phase 5c — Reflect trigger (mechanical)
+
+Check `~/.agents/context/reflections.md` length. If 5+ unaddressed entries: spawn the `reflect` skill via the Skill tool (or surface to user "5+ workflow reflections accumulated, recommend running /reflect"). Mechanical, not vibes.

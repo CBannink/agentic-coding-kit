@@ -54,3 +54,6 @@ Return: root cause in one sentence, smoking-gun evidence, recommendation ("Run /
 
 - Do NOT edit code. Even one line. The contract is "evidence only".
 - Do NOT keep exploring after root cause is confirmed.
+## Phase 5c — Reflect trigger (mechanical)
+
+Check `~/.agents/context/reflections.md` length. If 5+ unaddressed entries: spawn the `reflect` skill via the Skill tool (or surface to user "5+ workflow reflections accumulated, recommend running /reflect"). Mechanical, not vibes.
