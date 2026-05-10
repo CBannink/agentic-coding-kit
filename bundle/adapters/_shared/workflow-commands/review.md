@@ -10,18 +10,18 @@ Run the kit's hierarchical review pipeline. You ARE the orchestrator. Read `git 
 
 If `review-orchestrator` loaded via description-match, let it. Otherwise YOU coordinate.
 
-## Phase 1 — Surface review (parallel)
+## Phase 1 — Surface review (single reviewer by default)
 
-Spawn in parallel via simultaneous Task calls:
-- `code-quality-reviewer` — correctness, tests, observability, conventions.
-- `modularity-expert` — only if files added/moved or shared types changed.
-- `security-reviewer` — only if auth, external HTTP, DB writes, user input, file paths, or permissions touched.
+Pick ONE reviewer based on dominant diff signal:
+- New/moved files / shared types / DI wiring → `modularity-expert`
+- Auth / external HTTP / DB writes / user input / file paths → `security-reviewer`
+- Everything else (default) → `code-quality-reviewer`
 
-Each returns findings tagged BLOCKING / NON-BLOCKING / NIT.
+Spawn a SECOND reviewer ONLY if the first surfaces a finding clearly outside its lane. Findings tagged BLOCKING / NON-BLOCKING / NIT.
 
-## Phase 2 — Adversarial pass
+## Phase 2 — Adversarial pass (REMOVED from default)
 
-For diffs >3 files OR touching shared surfaces: spawn `adversarial-reviewer` via Task with the diff and surface-review findings. It looks for what surface reviewers missed.
+`adversarial-reviewer` no longer in default matrix. Evidence: critic loops past 2-3 reviewers degrade output via false-positive flooding (Anthropic multi-agent research). Spawn ONLY if user explicitly requests adversarial review OR diff is a security-critical rewrite (auth, crypto, schema migration with data loss risk).
 
 ## Phase 3 — False-positive verification
 
@@ -53,25 +53,12 @@ Output ends with `OK writeback: ...` (proceed) or `WARN NO WRITEBACK -- ...`. If
 
 Check `~/.agents/context/reflections.md` length. If 5+ unaddressed entries: spawn the `reflect` skill via the Skill tool (or surface to user "5+ workflow reflections accumulated, recommend running /reflect"). Mechanical, not vibes.
 
-## Simplification policy (revised — fewer spawns by default)
+## Simplification policy (v2 — minimal default)
 
-For ISOLATED scope (Phase 0 classified):
-- Phase 1 explorer: SKIP if codebase small / already understood.
-- Phase 3 reviewers: code-quality-reviewer ONLY.
-- Phase 4 adversarial: SKIP.
-- Phase 5 final-verifier: orchestrator may run the verification command inline + check status itself; spawn final-verifier only if the change crosses module boundaries.
-- Min spawns for ISOLATED: 1 (workflow-implementer if multi-file) or 0 (inline edits + inline verify).
+| Tier | Typical spawns | Composition |
+|---|---|---|
+| ISOLATED | **1** | Single reviewer by signal. |
+| SHARED | **1-2** | Single reviewer; +1 only if first surfaces cross-lane finding. |
+| CRITICAL | **2-3** | Two reviewers (e.g. security + modularity for auth rewrite); +adversarial only if user requests. |
 
-For SHARED scope (default for most multi-file changes):
-- Phase 1 explorer: spawn IF codebase unfamiliar.
-- Phase 2 workflow-implementer: ALWAYS.
-- Phase 3 reviewers: code-quality-reviewer ALWAYS. security-reviewer ONLY if auth/external-HTTP/DB-writes/file-paths/permissions touched. modularity-expert ONLY if new files added OR shared types changed OR DI/container wiring changed.
-- Phase 4 adversarial: SKIP. (Was previously also SHARED -- now CRITICAL-only.)
-- Phase 5 final-verifier: ALWAYS.
-- Typical SHARED spawn count: 4 (explorer + implementer + code-quality + final-verifier). +1 if security trigger fires. +1 if modularity trigger fires. Max 6.
-
-For CRITICAL scope (auth, schema migration, breaking change):
-- Full pipeline: explorer + implementer + ALL three reviewers (quality + security + modularity) + adversarial + final-verifier = 7 spawns.
-- Plus extra fix-loop iterations if reviewers find blocking issues.
-
-Rule of thumb: prefer 1-line inline edits over implementer spawn. Prefer ONE reviewer over THREE unless there's a real reason. Adversarial pass is expensive; reserve it for CRITICAL changes that warrant the cost.
+Single-reviewer rule applies at every tier. Adversarial NOT in default matrix. Cite Anthropic multi-agent research + barkain delegation-orchestrator deprecation if reasoning about whether to add more critics.

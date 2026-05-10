@@ -835,6 +835,27 @@ if (Test-Path $proposeTool) {
     }
 }
 
+# Phase 2c: tiered auto-apply of safe-bucket reflections. Runs AFTER consolidate
+# (so signature counts are deduped) but BEFORE the reflect-trigger gate (so the
+# gate's count reflects only what actually needs human judgment after auto-apply).
+# Safe buckets only: specialist memory accretion + conventions.md updates +
+# repo-scoped spawn-budget tweaks. Slash command bodies, global agent prompts,
+# and tool/hook logic are NEVER auto-applied -- those still go through /reflect.
+$autoApply = Join-Path $TOOLS "auto-apply-reflect.ps1"
+if (Test-Path $autoApply) {
+    Write-Host "${DIM}Auto-applying safe-bucket reflections...${RESET}"
+    $autoApplyRaw = & $script:AgentsShell -NoProfile -File $autoApply 2>$null
+    if ($autoApplyRaw -and $autoApplyRaw -match 'applied=(\d+)') {
+        $appliedCount = [int]$Matches[1]
+        if ($appliedCount -gt 0) {
+            Write-Host "  ${GREEN}auto-applied: $appliedCount safe-bucket finding(s) (specialist memory / conventions / repo spawn budgets)${RESET}"
+            Write-Host "  ${DIM}audit log: ~/.agents/context/auto-applied.md${RESET}"
+        } else {
+            Write-Host "  ${DIM}no safe-bucket findings met the consistency threshold${RESET}"
+        }
+    }
+}
+
 # Phase 3: query the gate. After consolidate + compress, the count reflects
 # only entries that genuinely need judgment. If still >= mandatory threshold,
 # block ship in NonInteractive mode unless -AutoApprove was explicitly set.
