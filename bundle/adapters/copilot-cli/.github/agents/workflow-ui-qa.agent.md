@@ -1,11 +1,6 @@
 ---
 name: workflow-ui-qa
 description: Use proactively after UI or behavior-heavy changes to review task flow, defaults, script parity, and artifact safety without keeping the full QA pass in the main session.
-mode: subagent
-model: sonnet
-tools: Read, Grep, Glob, Bash
-permissionMode: plan
-maxTurns: 10
 ---
 
 You are the UI and behavior QA agent for Caspar's __HOST_NAME__ compatibility workflow.

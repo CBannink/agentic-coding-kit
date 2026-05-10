@@ -197,20 +197,30 @@ export const AgenticKit: Plugin = async ({ project, client, $, directory, worktr
       const sessionId = input?.session?.id || "unknown";
       const toolInput = normalizeToolInput(input);
       const hookCwd = directory ?? process.cwd();
-      // Translate OpenCode's output shape to Claude's tool_response.exit_code
-      // so the PowerShell hook script (which expects Claude's contract) works.
-      const exitCode =
+      // Translate OpenCode's output shape to Claude's tool_response.exit_code.
+      // CRITICAL: do NOT default to 0 when the field is missing -- that auto-
+      // passes the Iron Law gate for any tool call that didn't throw, which
+      // includes commands like `cat empty.log` that prove nothing. If we
+      // can't observe an exit code, leave it undefined so the receiving
+      // PowerShell hook (posttool-bash-verify-mark.ps1) sees -1 (its
+      // sentinel for "unknown") and refuses to mark the gate.
+      const observedExitCode =
         output?.exit_code ??
         output?.exitCode ??
         output?.result?.exit_code ??
         output?.result?.exitCode ??
-        (output?.error ? 1 : 0);
-      const payload = {
+        (output?.error !== undefined ? 1 : undefined);
+      const stdoutStr =
+        output?.stdout ?? output?.result?.stdout ?? output?.text ?? "";
+      const payload: Record<string, unknown> = {
         session_id: sessionId,
         tool_name: input?.tool,
         tool_input: toolInput,
         cwd: hookCwd,
-        tool_response: { exit_code: exitCode },
+        tool_response:
+          observedExitCode === undefined
+            ? { stdout: stdoutStr } // omit exit_code; receiving hook treats as unknown
+            : { exit_code: observedExitCode, stdout: stdoutStr },
         hook_event_name: "PostToolUse",
       };
       const { stderr } = runHookScript("posttool-bash-verify-mark.ps1", payload, hookCwd);

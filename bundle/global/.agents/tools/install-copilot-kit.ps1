@@ -17,9 +17,27 @@ param([switch]$DryRun, [switch]$Force, [switch]$NoBackup)
 $ErrorActionPreference = 'Stop'
 
 $AgentsRoot  = Join-Path $HOME '.agents'
-$RepoRoot    = Join-Path $HOME 'Downloads\caspar_bannink_agentic_coding\caspar_bannink_agentic_coding'
 $CopilotRoot = if ($env:COPILOT_HOME) { $env:COPILOT_HOME } else { Join-Path $HOME '.copilot' }
 $Stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+
+# MODEL-ROUTING.md source resolution. Three machine-independent paths in order:
+#  1. AGENTIC_KIT_REPO env var pointing at a checked-out kit
+#  2. $AgentsRoot/copilot/MODEL-ROUTING.md (staged by install.ps1 -InstallGlobal)
+#  3. $PSScriptRoot/../../../adapters/copilot-cli/MODEL-ROUTING.md (running from a
+#     repo where this file lives at <repo>/bundle/global/.agents/tools/)
+# If none resolve, the topic-files step is skipped with a clear message --
+# never with a hardcoded maintainer-specific Downloads path.
+function Resolve-ModelRoutingSource {
+    if ($env:AGENTIC_KIT_REPO) {
+        $candidate = Join-Path $env:AGENTIC_KIT_REPO 'bundle/adapters/copilot-cli/MODEL-ROUTING.md'
+        if (Test-Path $candidate) { return $candidate }
+    }
+    $staged = Join-Path $AgentsRoot 'copilot/MODEL-ROUTING.md'
+    if (Test-Path $staged) { return $staged }
+    $repoCandidate = Join-Path $PSScriptRoot '../../../adapters/copilot-cli/MODEL-ROUTING.md'
+    if (Test-Path $repoCandidate) { return (Resolve-Path $repoCandidate).Path }
+    return $null
+}
 
 if (-not (Test-Path $CopilotRoot)) { New-Item -ItemType Directory -Path $CopilotRoot -Force | Out-Null }
 
@@ -55,21 +73,40 @@ if ($Fingerprints.Count -gt 0) {
 Say "`n[1/2] copilot-instructions.md (sync canonical block)" 'Cyan'
 $canonical = Get-Content -Raw -Encoding utf8 -LiteralPath (Join-Path $AgentsRoot 'global-instructions.md')
 
+$beginMarker = '<!-- agentic-kit:begin -->'
+$endMarker   = '<!-- agentic-kit:end -->'
+# Canonical is now marker-less; wrap with markers at write time.
+$wrapped = "$beginMarker`r`n" + $canonical.TrimEnd() + "`r`n$endMarker"
+
 if (-not (Test-Path $instructionsFile)) {
     if ($DryRun) { Skip "would create $instructionsFile" }
-    else { Write-NoBom $instructionsFile $canonical; Do-It "created $instructionsFile" }
+    else { Write-NoBom $instructionsFile $wrapped; Do-It "created $instructionsFile" }
 } else {
     $current = Get-Content -Raw -Encoding utf8 -LiteralPath $instructionsFile
-    $beginMarker = '<!-- agentic-kit:begin -->'
-    $endMarker   = '<!-- agentic-kit:end -->'
 
-    if ($current -match [regex]::Escape($beginMarker)) {
-        $pattern = "(?s)" + [regex]::Escape($beginMarker) + ".*?" + [regex]::Escape($endMarker)
-        $updated = [regex]::Replace($current, $pattern, $canonical.TrimEnd())
+    # Strip every known kit-block variant (current `:begin/:end`, legacy
+    # `:include / /:include`, and any orphan combinations from older runs)
+    # before writing. Prevents marker-schism duplicates from accumulating.
+    $stripPatterns = @(
+        "(?s)<!-- agentic-kit:begin -->.*?<!-- agentic-kit:end -->\s*",
+        "(?s)<!-- agentic-kit:include -->.*?<!-- /agentic-kit:include -->\s*",
+        "(?s)<!-- agentic-kit:include -->.*?<!-- agentic-kit:end -->\s*",
+        "(?s)<!-- agentic-kit:begin -->.*?<!-- /agentic-kit:include -->\s*"
+    )
+    $hadKitBlock = $false
+    $cleaned = $current
+    foreach ($p in $stripPatterns) {
+        $before = $cleaned
+        $cleaned = [regex]::Replace($cleaned, $p, '')
+        if ($before -ne $cleaned) { $hadKitBlock = $true }
+    }
+
+    if ($hadKitBlock) {
+        $updated = $wrapped.TrimEnd() + "`r`n`r`n" + $cleaned.TrimStart()
         if ($DryRun) { Skip "would replace canonical block in $instructionsFile" }
         else { Write-NoBom $instructionsFile $updated; Do-It "replaced canonical block in $instructionsFile" }
     } else {
-        $updated = $canonical.TrimEnd() + "`r`n`r`n" + $current
+        $updated = $wrapped.TrimEnd() + "`r`n`r`n" + $current
         if ($DryRun) { Skip "would prepend canonical block to $instructionsFile" }
         else { Write-NoBom $instructionsFile $updated; Do-It "prepended canonical block (existing host content preserved below)" }
     }
@@ -77,14 +114,14 @@ if (-not (Test-Path $instructionsFile)) {
 
 # ---------- 2. instructions/ topic files (optional MODEL-ROUTING.md) ----------
 Say "`n[2/2] instructions/ topic files" 'Cyan'
-$modelRoutingSrc = Join-Path $RepoRoot 'bundle\adapters\copilot-cli\MODEL-ROUTING.md'
-if (Test-Path $modelRoutingSrc) {
+$modelRoutingSrc = Resolve-ModelRoutingSource
+if ($modelRoutingSrc) {
     if (-not $DryRun) { New-Item -ItemType Directory -Path $instructionsDir -Force | Out-Null }
     $modelRoutingDst = Join-Path $instructionsDir 'model-routing.instructions.md'
-    if ($DryRun) { Skip "would copy MODEL-ROUTING.md -> $modelRoutingDst" }
+    if ($DryRun) { Skip "would copy MODEL-ROUTING.md -> $modelRoutingDst (source: $modelRoutingSrc)" }
     else { Copy-Item -LiteralPath $modelRoutingSrc -Destination $modelRoutingDst -Force; Do-It "$modelRoutingDst" }
 } else {
-    Skip "no bundle/adapters/copilot-cli/MODEL-ROUTING.md found at $modelRoutingSrc -- skipping topic files"
+    Skip "no MODEL-ROUTING.md found via AGENTIC_KIT_REPO / `$AgentsRoot/copilot / repo-relative -- skipping topic files (run install.ps1 -InstallGlobal first to stage it)"
 }
 
 # ---------- verify ----------

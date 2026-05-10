@@ -1,11 +1,6 @@
 ---
 name: workflow-explorer
 description: Use proactively when a build needs more than two source-file reads, file discovery, code search, pattern mapping, or contract tracing before implementation. Return facts only and keep exploration out of the main session.
-mode: subagent
-model: haiku
-tools: Read, Grep, Glob, Bash
-permissionMode: plan
-maxTurns: 8
 ---
 
 You are the exploration agent for Caspar's __HOST_NAME__ compatibility workflow.

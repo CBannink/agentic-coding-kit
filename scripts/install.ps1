@@ -38,7 +38,27 @@ param(
     [string]$DeviceWide = "",
     [switch]$Upgrade,
     [switch]$Force,
-    [switch]$BootstrapHarness
+    [switch]$BootstrapHarness,
+    # When set, strips ALL kit blocks (current `:begin/:end` AND legacy `:include`
+    # pairs) from every target host's instruction file and rewrites a single
+    # canonical block. Use after a marker-schism duplicate accumulates.
+    [switch]$RepairKitBlock,
+    # When set, after writing kit-managed *.md files at command destinations,
+    # prune any pre-existing *.md files that are no longer in the bundle.
+    # Closes the f714a3b drift class (per-host commands moved to _shared/ but
+    # old files were left orphaned at user destinations). Backs up each pruned
+    # file alongside as <name>.pruned-<timestamp> instead of hard deleting.
+    [switch]$PruneStaleAssets,
+    # Combined with -PruneStaleAssets: list pruning candidates and exit
+    # without deleting. Useful before a real prune.
+    [switch]$DryRunPrune,
+    # Wipe kit-managed destination directories (skills/, agents/, commands/)
+    # for each targeted host BEFORE rewriting. User-mutable runtime state
+    # (session-state/, context/handoffs.md, context/reflections.md, inspiration/
+    # under ~/.agents/) is still preserved via the P3 snapshot/restore. Use
+    # this when stale orphans from older kit versions accumulate (different
+    # skill names, deleted agents, etc.). Implies -PruneStaleAssets.
+    [switch]$CleanReinstall
 )
 
 $ScriptRoot   = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -104,6 +124,16 @@ function Get-WorkflowAdapterTemplateVars {
                 "__HOST_NAME__" = "OpenCode"
             }
         }
+        "copilot-cli" {
+            # Copilot CLI has no documented user-level skills directory; the
+            # kit's procedural content lives inline in copilot-instructions.md
+            # and the orchestrator follows it. __SKILL_ROOT__ is left pointing
+            # at ~/.copilot for any future skill auto-discovery surface.
+            return @{
+                "__SKILL_ROOT__" = "~/.copilot/skills"
+                "__HOST_NAME__" = "Copilot CLI"
+            }
+        }
         default { return $null }
     }
 }
@@ -111,7 +141,12 @@ function Get-WorkflowAdapterTemplateVars {
 function Get-WorkflowAdapterDestinations {
     param(
         [string]$AdapterName,
-        [string]$Root
+        [string]$Root,
+        # Device-wide installs use ~/.config/opencode/ (the OpenCode global home).
+        # Per-repo installs use <repo>/.opencode/ (the OpenCode project scope).
+        # The OpenCode docs make this distinction explicit; mixing them up means
+        # `/build` does not appear in a user's repo.
+        [switch]$DeviceWideScope
     )
 
     switch ($AdapterName) {
@@ -123,10 +158,42 @@ function Get-WorkflowAdapterDestinations {
             }
         }
         "opencode" {
+            if ($DeviceWideScope) {
+                return [pscustomobject]@{
+                    Label = "OpenCode"
+                    Commands = Join-Path $Root ".config/opencode/commands"
+                    Agents = Join-Path $Root ".config/opencode/agents"
+                }
+            }
             return [pscustomobject]@{
                 Label = "OpenCode"
-                Commands = Join-Path $Root ".config/opencode/commands"
-                Agents = Join-Path $Root ".config/opencode/agents"
+                Commands = Join-Path $Root ".opencode/commands"
+                Agents = Join-Path $Root ".opencode/agents"
+            }
+        }
+        "copilot-cli" {
+            # Copilot CLI surfaces (May 2026):
+            #   - Custom agents:  ~/.copilot/agents/<name>.agent.md (user)
+            #                     <repo>/.github/agents/<name>.agent.md (per-repo)
+            #   - Hooks:          <repo>/.github/hooks/*.json (per-repo only;
+            #                     no documented user-level hook path)
+            #   - User-defined slash commands: NOT supported (issue #1113).
+            # Without a slash-command surface, "Commands" returns null; install
+            # writes only Agents (and Hooks via Install-CopilotHooks separately).
+            if ($DeviceWideScope) {
+                return [pscustomobject]@{
+                    Label = "Copilot CLI"
+                    Commands = $null
+                    Agents = Join-Path $Root ".copilot/agents"
+                    AgentSuffix = ".agent.md"
+                }
+            }
+            return [pscustomobject]@{
+                Label = "Copilot CLI"
+                Commands = $null
+                Agents = Join-Path $Root ".github/agents"
+                Hooks = Join-Path $Root ".github/hooks"
+                AgentSuffix = ".agent.md"
             }
         }
         default { return $null }
@@ -140,16 +207,44 @@ function Install-RenderedMarkdownDirectory {
         [hashtable]$Vars,
         [string]$Label,
         [string]$AssetKind,
-        [switch]$SkipIfExists
+        [switch]$SkipIfExists,
+        # Override destination filename suffix. Default: keep source's `.md`.
+        # Used for Copilot CLI agents which require `.agent.md` extension.
+        [string]$OutputSuffix = ".md",
+        # When set, enumerate destination *.md files NOT present in $SourceDir
+        # and delete them. Closes the f714a3b drift class where the bundle
+        # consolidated per-host commands into _shared/ but install left the
+        # old per-host files orphaned at user destinations. Off by default
+        # because it's only safe when $SourceDir is the SOLE legal source for
+        # $DestDir (true for commands; not true for agents -- agents have a
+        # specialist source as well, so that union must be considered).
+        [switch]$PruneStale,
+        # When -PruneStale and -DryRunPrune are both set, list pruning
+        # candidates without deleting them. Overrides any deletion. Useful
+        # before a destructive run.
+        [switch]$DryRunPrune
     )
 
     if (-not (Test-Path $SourceDir)) { return }
     New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+
+    # Compute the legal-file set from source BEFORE writing so prune logic
+    # below can compare destination against it.
+    $legalNames = @{}
+    foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
+        $legalNames[$f.Name] = $true
+    }
+
     $count = 0
     foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File | Sort-Object Name)) {
-        $dst = Join-Path $DestDir $f.Name
+        $outName = if ($OutputSuffix -ne ".md") {
+            [System.IO.Path]::GetFileNameWithoutExtension($f.Name) + $OutputSuffix
+        } else {
+            $f.Name
+        }
+        $dst = Join-Path $DestDir $outName
         if ($SkipIfExists -and (Test-Path $dst) -and (-not $Force)) {
-            Write-Host "  $Label ${AssetKind}: $($f.Name) already exists at $dst (skipped, pass -Force to overwrite)"
+            Write-Host "  $Label ${AssetKind}: $outName already exists at $dst (skipped, pass -Force to overwrite)"
             continue
         }
         Render-Template -Source $f.FullName -Destination $dst -Vars $Vars
@@ -158,33 +253,76 @@ function Install-RenderedMarkdownDirectory {
     if ($count -gt 0) {
         Write-Host "  $Label ${AssetKind}: $count installed at $DestDir"
     }
+
+    if ($PruneStale) {
+        $stale = @(Get-ChildItem -Path $DestDir -Filter "*.md" -File -ErrorAction SilentlyContinue |
+                   Where-Object { -not $legalNames.ContainsKey($_.Name) })
+        if ($stale.Count -eq 0) { return }
+        if ($DryRunPrune) {
+            Write-Host "  $Label ${AssetKind}: WOULD prune $($stale.Count) stale file(s) at $DestDir (re-run without -DryRunPrune to delete):"
+            foreach ($s in $stale) { Write-Host "    - $($s.Name)" }
+            return
+        }
+        # Backup each pruned file alongside the deletion (one-time stamp per run).
+        $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+        $pruned = 0
+        foreach ($s in $stale) {
+            $bak = "$($s.FullName).pruned-$stamp"
+            Move-Item -Force $s.FullName $bak
+            $pruned++
+        }
+        if ($pruned -gt 0) {
+            Write-Host "  $Label ${AssetKind}: pruned $pruned stale file(s) at $DestDir (backups: *.pruned-$stamp)"
+        }
+    }
 }
 
 function Install-WorkflowAdapterAssets {
     param(
         [string]$AdapterName,
         [string]$Root,
-        [switch]$SkipExistingCommands
+        [switch]$SkipExistingCommands,
+        # Forward to Get-WorkflowAdapterDestinations: pick global home (~/.config/opencode/)
+        # vs project-scope (<repo>/.opencode/) for OpenCode.
+        [switch]$DeviceWideScope,
+        # Prune stale .md files from the commands destination. SAFE because
+        # _shared/workflow-commands/ is the only legal source for that dir.
+        # NOT applied to the agents destination -- agents have a specialist
+        # source on top of workflow-agents, so naively pruning would delete
+        # the specialists. (Tier-C improvement: union-prune.)
+        [switch]$PruneStale,
+        [switch]$DryRunPrune
     )
 
     $vars = Get-WorkflowAdapterTemplateVars -AdapterName $AdapterName
-    $destinations = Get-WorkflowAdapterDestinations -AdapterName $AdapterName -Root $Root
+    $destinations = Get-WorkflowAdapterDestinations -AdapterName $AdapterName -Root $Root -DeviceWideScope:$DeviceWideScope
     if (-not $vars -or -not $destinations) { return }
 
-    Install-RenderedMarkdownDirectory `
-        -SourceDir $SharedWorkflowCommandsRoot `
-        -DestDir $destinations.Commands `
-        -Vars $vars `
-        -Label $destinations.Label `
-        -AssetKind "commands" `
-        -SkipIfExists:$SkipExistingCommands
+    if ($destinations.Commands) {
+        Install-RenderedMarkdownDirectory `
+            -SourceDir $SharedWorkflowCommandsRoot `
+            -DestDir $destinations.Commands `
+            -Vars $vars `
+            -Label $destinations.Label `
+            -AssetKind "commands" `
+            -SkipIfExists:$SkipExistingCommands `
+            -PruneStale:$PruneStale `
+            -DryRunPrune:$DryRunPrune
+    }
 
-    Install-RenderedMarkdownDirectory `
-        -SourceDir $SharedWorkflowAgentsRoot `
-        -DestDir $destinations.Agents `
-        -Vars $vars `
-        -Label $destinations.Label `
-        -AssetKind "workflow agents"
+    # Workflow-agents directory is shared with specialist agents installed by
+    # Install-DeviceWideAgents; cannot prune from this side without losing the
+    # specialists. Plain write only.
+    if ($destinations.Agents) {
+        $agentSuffix = if ($destinations.PSObject.Properties['AgentSuffix']) { $destinations.AgentSuffix } else { ".md" }
+        Install-RenderedMarkdownDirectory `
+            -SourceDir $SharedWorkflowAgentsRoot `
+            -DestDir $destinations.Agents `
+            -Vars $vars `
+            -Label $destinations.Label `
+            -AssetKind "workflow agents" `
+            -OutputSuffix $agentSuffix
+    }
 }
 
 function Install-Adapter {
@@ -195,7 +333,23 @@ function Install-Adapter {
         return
     }
     Copy-Tree -Source $src -Destination $TargetRepo
-    Install-WorkflowAdapterAssets -AdapterName $Name -Root $TargetRepo
+    Install-WorkflowAdapterAssets -AdapterName $Name -Root $TargetRepo -PruneStale:$PruneStaleAssets -DryRunPrune:$DryRunPrune
+
+    # Copilot CLI per-repo: install repo-scope hooks (.github/hooks/*.json).
+    # Hooks are repo-scope only on Copilot per the official hooks reference;
+    # there is no documented user-level hooks path.
+    if ($Name -eq "copilot-cli") {
+        $hookSrc = Join-Path $src ".github/hooks"
+        $hookDst = Join-Path $TargetRepo ".github/hooks"
+        if (Test-Path $hookSrc) {
+            New-Item -ItemType Directory -Path $hookDst -Force | Out-Null
+            foreach ($f in (Get-ChildItem -Path $hookSrc -Filter "*.json" -File)) {
+                Copy-Item -Force $f.FullName (Join-Path $hookDst $f.Name)
+            }
+            Write-Host "  Installed Copilot CLI hooks into $hookDst"
+        }
+    }
+
     Write-Host "  Installed '$Name' adapter into $TargetRepo"
 }
 
@@ -264,7 +418,51 @@ if ($Upgrade -and (Test-Path $AgentsRoot)) {
 # Everything kit-related lives under ~/.agents/. Codex CLI users who want their
 # own ~/.codex/ config can set it up separately -- it's not the kit's concern.
 if ($InstallGlobal) {
+    # Preserve user-mutable runtime state across the Copy-Tree -ReplaceDestination
+    # wipe. The bundle does NOT ship these subpaths, so they are 100% user-owned
+    # and a non-destructive install must keep them intact:
+    #   - session-state/            per-session handoffs.md, plan.md, run-packet.json
+    #   - context/handoffs.md       cross-session handoff log
+    #   - context/reflections.md    accumulated workflow reflections
+    #   - inspiration/              user-fetched design references (bulk-fetch-inspiration.ps1)
+    # Snapshot each into a temp location, run the wipe, then restore. User state
+    # wins on conflict: if the bundle started shipping any of these (it does not
+    # today), the user's copy is kept.
+    $preserveRelativePaths = @(
+        'session-state',
+        'context/handoffs.md',
+        'context/reflections.md',
+        'inspiration'
+    )
+    $preserveSnapshots = @{}
+    foreach ($rel in $preserveRelativePaths) {
+        $abs = Join-Path $AgentsRoot $rel
+        if (Test-Path $abs) {
+            $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("agentic-kit-preserve-" + [Guid]::NewGuid().ToString('N'))
+            Move-Item -Force $abs $tmp
+            $preserveSnapshots[$rel] = $tmp
+        }
+    }
+
     Copy-Tree -Source (Join-Path $BundleGlobal ".agents") -Destination $AgentsRoot -ReplaceDestination
+
+    # Restore preserved subpaths.
+    foreach ($rel in $preserveSnapshots.Keys) {
+        $tmp = $preserveSnapshots[$rel]
+        $abs = Join-Path $AgentsRoot $rel
+        New-Item -ItemType Directory -Path (Split-Path -Parent $abs) -Force | Out-Null
+        if (Test-Path $abs) {
+            # Bundle re-introduced this path during this install. Keep the user's copy;
+            # archive the bundle's version alongside for inspection (rare; future-proof).
+            $archived = "$abs.bundle-shipped-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+            Move-Item -Force $abs $archived
+            Write-Host "  Preserved user state at $rel ; bundle copy archived to $archived"
+        }
+        Move-Item -Force $tmp $abs
+    }
+    if ($preserveSnapshots.Count -gt 0) {
+        Write-Host "  Preserved $($preserveSnapshots.Count) user-mutable runtime path(s) across install."
+    }
 
     # Render skill-memory-index.json from template with absolute paths
     $tmpl = Join-Path $AgentsRoot "context/skill-memory-index.json.tmpl"
@@ -276,6 +474,16 @@ if ($InstallGlobal) {
         }
         Remove-Item -Force $tmpl
         Write-Host "  Rendered skill-memory-index.json with AGENTS_ROOT=$agentsRootAbs"
+    }
+
+    # Stage Copilot CLI's MODEL-ROUTING.md under ~/.agents/copilot/ so the
+    # standalone install-copilot-kit.ps1 entry point can find it without a
+    # hardcoded repo path. (Pre-fix the script hardcoded $HOME/Downloads/<maintainer-repo-name>.)
+    $copilotModelRoutingSrc = Join-Path $AdaptersRoot 'copilot-cli/MODEL-ROUTING.md'
+    if (Test-Path $copilotModelRoutingSrc) {
+        $copilotStageDir = Join-Path $AgentsRoot 'copilot'
+        New-Item -ItemType Directory -Path $copilotStageDir -Force | Out-Null
+        Copy-Item -Force $copilotModelRoutingSrc (Join-Path $copilotStageDir 'MODEL-ROUTING.md')
     }
 
     Write-Host "Installed global assets into $HomeRoot"
@@ -308,6 +516,27 @@ if (-not $TargetRepo -and -not $DeviceWide -and -not $For -and -not $Auto -and -
     Write-Host ""
     Write-Host "Or bootstrap a repo end-to-end:"
     Write-Host "  pwsh ./install.ps1 -BootstrapHarness -TargetRepo <path>"
+}
+
+if ($CleanReinstall) { $PruneStaleAssets = $true }
+
+# Helper: wipe kit-managed dest directories before reinstall. Used by
+# -CleanReinstall to clear orphans from older kit versions (skills/agents/
+# commands that the bundle no longer ships). User-mutable runtime state in
+# ~/.agents/{session-state,context/handoffs.md,context/reflections.md,inspiration}
+# is preserved by the P3 snapshot/restore around the global Copy-Tree -- not
+# by this helper, which only operates on per-host install dirs.
+function Clean-HostInstallDirs {
+    param(
+        [string]$Label,
+        [string[]]$Paths
+    )
+    foreach ($p in $Paths) {
+        if (Test-Path $p) {
+            Remove-Item -Recurse -Force $p
+            Write-Host "  $Label clean-reinstall: wiped $p"
+        }
+    }
 }
 
 # ── Resolve which CLIs to install for (-For, -Auto, -DeviceWide all converge) ─
@@ -370,14 +599,43 @@ if ($resolvedFor) {
     # truly global rules go here -- workflow-specific content stays in skills
     # at native auto-discovery dirs. Idempotent: skips if marker already
     # present. Backs up before appending.
+    # Strips every known kit-block marker pair from a given content string.
+    # Handles current (:begin/:end) and legacy (:include / /:include) variants
+    # plus orphans where one marker was hand-deleted. Returns cleaned content.
+    function Strip-AllKitBlocks {
+        param([string]$Content)
+        if (-not $Content) { return $Content }
+        $patterns = @(
+            "(?s)<!-- agentic-kit:begin -->.*?<!-- agentic-kit:end -->\s*",
+            "(?s)<!-- agentic-kit:include -->.*?<!-- /agentic-kit:include -->\s*",
+            "(?s)<!-- agentic-kit:include -->.*?<!-- agentic-kit:end -->\s*",
+            "(?s)<!-- agentic-kit:begin -->.*?<!-- /agentic-kit:include -->\s*"
+        )
+        $cleaned = $Content
+        foreach ($p in $patterns) {
+            $cleaned = [regex]::Replace($cleaned, $p, '')
+        }
+        # Collapse a duplicated canonical heading that may have leaked outside
+        # all marker pairs (e.g., user manually merged a duplicate at some point).
+        $heading = '# CASPAR BANNINK AGENTIC CODING KIT — GLOBAL RULES'
+        $hits = [regex]::Matches($cleaned, [regex]::Escape($heading))
+        if ($hits.Count -gt 1) {
+            $cleaned = $cleaned.Substring(0, $hits[0].Index).TrimEnd() + "`r`n"
+        }
+        return $cleaned.TrimEnd() + "`r`n"
+    }
+
     function Install-DeviceWideAlwaysOnRules {
         param(
             [string]$ExistingPath,    # user's auto-loaded rules file
             [string]$LongFormPath,    # path to standalone agentic-kit.md (referenced from block)
             [string]$Label
         )
-        $marker = "<!-- agentic-kit:include -->"
-        $endMarker = "<!-- /agentic-kit:include -->"
+        # Canonical marker pair used by ALL kit writers (install.ps1, sync-all-hosts.ps1,
+        # install-{opencode,codex,copilot,gemini}-kit.ps1). Legacy `:include` pairs are
+        # stripped via Strip-AllKitBlocks below for backward compat.
+        $marker    = "<!-- agentic-kit:begin -->"
+        $endMarker = "<!-- agentic-kit:end -->"
         $block = @"
 
 $marker
@@ -474,17 +732,28 @@ $endMarker
             $backup = "$ExistingPath.before-agentic-kit-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
             Copy-Item -Force $ExistingPath $backup
 
-            if ($existing -match [regex]::Escape($marker)) {
-                $pattern = "(?s)$([regex]::Escape($marker)).*?$([regex]::Escape($endMarker))"
-                $updated = [regex]::Replace($existing, $pattern, $block.TrimEnd())
-                Set-Content -Path $ExistingPath -Value $updated -Encoding UTF8
-                Write-Host "  $Label always-on rules: refreshed managed block in $ExistingPath (backup: $backup)"
+            # Always strip ALL prior kit blocks (any marker variant, any number of
+            # duplicates) BEFORE writing. This is what fixes the marker-schism bug
+            # where install.ps1 used `:include` while sync-all-hosts.ps1 used
+            # `:begin/:end`, causing every re-run to append another duplicate.
+            $stripped = Strip-AllKitBlocks $existing
+
+            if ($RepairKitBlock) {
+                # Repair mode: cleanup only, do not append a new block.
+                Set-Content -Path $ExistingPath -Value $stripped -Encoding UTF8
+                Write-Host "  $Label always-on rules: REPAIRED -- removed all kit blocks from $ExistingPath (backup: $backup). Re-run without -RepairKitBlock to install fresh."
                 return
             }
 
-            Add-Content -Path $ExistingPath -Value $block -Encoding UTF8
-            Write-Host "  $Label always-on rules: appended to $ExistingPath (backup: $backup)"
+            $updated = $stripped.TrimEnd() + "`r`n" + $block.TrimEnd() + "`r`n"
+            Set-Content -Path $ExistingPath -Value $updated -Encoding UTF8
+            $changed = if ($existing -ne $stripped) { "deduped + " } else { "" }
+            Write-Host "  $Label always-on rules: ${changed}refreshed managed block in $ExistingPath (backup: $backup)"
         } else {
+            if ($RepairKitBlock) {
+                Write-Host "  $Label always-on rules: $ExistingPath does not exist; nothing to repair."
+                return
+            }
             New-Item -ItemType Directory -Path (Split-Path -Parent $ExistingPath) -Force | Out-Null
             Set-Content -Path $ExistingPath -Value $block.TrimStart() -Encoding UTF8
             Write-Host "  $Label always-on rules: created $ExistingPath"
@@ -540,6 +809,62 @@ $endMarker
         if ($count -gt 0) { Write-Host "  $Label skills: $count installed at $DestRoot" }
     }
 
+    # Copy Copilot CLI hook configs (.github/hooks/*.json). Per docs, hooks
+    # are repo-scope only -- there's no documented user-level hook directory.
+    # SourceDir: bundle/adapters/copilot-cli/.github/hooks
+    # DestDir:   <repo>/.github/hooks
+    function Install-CopilotHooks {
+        param(
+            [string]$SourceDir,
+            [string]$DestDir,
+            [string]$Label
+        )
+        if (-not (Test-Path $SourceDir)) { return }
+        New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+        $count = 0
+        foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.json" -File)) {
+            Copy-Item -Force $f.FullName (Join-Path $DestDir $f.Name)
+            $count++
+        }
+        if ($count -gt 0) { Write-Host "  $Label hooks: $count installed at $DestDir" }
+    }
+
+    # Convert Claude/OpenCode-format agent .md files into Copilot's `.agent.md`
+    # format with minimal documented frontmatter (name + description). Strips
+    # Claude-only keys (model: sonnet, permissionMode, maxTurns, tools, mode)
+    # which are not in Copilot's documented schema.
+    function Install-CopilotAgentsFromClaudeSource {
+        param(
+            [string]$SourceDir,
+            [string]$DestDir,
+            [string]$Label
+        )
+        if (-not (Test-Path $SourceDir)) { return }
+        New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+        $count = 0
+        foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
+            $raw = Get-Content $f.FullName -Raw -Encoding UTF8
+            if ($raw -notmatch '(?s)^---\r?\n(.*?)\r?\n---\r?\n(.*)$') { continue }
+            $fm = $matches[1]
+            $body = $matches[2]
+            $name = ''
+            $desc = ''
+            foreach ($line in ($fm -split "`r?`n")) {
+                if ($line -match '^\s*name\s*:\s*(.+?)\s*$')        { $name = $matches[1].Trim('"').Trim("'") }
+                elseif ($line -match '^\s*description\s*:\s*(.+?)\s*$') { $desc = $matches[1].Trim('"').Trim("'") }
+            }
+            if (-not $name) { $name = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) }
+            $newFm = "---`r`nname: $name"
+            if ($desc) { $newFm += "`r`ndescription: $desc" }
+            $newFm += "`r`n---`r`n"
+            $outName = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) + '.agent.md'
+            $dst = Join-Path $DestDir $outName
+            Set-Content -Path $dst -Value ($newFm + $body) -Encoding UTF8
+            $count++
+        }
+        if ($count -gt 0) { Write-Host "  $Label agents: $count installed at $DestDir (.agent.md format, minimal frontmatter)" }
+    }
+
     # Copies bundled agent definition files to a CLI's native auto-mount agents dir.
     function Install-DeviceWideAgents {
         param(
@@ -569,11 +894,12 @@ $endMarker
         Set-Content -Path $CompanionPath -Value $kitContent -Encoding UTF8
         Write-Host "  $Label companion: $CompanionPath"
 
-        # Append the kit rules block to the existing config (if it exists,
-        # preserve content). The block is INLINE (~100 lines) so the rules are
-        # always loaded -- not a pointer the agent might skip.
-        $marker = "<!-- agentic-kit:include -->"
-        $endMarker = "<!-- /agentic-kit:include -->"
+        # NOTE: Install-DeviceWideCompanion is currently DEAD CODE -- not invoked
+        # from the dispatch switch below. Kept for reference; flagged for removal
+        # in TIER-C-TODO.md. Markers unified to :begin/:end for consistency with
+        # the live writers (Install-DeviceWideAlwaysOnRules, sync-all-hosts.ps1).
+        $marker    = "<!-- agentic-kit:begin -->"
+        $endMarker = "<!-- agentic-kit:end -->"
         $includeBlock = @"
 
 $marker
@@ -716,6 +1042,13 @@ $endMarker
     foreach ($t in $targets) {
         switch ($t) {
             "claude" {
+                if ($CleanReinstall) {
+                    Clean-HostInstallDirs -Label "Claude Code" -Paths @(
+                        (Join-Path $HomeRoot ".claude/skills"),
+                        (Join-Path $HomeRoot ".claude/agents"),
+                        (Join-Path $HomeRoot ".claude/commands")
+                    )
+                }
                 # Standalone reference doc (not auto-loaded; for browsing).
                 Install-DeviceWideRulesDoc `
                     -DocPath (Join-Path $HomeRoot ".claude/agentic-kit.md") `
@@ -730,7 +1063,9 @@ $endMarker
                 Install-WorkflowAdapterAssets `
                     -AdapterName "claude-code" `
                     -Root $HomeRoot `
-                    -SkipExistingCommands
+                    -SkipExistingCommands `
+                    -PruneStale:$PruneStaleAssets `
+                    -DryRunPrune:$DryRunPrune
 
                 # Skills -- ~/.claude/skills/<name>/SKILL.md is auto-discovered
                 # via the `description:` frontmatter. This is THE canonical
@@ -787,21 +1122,35 @@ $endMarker
                 }
             }
             "opencode" {
+                if ($CleanReinstall) {
+                    Clean-HostInstallDirs -Label "OpenCode" -Paths @(
+                        (Join-Path $HomeRoot ".config/opencode/skills"),
+                        (Join-Path $HomeRoot ".config/opencode/agents"),
+                        (Join-Path $HomeRoot ".config/opencode/commands"),
+                        (Join-Path $HomeRoot ".config/opencode/plugins")
+                    )
+                }
                 # Standalone reference doc.
                 Install-DeviceWideRulesDoc `
                     -DocPath (Join-Path $HomeRoot ".config/opencode/agentic-kit.md") `
                     -Label   "OpenCode"
 
-                # Minimal always-on rules block in prompt.md
+                # Always-on rules in OpenCode's documented global rules file:
+                # ~/.config/opencode/AGENTS.md (per opencode.ai/docs). The kit
+                # previously wrote to prompt.md, which OpenCode does not
+                # auto-load -- the canonical block was silently ignored.
                 Install-DeviceWideAlwaysOnRules `
-                    -ExistingPath  (Join-Path $HomeRoot ".config/opencode/prompt.md") `
+                    -ExistingPath  (Join-Path $HomeRoot ".config/opencode/AGENTS.md") `
                     -LongFormPath  (Join-Path $HomeRoot ".config/opencode/agentic-kit.md") `
                     -Label         "OpenCode"
 
                 Install-WorkflowAdapterAssets `
                     -AdapterName "opencode" `
                     -Root $HomeRoot `
-                    -SkipExistingCommands
+                    -SkipExistingCommands `
+                    -DeviceWideScope `
+                    -PruneStale:$PruneStaleAssets `
+                    -DryRunPrune:$DryRunPrune
 
                 # Skills -- ~/.config/opencode/skills/<name>/SKILL.md auto-discovers.
                 Install-DeviceWideSkills `
@@ -809,10 +1158,12 @@ $endMarker
                     -DestRoot   (Join-Path $HomeRoot ".config/opencode/skills") `
                     -Label      "OpenCode"
 
-                # Host-specific reviewer / expert agents. Workflow transport
-                # agents are rendered from shared templates above.
+                # Host-specific reviewer / expert agents. Source moved from
+                # opencode/.config/opencode/agents/ to opencode/.opencode/agents/
+                # in P6 (the source tree now matches OpenCode's project-scope
+                # naming convention).
                 Install-DeviceWideAgents `
-                    -SourceDir (Join-Path $AdaptersRoot "opencode/.config/opencode/agents") `
+                    -SourceDir (Join-Path $AdaptersRoot "opencode/.opencode/agents") `
                     -DestDir   (Join-Path $HomeRoot ".config/opencode/agents") `
                     -Label     "OpenCode"
 
@@ -840,6 +1191,11 @@ $endMarker
                     -Label         "Generic"
             }
             "copilot" {
+                if ($CleanReinstall) {
+                    Clean-HostInstallDirs -Label "GitHub Copilot" -Paths @(
+                        (Join-Path $HomeRoot ".copilot/agents")
+                    )
+                }
                 Install-DeviceWideRulesDoc `
                     -DocPath (Join-Path $HomeRoot ".copilot/agentic-kit.md") `
                     -Label   "GitHub Copilot"
@@ -849,8 +1205,15 @@ $endMarker
                     -ExistingPath (Join-Path $HomeRoot ".copilot/copilot-instructions.md") `
                     -Label       "GitHub Copilot"
 
-                Write-Host "  GitHub Copilot repo-level adapters remain optional overrides:"
-                Write-Host "    pwsh ./install.ps1 -BootstrapHarness -TargetRepo <path>"
+                # Custom agents at user scope (~/.copilot/agents/<name>.agent.md).
+                # Bundled agents are pre-converted under copilot-cli/.github/agents/.
+                Install-CopilotAgentsFromClaudeSource `
+                    -SourceDir (Join-Path $AdaptersRoot "copilot-cli/.github/agents") `
+                    -DestDir   (Join-Path $HomeRoot ".copilot/agents") `
+                    -Label     "GitHub Copilot"
+
+                Write-Host "  GitHub Copilot CLI hooks are repo-scope only (.github/hooks/*.json)."
+                Write-Host "  Per-repo install: pwsh ./install.ps1 -TargetRepo <path> -InstallAdapter copilot"
             }
             "kilocode" {
                 Write-Host "  Kilo Code has no device-wide config -- it reads"

@@ -89,7 +89,14 @@ $pathHits = 0
 $badPatterns = @(
     'C:\\Users\\Caspar\.Bannink',
     'C:\\Users\\CasparBannink\\\.copilot',
-    'C:\\Users\\Caspar\.Bannink\\\.codex'
+    'C:\\Users\\Caspar\.Bannink\\\.codex',
+    # Catch any maintainer-specific Downloads/<repo> path. Bundled scripts must
+    # never embed the maintainer's checkout location -- they ship to other
+    # users' machines.
+    'Downloads[\\/]caspar_bannink_agentic_coding',
+    'Downloads[\\/]agentic-coding-kit',
+    # Personal email domains that should never appear in installed scripts.
+    'caspar\.christiaan@'
 )
 $searchExt = @("*.ps1", "*.md", "*.json", "*.tmpl")
 $searchRoots = @($Bundle, $ScriptRoot)

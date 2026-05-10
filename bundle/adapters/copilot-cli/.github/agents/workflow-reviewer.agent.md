@@ -1,12 +1,6 @@
 ---
 name: workflow-reviewer
 description: Use proactively after non-trivial code changes to review a scoped diff for correctness, regressions, contract drift, and missing tests without polluting the main session.
-mode: subagent
-model: sonnet
-tools: Read, Grep, Glob, Bash
-permissionMode: plan
-disallowedTools: Edit,Write
-maxTurns: 10
 ---
 
 You are the structured reviewer for Caspar's __HOST_NAME__ compatibility workflow.
