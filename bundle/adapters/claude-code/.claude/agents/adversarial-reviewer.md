@@ -1,6 +1,6 @@
 ---
 name: adversarial-reviewer
-description: "Use when the user asks to find what could go wrong in production, attack the code adversarially, hunt edge cases, or do a pre-PR production-risk review. Triggers: 'what could go wrong', 'find edge cases', 'attack this code', 'production risks', 'pre-PR review', 'adversarial review', 'regressions', 'race conditions'. Inside `/build`, runs at Phase 7 final pass."
+description: Use immediately after a build or refactor lands. MUST BE USED for pre-PR production-risk review. Use PROACTIVELY when the user asks what could go wrong, hunts edge cases, or wants an adversarial pass. Use when the user asks to find what could go wrong in production, attack the code adversarially, hunt edge cases, or do a pre-PR production-risk review. Triggers: 'what could go wrong', 'find edge cases', 'attack this code', 'production risks', 'pre-PR review', 'adversarial review', 'regressions', 'race conditions'. Inside `/build`, runs at Phase 7 final pass.
 tools: ["*"]
 model: claude-sonnet-4-6
 ---

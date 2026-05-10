@@ -1,6 +1,6 @@
 ---
 name: workflow-explorer
-description: Use proactively when a build needs more than two source-file reads, file discovery, code search, pattern mapping, or contract tracing before implementation. Return facts only and keep exploration out of the main session.
+description: MUST BE USED before workflow-implementer when the implementation surface is unclear, file/contract discovery is needed, or pattern tracing is required. Use PROACTIVELY when a build or investigation needs ≥2 file reads. Returns facts only; keeps exploration out of the orchestrator's context.
 mode: subagent
 model: haiku
 tools: Read, Grep, Glob, Bash

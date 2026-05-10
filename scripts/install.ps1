@@ -105,7 +105,14 @@ function Render-Template {
         $content = $content.Replace($k, $Vars[$k])
     }
     New-Item -ItemType Directory -Path (Split-Path -Parent $Destination) -Force | Out-Null
-    Set-Content -Path $Destination -Value $content -Encoding utf8
+    # Strip BOM from source if present, write UTF-8 NO BOM. Set-Content -Encoding utf8
+    # in Windows PowerShell 5.1 writes WITH BOM; Claude Code's YAML frontmatter parser
+    # silently rejects agent / skill files that start with BOM. Symptom: the agent
+    # appears installed on disk but does NOT show up in `claude -p "list agents"`.
+    if ($content.Length -gt 0 -and [int][char]$content[0] -eq 0xFEFF) {
+        $content = $content.Substring(1)
+    }
+    [System.IO.File]::WriteAllText($Destination, $content, (New-Object System.Text.UTF8Encoding($false)))
 }
 
 function Get-WorkflowAdapterTemplateVars {
@@ -829,10 +836,54 @@ $endMarker
         if ($count -gt 0) { Write-Host "  $Label hooks: $count installed at $DestDir" }
     }
 
+    # OpenCode's frontmatter parser rejects Claude-format `tools: A, B, C` as
+    # "expected object". OpenCode wants either no `tools:` field or its own
+    # mapping format. This function reads each agent file, strips Claude-only
+    # frontmatter keys (tools, permissionMode, maxTurns) before writing to the
+    # OpenCode destination. Keeps name, description, mode, model.
+    function Install-OpenCodeAgentsFromSource {
+        param(
+            [string]$SourceDir,
+            [string]$DestDir,
+            [string]$Label
+        )
+        if (-not (Test-Path $SourceDir)) { return }
+        New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+        $count = 0
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
+            $raw = Get-Content $f.FullName -Raw -Encoding UTF8
+            # Strip BOM if present
+            if ($raw.Length -gt 0 -and [int][char]$raw[0] -eq 0xFEFF) { $raw = $raw.Substring(1) }
+            if ($raw -notmatch '(?ms)^---\r?\n(.*?)\r?\n---\r?\n(.*)$') { continue }
+            $fm = $matches[1]
+            $body = $matches[2]
+            # Drop Claude-only keys that OpenCode rejects (tools list,
+            # permissionMode, maxTurns, disallowedTools).
+            $newFmLines = @()
+            foreach ($line in ($fm -split "`r?`n")) {
+                if ($line -match '^\s*(tools|permissionMode|maxTurns|disallowedTools)\s*:') { continue }
+                $newFmLines += $line
+            }
+            $newFm = ($newFmLines -join "`r`n").TrimEnd()
+            $out = "---`r`n$newFm`r`n---`r`n$body"
+            $dst = Join-Path $DestDir $f.Name
+            [System.IO.File]::WriteAllText($dst, $out, $utf8NoBom)
+            $count++
+        }
+        if ($count -gt 0) { Write-Host "  $Label agents: $count installed at $DestDir (OpenCode-sanitized: tools/permissionMode/maxTurns stripped)" }
+    }
+
     # Convert Claude/OpenCode-format agent .md files into Copilot's `.agent.md`
     # format with minimal documented frontmatter (name + description). Strips
     # Claude-only keys (model: sonnet, permissionMode, maxTurns, tools, mode)
     # which are not in Copilot's documented schema.
+    #
+    # Empirically observed: Copilot CLI's frontmatter parser silently rejects
+    # agent files whose description contains Unicode chars, single-quoted
+    # YAML lists in unquoted values, or descriptions over ~300 chars. This
+    # function sanitises descriptions to the documented-supported subset:
+    # ASCII-only, double-quoted, max 300 chars.
     function Install-CopilotAgentsFromClaudeSource {
         param(
             [string]$SourceDir,
@@ -854,12 +905,43 @@ $endMarker
                 elseif ($line -match '^\s*description\s*:\s*(.+?)\s*$') { $desc = $matches[1].Trim('"').Trim("'") }
             }
             if (-not $name) { $name = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) }
+
+            # Sanitise description for Copilot's strict parser:
+            #   1. Replace common Unicode (em-dash, en-dash, smart quotes, arrows) with ASCII.
+            #   2. Strip any remaining non-ASCII chars.
+            #   3. Cap at 300 chars (observed Copilot parser limit).
+            #   4. Remove embedded double quotes (would break the YAML wrapping).
+            if ($desc) {
+                $desc = $desc -replace [char]0x2014, '-'   # em-dash
+                $desc = $desc -replace [char]0x2013, '-'   # en-dash
+                $desc = $desc -replace [char]0x2192, '->'  # right arrow
+                $desc = $desc -replace [char]0x2190, '<-'  # left arrow
+                $desc = $desc -replace [char]0x2018, "'"   # left single quote
+                $desc = $desc -replace [char]0x2019, "'"   # right single quote
+                $desc = $desc -replace [char]0x201C, '"'   # left double quote
+                $desc = $desc -replace [char]0x201D, '"'   # right double quote
+                $desc = $desc -replace [char]0x2026, '...' # horizontal ellipsis
+                $desc = $desc -replace '[^\x20-\x7E]', ''  # strip remaining non-ASCII
+                $desc = $desc -replace '"', "'"            # internal double quotes -> single
+                if ($desc.Length -gt 300) { $desc = $desc.Substring(0, 297) + '...' }
+            }
+
             $newFm = "---`r`nname: $name"
-            if ($desc) { $newFm += "`r`ndescription: $desc" }
+            if ($desc) { $newFm += "`r`ndescription: ""$desc""" }
             $newFm += "`r`n---`r`n"
-            $outName = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) + '.agent.md'
+            # Compute output filename. If source already ends in `.agent.md` (i.e., it's
+            # already a Copilot-format file from bundle/adapters/copilot-cli/.github/agents/),
+            # preserve the name. Otherwise (Claude-source `.md`), append `.agent.md`.
+            $base = [System.IO.Path]::GetFileNameWithoutExtension($f.Name)
+            if ($base.EndsWith('.agent')) {
+                $outName = $f.Name  # already has .agent.md
+            } else {
+                $outName = $base + '.agent.md'
+            }
             $dst = Join-Path $DestDir $outName
-            Set-Content -Path $dst -Value ($newFm + $body) -Encoding UTF8
+            # UTF-8 NO BOM. Copilot CLI's agent loader rejects files starting with BOM
+            # the same way Claude Code does. Set-Content -Encoding UTF8 in PS 5.1 adds BOM.
+            [System.IO.File]::WriteAllText($dst, ($newFm + $body), (New-Object System.Text.UTF8Encoding($false)))
             $count++
         }
         if ($count -gt 0) { Write-Host "  $Label agents: $count installed at $DestDir (.agent.md format, minimal frontmatter)" }
@@ -1158,14 +1240,22 @@ $endMarker
                     -DestRoot   (Join-Path $HomeRoot ".config/opencode/skills") `
                     -Label      "OpenCode"
 
-                # Host-specific reviewer / expert agents. Source moved from
-                # opencode/.config/opencode/agents/ to opencode/.opencode/agents/
-                # in P6 (the source tree now matches OpenCode's project-scope
-                # naming convention).
-                Install-DeviceWideAgents `
+                # Host-specific reviewer / expert agents. Use the OpenCode-specific
+                # sanitizer so Claude-format `tools:` / `permissionMode:` / `maxTurns:`
+                # frontmatter keys (which OpenCode's loader rejects with "expected
+                # object") get stripped before writing.
+                Install-OpenCodeAgentsFromSource `
                     -SourceDir (Join-Path $AdaptersRoot "opencode/.opencode/agents") `
                     -DestDir   (Join-Path $HomeRoot ".config/opencode/agents") `
                     -Label     "OpenCode"
+
+                # Workflow-agents from _shared/ also need OpenCode sanitization.
+                # Install-WorkflowAdapterAssets just rendered them via Render-Template
+                # which preserved Claude format; rewrite them through the sanitizer.
+                Install-OpenCodeAgentsFromSource `
+                    -SourceDir (Join-Path $AdaptersRoot "_shared/workflow-agents") `
+                    -DestDir   (Join-Path $HomeRoot ".config/opencode/agents") `
+                    -Label     "OpenCode workflow"
 
                 # Lifecycle plugin
                 $pluginSrc = Join-Path $AdaptersRoot "opencode/.opencode/plugins/agentic-kit.ts"
@@ -1211,6 +1301,25 @@ $endMarker
                     -SourceDir (Join-Path $AdaptersRoot "copilot-cli/.github/agents") `
                     -DestDir   (Join-Path $HomeRoot ".copilot/agents") `
                     -Label     "GitHub Copilot"
+
+                # Copilot CLI is command-based, not in-session orchestration.
+                # Multi-step workflows are shell scripts that chain `copilot --agent X -p` calls.
+                # Per https://docs.github.com/en/copilot/how-tos/copilot-cli/automate-copilot-cli/automate-with-actions
+                # this is the canonical pattern.
+                $copilotBinSrc = Join-Path $AdaptersRoot "copilot-cli/bin"
+                $copilotBinDst = Join-Path $AgentsRoot "bin/copilot"
+                if (Test-Path $copilotBinSrc) {
+                    New-Item -ItemType Directory -Path $copilotBinDst -Force | Out-Null
+                    $shCount = 0
+                    foreach ($s in (Get-ChildItem -Path $copilotBinSrc -Filter "*.sh" -File)) {
+                        Copy-Item -Force $s.FullName (Join-Path $copilotBinDst $s.Name)
+                        $shCount++
+                    }
+                    if ($shCount -gt 0) {
+                        Write-Host "  GitHub Copilot workflow scripts: $shCount installed at $copilotBinDst"
+                        Write-Host "    Add this dir to PATH or invoke as: bash ~/.agents/bin/copilot/kit-build.sh '<request>'"
+                    }
+                }
 
                 Write-Host "  GitHub Copilot CLI hooks are repo-scope only (.github/hooks/*.json)."
                 Write-Host "  Per-repo install: pwsh ./install.ps1 -TargetRepo <path> -InstallAdapter copilot"

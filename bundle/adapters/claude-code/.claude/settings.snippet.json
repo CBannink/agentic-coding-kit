@@ -1,5 +1,5 @@
 {
-  "_comment": "Hook config for the Caspar Bannink Agentic Coding Kit. Includes both lifecycle hooks (SessionStart/End/SubagentStop/PreCompact) AND PreToolUse/PostToolUse enforcement hooks (bash dispatcher, read delegation gate, write gateguard, task orchestrator gate, verify-mark). Pattern from affaan-m/everything-claude-code + disler/claude-code-hooks-mastery -- protocol-layer enforcement that fires deterministically. Universal opt-out via KIT_DISABLED_HOOKS env var (comma-separated rule names). All hooks route through ~/.agents/tools/_run-ps.sh which picks pwsh or powershell.",
+  "_comment": "Hook config for the Caspar Bannink Agentic Coding Kit. Lifecycle hooks (SessionStart/End/SubagentStop/PreCompact) plus the Bash dispatcher (catastrophic-rm guard + verification-evidence gate on git commit) and the PostToolUse verify-auto-mark for test commands. PreToolUse blocking hooks for Read/Write|Edit/Task were REMOVED -- per Anthropic issues #24327, #13744, #26923, PreToolUse exit-2 is broken in Claude Code 2026: the model treats hook denials as user denials and stops/defers rather than pivoting. The wiki-existence and read-delegation-budget rules now run as SessionStart soft-warnings via session-start-hook.ps1; the task-orchestrator-gate logic is now opportunistic (the orchestrator subagents call state-gate.ps1 themselves). Opt-out: KIT_DISABLED_HOOKS env var, comma-separated rule names. All hooks route through ~/.agents/tools/_run-ps.sh.",
   "hooks": {
     "SessionStart": [
       {
@@ -56,33 +56,6 @@
           {
             "type": "command",
             "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/hooks/pretool-bash-dispatcher.ps1"
-          }
-        ]
-      },
-      {
-        "matcher": "Read",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/hooks/pretool-read-delegation-gate.ps1"
-          }
-        ]
-      },
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/hooks/pretool-write-gateguard.ps1"
-          }
-        ]
-      },
-      {
-        "matcher": "Task",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/hooks/pretool-task-orchestrator-gate.ps1"
           }
         ]
       }

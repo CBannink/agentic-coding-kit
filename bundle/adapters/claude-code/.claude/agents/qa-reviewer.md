@@ -1,6 +1,6 @@
 ---
 name: qa-reviewer
-description: "Use when the user asks to QA a UI change, test a user flow, review UI behavior, or run regression checks on UI. Triggers: 'QA this UI', 'test the user flow', 'review UI behavior', 'regression check', 'browser QA', 'does the flow work', 'check empty states', 'user-visible bugs', 'forms work'. Validates user-visible outcomes via Playwright when available."
+description: Use immediately after UI or behavior changes. MUST BE USED for user-flow QA and regression review on UI. Use PROACTIVELY when the user asks to QA, test the flow, or check regressions. Use when the user asks to QA a UI change, test a user flow, review UI behavior, or run regression checks on UI. Triggers: 'QA this UI', 'test the user flow', 'review UI behavior', 'regression check', 'browser QA', 'does the flow work', 'check empty states', 'user-visible bugs', 'forms work'. Validates user-visible outcomes via Playwright when available.
 tools: ["*"]
 model: claude-sonnet-4-6
 ---

@@ -1,6 +1,6 @@
 ---
 name: ux-driver
-description: "Use when the user asks to review information architecture, judge scannability, check cognitive load, audit a11y structure, or ask 'is this screen structurally right'. Triggers: 'information architecture', 'is this scannable', 'cognitive load', 'a11y structure', 'user flow', 'hierarchy', 'screen structure', 'IA review', 'UX critique'. Runs before ui-driver; may block visual polish with structure_ok=false."
+description: Use immediately before any visual polish work. MUST BE USED for screen structure / IA / hierarchy / cognitive-load / a11y review. May halt the loop if the screen is structurally wrong. Use when the user asks to review information architecture, judge scannability, check cognitive load, audit a11y structure, or ask 'is this screen structurally right'. Triggers: 'information architecture', 'is this scannable', 'cognitive load', 'a11y structure', 'user flow', 'hierarchy', 'screen structure', 'IA review', 'UX critique'. Runs before ui-driver; may block visual polish with structure_ok=false.
 tools: ["*"]
 model: claude-sonnet-4-6
 ---

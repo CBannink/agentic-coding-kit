@@ -1,6 +1,6 @@
 ---
 name: workflow-implementer
-description: Use proactively for any code change beyond a one-file mechanical fix, especially multi-file edits, novel logic, or changes that would otherwise keep coding inline in the main session.
+description: MUST BE USED for any code change beyond a single-line mechanical edit. Orchestrators MUST NOT make Edit or Write calls themselves -- they spawn this agent. Use PROACTIVELY for multi-file edits, novel logic, or any change that would otherwise keep coding inline.
 mode: subagent
 model: sonnet
 tools: Read, Grep, Glob, Bash, Edit, Write
