@@ -836,6 +836,44 @@ $endMarker
         if ($count -gt 0) { Write-Host "  $Label hooks: $count installed at $DestDir" }
     }
 
+    # OpenCode's frontmatter parser rejects Claude-format `tools: A, B, C` as
+    # "expected object". OpenCode wants either no `tools:` field or its own
+    # mapping format. This function reads each agent file, strips Claude-only
+    # frontmatter keys (tools, permissionMode, maxTurns) before writing to the
+    # OpenCode destination. Keeps name, description, mode, model.
+    function Install-OpenCodeAgentsFromSource {
+        param(
+            [string]$SourceDir,
+            [string]$DestDir,
+            [string]$Label
+        )
+        if (-not (Test-Path $SourceDir)) { return }
+        New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+        $count = 0
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
+            $raw = Get-Content $f.FullName -Raw -Encoding UTF8
+            # Strip BOM if present
+            if ($raw.Length -gt 0 -and [int][char]$raw[0] -eq 0xFEFF) { $raw = $raw.Substring(1) }
+            if ($raw -notmatch '(?ms)^---\r?\n(.*?)\r?\n---\r?\n(.*)$') { continue }
+            $fm = $matches[1]
+            $body = $matches[2]
+            # Drop Claude-only keys that OpenCode rejects (tools list,
+            # permissionMode, maxTurns, disallowedTools).
+            $newFmLines = @()
+            foreach ($line in ($fm -split "`r?`n")) {
+                if ($line -match '^\s*(tools|permissionMode|maxTurns|disallowedTools)\s*:') { continue }
+                $newFmLines += $line
+            }
+            $newFm = ($newFmLines -join "`r`n").TrimEnd()
+            $out = "---`r`n$newFm`r`n---`r`n$body"
+            $dst = Join-Path $DestDir $f.Name
+            [System.IO.File]::WriteAllText($dst, $out, $utf8NoBom)
+            $count++
+        }
+        if ($count -gt 0) { Write-Host "  $Label agents: $count installed at $DestDir (OpenCode-sanitized: tools/permissionMode/maxTurns stripped)" }
+    }
+
     # Convert Claude/OpenCode-format agent .md files into Copilot's `.agent.md`
     # format with minimal documented frontmatter (name + description). Strips
     # Claude-only keys (model: sonnet, permissionMode, maxTurns, tools, mode)
@@ -1202,14 +1240,22 @@ $endMarker
                     -DestRoot   (Join-Path $HomeRoot ".config/opencode/skills") `
                     -Label      "OpenCode"
 
-                # Host-specific reviewer / expert agents. Source moved from
-                # opencode/.config/opencode/agents/ to opencode/.opencode/agents/
-                # in P6 (the source tree now matches OpenCode's project-scope
-                # naming convention).
-                Install-DeviceWideAgents `
+                # Host-specific reviewer / expert agents. Use the OpenCode-specific
+                # sanitizer so Claude-format `tools:` / `permissionMode:` / `maxTurns:`
+                # frontmatter keys (which OpenCode's loader rejects with "expected
+                # object") get stripped before writing.
+                Install-OpenCodeAgentsFromSource `
                     -SourceDir (Join-Path $AdaptersRoot "opencode/.opencode/agents") `
                     -DestDir   (Join-Path $HomeRoot ".config/opencode/agents") `
                     -Label     "OpenCode"
+
+                # Workflow-agents from _shared/ also need OpenCode sanitization.
+                # Install-WorkflowAdapterAssets just rendered them via Render-Template
+                # which preserved Claude format; rewrite them through the sanitizer.
+                Install-OpenCodeAgentsFromSource `
+                    -SourceDir (Join-Path $AdaptersRoot "_shared/workflow-agents") `
+                    -DestDir   (Join-Path $HomeRoot ".config/opencode/agents") `
+                    -Label     "OpenCode workflow"
 
                 # Lifecycle plugin
                 $pluginSrc = Join-Path $AdaptersRoot "opencode/.opencode/plugins/agentic-kit.ts"
