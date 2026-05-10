@@ -856,6 +856,23 @@ if (Test-Path $autoApply) {
     }
 }
 
+# Phase 2d: weekly maintainer-facing digest. Self-rate-limits to once per
+# IntervalDays (default 7); silent otherwise. Surfaces per-emitter scoring,
+# auto-apply trends, and recommended /reflect actions so manual review
+# actually happens instead of being theoretical.
+$digestTool = Join-Path $TOOLS "kit-health-digest.ps1"
+if (Test-Path $digestTool) {
+    $digestRaw = & $script:AgentsShell -NoProfile -File $digestTool 2>$null
+    if ($digestRaw -and (($digestRaw -join "`n").Trim())) {
+        Write-Host ""
+        Write-Host "${BOLD}${CYAN}+----------------------------------------------------------+${RESET}"
+        Write-Host "${BOLD}${CYAN}|  KIT HEALTH DIGEST (weekly cadence)                       |${RESET}"
+        Write-Host "${BOLD}${CYAN}+----------------------------------------------------------+${RESET}"
+        Write-Host ($digestRaw -join "`n")
+        Write-Host ""
+    }
+}
+
 # Phase 3: query the gate. After consolidate + compress, the count reflects
 # only entries that genuinely need judgment. If still >= mandatory threshold,
 # block ship in NonInteractive mode unless -AutoApprove was explicitly set.
