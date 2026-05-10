@@ -840,6 +840,12 @@ $endMarker
     # format with minimal documented frontmatter (name + description). Strips
     # Claude-only keys (model: sonnet, permissionMode, maxTurns, tools, mode)
     # which are not in Copilot's documented schema.
+    #
+    # Empirically observed: Copilot CLI's frontmatter parser silently rejects
+    # agent files whose description contains Unicode chars, single-quoted
+    # YAML lists in unquoted values, or descriptions over ~300 chars. This
+    # function sanitises descriptions to the documented-supported subset:
+    # ASCII-only, double-quoted, max 300 chars.
     function Install-CopilotAgentsFromClaudeSource {
         param(
             [string]$SourceDir,
@@ -861,8 +867,29 @@ $endMarker
                 elseif ($line -match '^\s*description\s*:\s*(.+?)\s*$') { $desc = $matches[1].Trim('"').Trim("'") }
             }
             if (-not $name) { $name = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) }
+
+            # Sanitise description for Copilot's strict parser:
+            #   1. Replace common Unicode (em-dash, en-dash, smart quotes, arrows) with ASCII.
+            #   2. Strip any remaining non-ASCII chars.
+            #   3. Cap at 300 chars (observed Copilot parser limit).
+            #   4. Remove embedded double quotes (would break the YAML wrapping).
+            if ($desc) {
+                $desc = $desc -replace [char]0x2014, '-'   # em-dash
+                $desc = $desc -replace [char]0x2013, '-'   # en-dash
+                $desc = $desc -replace [char]0x2192, '->'  # right arrow
+                $desc = $desc -replace [char]0x2190, '<-'  # left arrow
+                $desc = $desc -replace [char]0x2018, "'"   # left single quote
+                $desc = $desc -replace [char]0x2019, "'"   # right single quote
+                $desc = $desc -replace [char]0x201C, '"'   # left double quote
+                $desc = $desc -replace [char]0x201D, '"'   # right double quote
+                $desc = $desc -replace [char]0x2026, '...' # horizontal ellipsis
+                $desc = $desc -replace '[^\x20-\x7E]', ''  # strip remaining non-ASCII
+                $desc = $desc -replace '"', "'"            # internal double quotes -> single
+                if ($desc.Length -gt 300) { $desc = $desc.Substring(0, 297) + '...' }
+            }
+
             $newFm = "---`r`nname: $name"
-            if ($desc) { $newFm += "`r`ndescription: $desc" }
+            if ($desc) { $newFm += "`r`ndescription: ""$desc""" }
             $newFm += "`r`n---`r`n"
             # Compute output filename. If source already ends in `.agent.md` (i.e., it's
             # already a Copilot-format file from bundle/adapters/copilot-cli/.github/agents/),
@@ -1228,6 +1255,25 @@ $endMarker
                     -SourceDir (Join-Path $AdaptersRoot "copilot-cli/.github/agents") `
                     -DestDir   (Join-Path $HomeRoot ".copilot/agents") `
                     -Label     "GitHub Copilot"
+
+                # Copilot CLI is command-based, not in-session orchestration.
+                # Multi-step workflows are shell scripts that chain `copilot --agent X -p` calls.
+                # Per https://docs.github.com/en/copilot/how-tos/copilot-cli/automate-copilot-cli/automate-with-actions
+                # this is the canonical pattern.
+                $copilotBinSrc = Join-Path $AdaptersRoot "copilot-cli/bin"
+                $copilotBinDst = Join-Path $AgentsRoot "bin/copilot"
+                if (Test-Path $copilotBinSrc) {
+                    New-Item -ItemType Directory -Path $copilotBinDst -Force | Out-Null
+                    $shCount = 0
+                    foreach ($s in (Get-ChildItem -Path $copilotBinSrc -Filter "*.sh" -File)) {
+                        Copy-Item -Force $s.FullName (Join-Path $copilotBinDst $s.Name)
+                        $shCount++
+                    }
+                    if ($shCount -gt 0) {
+                        Write-Host "  GitHub Copilot workflow scripts: $shCount installed at $copilotBinDst"
+                        Write-Host "    Add this dir to PATH or invoke as: bash ~/.agents/bin/copilot/kit-build.sh '<request>'"
+                    }
+                }
 
                 Write-Host "  GitHub Copilot CLI hooks are repo-scope only (.github/hooks/*.json)."
                 Write-Host "  Per-repo install: pwsh ./install.ps1 -TargetRepo <path> -InstallAdapter copilot"

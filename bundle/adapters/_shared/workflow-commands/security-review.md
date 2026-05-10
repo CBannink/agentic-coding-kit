@@ -1,23 +1,51 @@
-﻿---
-description: User-typed entry point for security-review-orchestrator. Spawns the orchestrator subagent which runs the full phased pipeline.
+---
+description: User-typed /security-review entry point. Run the kit's phased pipeline for this workflow on __HOST_NAME__. Main session orchestrates; spawns workflow-explorer / workflow-implementer / specialist agents (code-quality-reviewer, security-reviewer, modularity-expert, final-verifier) via the Task tool per phase. Description-match also routes to the matching security-review-orchestrator subagent if loaded; both paths reach the same leaves.
 ---
 
 # /security-review
 
-You are running on __HOST_NAME__ via the kit's shared workflow-commands.
+You are the main Claude Code / OpenCode session. The user invoked /security-review because they want to security audit, pentest, vulnerability scan. You ARE the orchestrator — no wrapping subagent layer; you read this body and execute the phases yourself, using the **Task tool** to spawn leaf subagents (workflow-explorer, workflow-implementer, code-quality-reviewer, etc.) when phases call for it.
 
-This slash command is a thin entry point. The actual workflow lives in the
-`security-review-orchestrator` subagent at `__SKILL_ROOT__/../agents/security-review-orchestrator.md` (Claude Code) or
-the equivalent location for OpenCode / Copilot CLI.
+Adversarial security audit by attack class. You ARE the orchestrator.
 
-## Action
+## Authorization gate (READ FIRST)
 
-Spawn the `security-review-orchestrator` subagent via the Task tool with the user's request as
-the prompt. The orchestrator handles every phase (scope, exploration,
-implementation/review/verify, handoff). Do NOT inline the workflow here --
-that defeats the description-routing pattern that makes the kit work.
+Confirm with the user before proceeding:
+- Is this YOUR code / YOUR repo / part of an authorized pentest engagement?
+- If unclear, STOP and ask. Don't run security analysis on third-party code without explicit permission.
 
-The orchestrator's `description:` is sticky enough that on most user
-prompts auto-routing will fire it BEFORE this slash command even runs.
-This file exists so users who explicitly type `/security-review` reach the same
-endpoint.
+## Phase 1 — Scope
+
+- Whole repo? → swarm fan-out across attack classes.
+- Specific diff? → focused review of the diff.
+- Specific concern (e.g., "is the auth flow safe")? → single-class deep dive.
+
+## Phase 2 — Parallel attack-class fan-out
+
+Spawn in parallel via simultaneous Task calls (max ~6):
+- **Injection** — SQL, command, path traversal, template, NoSQL, prompt injection. Spawn `security-reviewer` scoped to injection.
+- **AuthN/AuthZ** — broken auth, missing checks, IDOR, privilege escalation.
+- **Secrets** — hardcoded keys, leaked tokens, weak crypto.
+- **Supply chain** — dependency vulnerabilities, lockfile drift, unverified install scripts.
+- **Business logic** — race conditions, TOCTOU, state machine bugs, missing rate limits.
+- **Data exposure** — PII in logs, missing encryption at rest, overpermissive responses.
+
+Each returns findings with file:line, severity (CRITICAL/HIGH/MEDIUM/LOW), and PoC OR "theoretical" tag.
+
+## Phase 3 — False-positive verification
+
+For every CRITICAL or HIGH finding: read cited file:line yourself, check for mitigations elsewhere (sanitizers, framework auto-escaping, auth middleware higher in stack). Downgrade verified-false to NIT or remove.
+
+## Phase 4 — Synthesis
+
+Return ONE consolidated security report:
+- CRITICAL: must-fix before merge/deploy.
+- HIGH: should-fix this sprint.
+- MEDIUM/LOW: backlog.
+- Each finding with file:line + concrete remediation.
+- Authorization-context disclaimer (this was a review of YOUR code per Phase 0).
+
+## What NOT to do
+
+- Do NOT fix vulnerabilities. /security-review is report-only.
+- Do NOT skip Phase 3 — security false-positives erode trust.
