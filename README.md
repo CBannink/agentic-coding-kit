@@ -284,19 +284,78 @@ The `-Upgrade` flag moves your existing `~/.agents/` to a timestamped backup bef
 
 ## Core operating model
 
-### Six workflow commands + two swarm-eligible + one setup command
+### Slash commands (workflows the user types)
 
 | Command | What it does | Swarm? |
 |---|---|---|
-| `/bootstrap-harness` | one-shot repo init: scaffold repo surfaces, run archaeology, then initialize `.kit` and `.wiki` | sequential with light parallel evidence-gathering |
+| `/bootstrap-harness` | **Goal-conditioned** repo init. Detects git workflow + architecture + PR conventions before scaffolding. Iterates until every required outcome exists. Writes `.kit/context/conventions.md` so other agents follow YOUR style. | sequential w/ light parallel evidence |
 | `/plan` | clarify scope, map files, trace blast radius, stop for approval | sequential |
-| `/build` | execute approved plan with freshness check + implement → review → verify gates | sequential (parallel-reviewers OK at FULL tier) |
-| `/review` | hierarchical: surface → interactions → synthesis → adversarial → false-positive verifier | sequential, optional `swarm-review` (parallel reviewers, sequential implementer) |
+| `/build` | implement → review → verify pipeline. Main session orchestrates; spawns workflow agents + specialists via Task tool per phase. | sequential (parallel-reviewers OK at FULL tier) |
+| `/review` | hierarchical: surface → interactions → synthesis → adversarial → false-positive verifier | sequential, optional `swarm-review` |
 | `/analyze` | multi-angle research/synthesis | sequential |
 | `/investigate` | hypothesis-driven root-cause debugging | sequential |
 | `/refactor` | principle-driven restructuring with consequence tracing | sequential |
 | `/redesign` | greenfield UI / multi-component visual rebuild | **swarm-eligible** — fan out one `design-driver` per screen |
 | `/security-review` | adversarial audit by attack class | **swarm-eligible** — fan out one agent per attack class |
+
+### Agent inventory (full kit, 17 agents per host)
+
+These are the leaf agents the slash commands spawn via the Task tool. Each is a separate sub-context with its own description-matched routing trigger.
+
+#### Workflow agents (5) — generic transport layer
+
+| Agent | Purpose |
+|---|---|
+| `workflow-explorer` | Cheap exploration, file discovery, code search, contract tracing |
+| `workflow-implementer` | Any code change beyond a one-line mechanical edit |
+| `workflow-reviewer` | Scoped diff review without polluting the orchestrator's context |
+| `workflow-skeptic` | Pressure-test plans / diffs for hidden regressions |
+| `workflow-ui-qa` | Task-flow / defaults-parity / artifact-safety QA on UI |
+
+#### Specialist agents (10) — domain-expert deep dives
+
+| Agent | Focus |
+|---|---|
+| `code-quality-reviewer` | Correctness, tests, observability, conventions |
+| `security-reviewer` | Auth, injection, secrets, OWASP Top 10 |
+| `modularity-expert` | Architecture, DI, abstractions, file placement |
+| `adversarial-reviewer` | Production failure modes, edge cases, race conditions |
+| `final-verifier` | Iron Law gate: fresh test/build/lint exit-0 evidence |
+| `qa-reviewer` | User-flow / regression QA on UI changes |
+| `spec-reviewer` | Verify implementation matches the agreed plan, no scope drift |
+| `playwright-navigator` | Discover Playwright route + auth + selectors for new screens |
+| `ux-driver` | UI structural critique — info architecture, hierarchy, density, a11y |
+| `ui-driver` | Visual polish — typography, color, spacing, AI-slop detection |
+
+#### Orchestrators (2) — special-purpose composition
+
+| Agent | Purpose |
+|---|---|
+| `goal-orchestrator` | **Autonomous goal-achievement loop.** Classifies goal type (CODE / DESIGN / INVESTIGATION / REFACTOR / MULTI), picks the right toolchain, runs a convergence loop (cap 6 iterations) with mechanical stuck detection, rollback gate, empty-diff watchdog. Includes a full DESIGN pipeline (aesthetic-director → playwright-navigator → playwright-runner → ux-driver → ui-driver → visual-diff). |
+| `pr-reviewer` | **NEW.** Holistic human-style PR review. Reads PR title + description + commits + diff + CI + repo conventions; outputs a PR-comment-style review with `APPROVE` / `REQUEST_CHANGES` / `COMMENT` verdict. Distinct from `code-quality-reviewer` (lint-class diff review) — `pr-reviewer` is the verdict-issuing senior-engineer pass. |
+
+### Highlight: `pr-reviewer` (NEW in 2026-05)
+
+A dedicated PR review agent that mimics what real senior engineers actually check:
+
+```
+$ # in any Claude Code session inside a repo with an open PR
+> Use the pr-reviewer agent to review this PR.
+```
+
+The agent will:
+
+1. **Read holistically** — title, description, commits, full diff, CI status, `.kit/context/conventions.md` (the conventions file the bootstrap detected for your repo, so the review is style-aware not generic).
+2. **Scope check first** — if the PR description doesn't match the diff, it surfaces that before line-by-line review (a PR doing two things is two PRs).
+3. **Walk the 10-dimension human-reviewer checklist** — correctness, tests, scope-match, architecture/convention adherence, security (when surface fits), performance (when surface fits), backwards compat, error handling/observability, style/naming, documentation, PR hygiene, risk profile.
+4. **Synthesize** as a Markdown PR comment: Overall verdict, Blocking, Non-blocking, Nits, Praise, Suggested follow-ups.
+
+First line is machine-parseable for CI integration:
+```
+PR_REVIEW: APPROVE | files: 7 | additions: +312 | deletions: -45
+```
+
+Sources cited in the agent body: Google's [Code Review Developer Guide](https://google.github.io/eng-practices/review/reviewer/), [Conventional Comments](https://conventionalcomments.org/) for the BLOCKING/NON-BLOCKING/NIT taxonomy, plus Anthropic's engineering review patterns.
 
 ### Autonomy: 3-axis classification
 
@@ -544,6 +603,51 @@ This kit is **pre-v1**. What that means in practice:
 - **CI is included but not yet exercised by external contributions.** `.github/workflows/validate.yml` runs validate-bundle + Pester on push and PR.
 
 The kit is **opinionated by design**: hardcoded layout, explicit session artifacts, explicit write-routing, explicit review/build/plan lanes. It is not a zero-assumption framework. It is a disciplined operating system for serious coding work, and it asks you to follow its conventions in exchange for the loop closing automatically.
+
+## Roadmap — future agents + tools
+
+Concrete additions that fit the kit's leaf-agent + slash-command + shell-script architecture. Pick what you need; PRs welcome.
+
+### High-value agents
+
+| Agent | What it would do | Why |
+|---|---|---|
+| `release-manager` | Bumps `VERSION`, updates `CHANGELOG.md`, generates release notes from commits since last tag, opens release PR. | Every shipping team needs this; 30-min task humans repeat every release. |
+| `migration-writer` | Writes DB schema migrations + rollback scripts. Reads `.kit/context/conventions.md` to use the right tool (Alembic / Prisma / Drizzle / Knex / etc.). | Migrations are the highest-risk part of any deploy; SOTA agents currently skip rollback scripts. |
+| `pr-description-writer` | Pairs with `pr-reviewer`. Given a diff, writes a clear PR description (what + why + how-to-test). | Closes the loop: writer composes, reviewer approves. |
+| `dependency-updater` | Surgical npm/pip/cargo lockfile updates with breaking-change scan. Reads CHANGELOG of each upgraded dep. | More careful than Dependabot, less noisy. |
+| `incident-responder` | Production-incident analog of `/investigate`. Given a stack trace + recent deploy diff, hypothesis-driven debugging with on-call recommendations. | The Ops side of the kit. |
+| `dead-code-finder` | Scans for unused exports, unreachable branches, redundant imports. Conservative — surfaces, doesn't auto-delete. | Quarterly cleanup; AI assistants are great at this. |
+| `i18n-extractor` | Finds hardcoded user-visible strings, extracts to translation files. Conventions-aware (next-intl / react-intl / fluent / formatjs). | Common refactor, repeated everywhere. |
+| `a11y-auditor` | Dedicated accessibility pass — keyboard nav, ARIA, screen-reader, contrast. Distinct from `ux-driver` (structural) and `ui-driver` (visual). | Accessibility is its own discipline; one focused agent beats generalist coverage. |
+| `observability-auditor` | Finds missing logs, missing trace propagation, swallowed errors, key user-action paths without instrumentation. | Production-readiness gap that bites later. |
+| `cost-tracker` | For AI/cloud apps: identifies expensive token / API calls, suggests caching, surfaces likely cost regressions in a diff. | LLM apps in particular need this. |
+
+### High-value PowerShell tools
+
+| Tool | What it would do |
+|---|---|
+| `pr-stats.ps1` | Extract PR metrics from local git history (avg size, time to merge, reviewer load). Feeds the conventions detector. |
+| `model-router.ps1` | Pick the right model (haiku / sonnet / opus) per task type based on heuristics. Used inside agent bodies to right-size cost. |
+| `cost-estimator.ps1` | Pre-flight estimate of token cost for a planned task. Used in `goal-orchestrator`'s circuit breaker. |
+| `lint-aggregator.ps1` | Run ALL configured linters (ts/eslint/ruff/clippy/etc.) and combine output into one greppable format. |
+| `dep-graph.ps1` | Generate a dependency graph for the repo (used by `consequence` agent to trace blast radius mechanically). |
+| `secret-scanner.ps1` | Scan for hardcoded secrets / keys / tokens. Faster than spawning the full security-reviewer agent. |
+| `changelog-extract.ps1` | Given commits since last tag, generate a user-visible CHANGELOG entry. Pairs with `release-manager`. |
+
+### Architectural improvements (kit-internal)
+
+- **Goal-conditioned `/build` and `/review`** — extend the convergence-loop pattern beyond `goal-orchestrator` to other workflows so they self-iterate when verification fails.
+- **Shared specialist-agent source** — currently 10 specialist agents are duplicated across `claude-code/.claude/agents/` and `opencode/.opencode/agents/`. Move to `_shared/specialist-agents/` with per-host frontmatter sanitization at install time. Same pattern as `_shared/workflow-agents/` already does.
+- **OpenCode plugin: native subagent spawn instrumentation** — currently the plugin records lifecycle events but doesn't capture the tree of subagent spawns the way Claude Code's settings.json hooks do.
+- **Copilot CLI workflow scripts: native version of writeback gate** — shell scripts at `~/.agents/bin/copilot/` should run `verify-writeback.ps1` at the end automatically (currently the workflow body's mechanical gate is Claude/OpenCode only).
+- **MCP-server orchestration** (ruflo / claude-flow style) — the kit currently relies on description-matching auto-routing + slash commands. An MCP server providing `kit_build`, `kit_review` tools would give deterministic invocation across hosts that support MCP — at the cost of a server to maintain.
+
+### Things explicitly NOT in the roadmap
+
+- A "code generator agent" that writes whole modules from scratch. The kit's bet is on careful incremental change with verification gates. Greenfield generation belongs to `/redesign` (UI) and `workflow-implementer` invoked by `/build` (logic). One-shot module generation is shipped by other tools (Cursor's whole-file edits, GitHub Copilot Workspace).
+- A "model router" subagent. Model selection is a tool concern, not an agent concern. Belongs in `model-router.ps1` (above).
+- Replacing GitHub Copilot's built-in slash commands. Per the [Tier-E research](https://github.com/CBannink/agentic-coding-kit/pull/3), Copilot CLI's `/build`, `/review`, `/research`, `/fleet`, `/delegate` are owned by Copilot; user-defined slash commands aren't supported (issue #1113). The kit composes via shell scripts at `~/.agents/bin/copilot/` instead.
 
 ## License
 
