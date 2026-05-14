@@ -1,0 +1,63 @@
+name: validate
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  validate-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pwsh
+        shell: bash
+        run: |
+          if ! command -v pwsh &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y wget apt-transport-https
+            source /etc/os-release
+            wget -q https://packages.microsoft.com/config/ubuntu/$VERSION_ID/packages-microsoft-prod.deb
+            sudo dpkg -i packages-microsoft-prod.deb
+            sudo apt-get update
+            sudo apt-get install -y powershell
+          fi
+          pwsh --version
+
+      - name: Run validate-bundle.ps1
+        shell: pwsh
+        run: |
+          ./scripts/validate-bundle.ps1
+          if ($LASTEXITCODE -ne 0) { throw "validate-bundle failed" }
+
+  pester-tests:
+    runs-on: ubuntu-latest
+    needs: validate-bundle
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pwsh
+        shell: bash
+        run: |
+          if ! command -v pwsh &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y wget apt-transport-https
+            source /etc/os-release
+            wget -q https://packages.microsoft.com/config/ubuntu/$VERSION_ID/packages-microsoft-prod.deb
+            sudo dpkg -i packages-microsoft-prod.deb
+            sudo apt-get update
+            sudo apt-get install -y powershell
+          fi
+
+      - name: Install Pester 5
+        shell: pwsh
+        run: Install-Module Pester -MinimumVersion 5.0.0 -Scope CurrentUser -Force -SkipPublisherCheck
+
+      - name: Run Pester suite
+        shell: pwsh
+        run: |
+          $result = Invoke-Pester ./tests/Pester/ -PassThru
+          if ($result.FailedCount -gt 0) { throw "$($result.FailedCount) test(s) failed" }

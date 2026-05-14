@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "powershell": "pwsh -NoProfile -File \"$HOME/.agents/tools/state-init.ps1\"",
+        "bash": "pwsh -NoProfile -File \"$HOME/.agents/tools/state-init.ps1\" || powershell -NoProfile -File \"$HOME/.agents/tools/state-init.ps1\"",
+        "timeoutSec": 30
+      }
+    ]
+  }
+}

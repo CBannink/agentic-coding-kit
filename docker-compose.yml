@@ -1,0 +1,42 @@
+# docker-compose.yml -- one-command run of the kit container with API keys + workspace mount.
+#
+# Usage:
+#   docker compose run --rm kit                 # interactive shell with kit pre-installed
+#   docker compose run --rm kit opencode        # straight into OpenCode REPL
+#   docker compose run --rm kit pwsh ~/.agents/tools/doctor.ps1
+#
+# Provide API keys via your shell env or a .env file next to this compose file:
+#   KIMI_API_KEY=...
+#   OPENROUTER_API_KEY=...
+#   ANTHROPIC_API_KEY=...
+#   OPENAI_API_KEY=...
+
+services:
+  kit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agentic-kit:latest
+    stdin_open: true
+    tty: true
+    volumes:
+      # Mount your current working directory as /workspace
+      - ./:/workspace
+      # Persist OpenCode auth + session state across container runs
+      - kit-opencode:/root/.config/opencode
+      - kit-session:/root/.agents/session-state
+      - kit-proposals:/root/.agents/proposals
+    environment:
+      # Pass through any provider keys you have. Empty = unused.
+      KIMI_API_KEY: ${KIMI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      MOONSHOT_API_KEY: ${MOONSHOT_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+    working_dir: /workspace
+
+volumes:
+  kit-opencode:
+  kit-session:
+  kit-proposals:

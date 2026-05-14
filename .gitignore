@@ -1,0 +1,20 @@
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
+.idea/
+.vscode/
+
+# Local-only inspiration cache (populated by bulk-fetch-inspiration.ps1).
+# Screenshots of public design system pages for personal reference.
+# Never redistributed, never bundled.
+inspiration/
+**/inspiration/
+.kit/session-state/
+**/.kit/session-state/
+
+# Test artifacts
+.pytest_cache/
+.deepeval/
+testResults.xml
+__pycache__/

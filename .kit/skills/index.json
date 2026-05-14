@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "purpose": "Machine-readable routing index for repo-local skills. Generated and refreshed by the derive-repo-skills workflow. Consumers (analyze/build/review SKILL.md) call validate-repo-skills-index.ps1 first; do not consume this file directly without validation.",
+  "generated_at": "",
+  "generated_by": "stub — no derive-repo-skills run yet",
+  "trust_level": "stub",
+  "repo_local_skills": [],
+  "loadable_skill_paths": [],
+  "scope": {
+    "covered_paths": [],
+    "excluded_paths": []
+  },
+  "freshness_signals": {
+    "last_diff_sha": "",
+    "last_walked_paths": []
+  },
+  "recommended_action": "run_derive_repo_skills"
+}

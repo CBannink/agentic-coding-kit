@@ -1,0 +1,75 @@
+{
+  "_comment": "Hook config for the Caspar Bannink Agentic Coding Kit. Lifecycle hooks (SessionStart/End/SubagentStop/PreCompact) plus the Bash dispatcher (catastrophic-rm guard + verification-evidence gate on git commit) and the PostToolUse verify-auto-mark for test commands. PreToolUse blocking hooks for Read/Write|Edit/Task were REMOVED -- per Anthropic issues #24327, #13744, #26923, PreToolUse exit-2 is broken in Claude Code 2026: the model treats hook denials as user denials and stops/defers rather than pivoting. The wiki-existence and read-delegation-budget rules now run as SessionStart soft-warnings via session-start-hook.ps1; the task-orchestrator-gate logic is now opportunistic (the orchestrator subagents call state-gate.ps1 themselves). Opt-out: KIT_DISABLED_HOOKS env var, comma-separated rule names. All hooks route through ~/.agents/tools/_run-ps.sh.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/session-start-hook.ps1 -SessionId \"${CLAUDE_SESSION_ID}\" -Mode \"${CLAUDE_MODE:-build}\" -RepoRoot \"${CLAUDE_PROJECT_DIR}\""
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/session-end-hook.ps1 -SessionId \"${CLAUDE_SESSION_ID}\" -Outcome \"session-end\""
+          },
+          {
+            "type": "command",
+            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/post-session.ps1 -SessionId \"${CLAUDE_SESSION_ID}\" -NonInteractive -AutoApprove"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/subagent-stop-hook.ps1 -SessionId \"${CLAUDE_SESSION_ID}\" -AgentName \"${CLAUDE_SUBAGENT_NAME}\" -Status \"${CLAUDE_SUBAGENT_STATUS:-completed}\""
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/precompact-hook.ps1 -SessionId \"${CLAUDE_SESSION_ID}\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/hooks/pretool-bash-dispatcher.ps1"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.agents/tools/_run-ps.sh ~/.agents/tools/hooks/posttool-bash-verify-mark.ps1"
+          }
+        ]
+      }
+    ]
+  }
+}

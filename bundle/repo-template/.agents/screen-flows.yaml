@@ -1,0 +1,50 @@
+# screen-flows.yaml — Playwright screen-flow config consumed by playwright-runner.
+#
+# Edit this to describe the screens and flows the design-driver / playwright-explorer
+# skills should capture. See `~/.agents/skills/playwright-explorer/SKILL.md` for the
+# full schema and resilience patterns.
+#
+# Run with:
+#   pwsh ~/.agents/tools/playwright-runner.ps1 \
+#       -ConfigPath .agents/screen-flows.yaml \
+#       -OutDir ./screenshots/before
+
+base_url: http://localhost:3000
+viewport:
+  width: 1920
+  height: 1080
+device_scale: 2
+
+# Optional auth pre-flight. Credentials must come from env vars, never hardcoded.
+# auth:
+#   url: /signin
+#   email_selector: "input[type='email']"
+#   password_selector: "input[type='password']"
+#   submit_selector: "button[type='submit']"
+#   email_env: APP_TEST_EMAIL
+#   password_env: APP_TEST_PASSWORD
+
+screens:
+  - name: home
+    path: /
+    wait_for:
+      - "main"
+      - "h1"
+    actions:
+      - {kind: dismiss_cookies}
+      - {kind: scroll_top}
+      - {kind: shot, label: hero}
+      - {kind: scroll_by, pixels: 600}
+      - {kind: shot, label: middle}
+      - {kind: scroll_by, pixels: 600}
+      - {kind: shot, label: bottom}
+
+  # Add more screens. Reuse the multi-fallback wait_for pattern.
+  # - name: dashboard
+  #   path: /dashboard
+  #   wait_for:
+  #     - "[data-testid='dashboard']"
+  #     - "[class*='Dashboard']"
+  #     - "main h1"
+  #   actions:
+  #     - {kind: shot, label: default}

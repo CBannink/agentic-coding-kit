@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionEnd": [
+      {
+        "type": "command",
+        "powershell": "pwsh -NoProfile -File \"$HOME/.agents/tools/post-session.ps1\"",
+        "bash": "pwsh -NoProfile -File \"$HOME/.agents/tools/post-session.ps1\" || powershell -NoProfile -File \"$HOME/.agents/tools/post-session.ps1\"",
+        "timeoutSec": 60
+      }
+    ]
+  }
+}

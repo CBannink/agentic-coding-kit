@@ -1,0 +1,41 @@
+# <<< agentic-kit:codex-hooks (auto-merged into ~/.codex/config.toml by install.ps1; do not hand-edit between markers)
+# Hooks for the Caspar Bannink Agentic Coding Kit. Same contract as the
+# Claude Code PreToolUse / PostToolUse hooks: scripts read JSON from stdin,
+# exit code 2 to block (stderr becomes the reason shown to the agent).
+#
+# Coverage caveat (Codex issue #20204, late-2026): hooks fire for Bash,
+# apply_patch (writes), and MCP tools. They do NOT fire for list_dir,
+# view_image, plan, goal, agent_jobs, web_search. Reads + planning are
+# silent. Same hook scripts work as Claude Code -- just narrower coverage.
+#
+# Universal opt-out: KIT_DISABLED_HOOKS env var (comma-separated rule
+# names). Same as Claude / OpenCode.
+
+[features]
+codex_hooks = true
+
+[[hooks.PreToolUse]]
+matcher = "^Bash$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "~/.agents/tools/_run-ps.sh ~/.agents/tools/hooks/pretool-bash-dispatcher.ps1"
+timeout = 30
+
+[[hooks.PreToolUse]]
+matcher = "^apply_patch$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "~/.agents/tools/_run-ps.sh ~/.agents/tools/hooks/pretool-write-gateguard.ps1"
+timeout = 30
+
+[[hooks.PostToolUse]]
+matcher = "^Bash$"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "~/.agents/tools/_run-ps.sh ~/.agents/tools/hooks/posttool-bash-verify-mark.ps1"
+timeout = 30
+
+# >>> agentic-kit:codex-hooks
