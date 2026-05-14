@@ -292,15 +292,19 @@ The `-Upgrade` flag moves your existing `~/.agents/` to a timestamped backup bef
 |---|---|---|
 | **Claude Code** | `CLAUDE.md` + `.claude/commands/*.md` (8 commands) | ✅ `~/.claude/settings.json` hooks fire `pre-session` / `post-session` / `subagent-stop` / `pre-compact` automatically |
 | **OpenCode** | `prompt.md` + `~/.config/opencode/plugins/agentic-kit.ts` | ✅ TypeScript plugin wires `session.created` / `session.deleted` / `session.idle` / `session.compacted` |
-| **Copilot CLI** | `~/.copilot/copilot-instructions.md` (+ optional repo override at `.github/copilot-instructions.md`) | ✅ Lifecycle baked into instructions, plus repo-scoped `.github/hooks/*.json`; custom workflows use `~/.agents/bin/copilot/kit-*.sh` or direct `gh copilot --agent ...` / `copilot --agent ...`; the wrappers print live phase + spawned-agent status because user-defined slash commands are unsupported |
+| **Copilot CLI** | `~/.copilot/copilot-instructions.md` (+ optional repo override at `.github/copilot-instructions.md`) plus inherited skills from `~/.agents/skills/` on current builds | ✅ Lifecycle baked into instructions, plus repo-scoped `.github/hooks/*.json`; on current builds the inherited `/goal` / `/build` / `/investigate` / `/review`-style skills stay inline in the main Copilot session and only spawn leaf agents; `~/.agents/bin/copilot/kit-*.sh` and direct `gh copilot --agent ...` remain explicit fallback entrypoints |
 | **Codex CLI** | `AGENTS.md` | Manual — Codex hook surface varies by version, no fabricated config shipped |
 | **Kilo Code** | `AGENTS.md` + `.kilocode/rules/*.md` (5 modes) | Manual or via VSCode tasks.json |
 | **Generic** | `AGENTS.md` (canonical for Aider, Cline, Cursor, Continue, etc.) | Manual |
 
 ### Copilot CLI entrypoints
 
-Copilot's built-in slash commands are not replaceable. After
-`pwsh ./scripts/install.ps1 -For copilot`, use one of these kit-native entrypoints:
+ Copilot's built-in slash commands are not replaceable. On current Copilot CLI
+ builds, `pwsh ./scripts/install.ps1 -For copilot` also exposes the kit's
+ inherited workflow skills from `~/.agents/skills/`, so `/goal`, `/build`,
+ `/investigate`, `/analyze`, and the `gstack-*` skills can appear directly in
+ `/skills` and run inline in the main Copilot session. The explicit fallback
+ entrypoints remain:
 
 - POSIX: `bash ~/.agents/bin/copilot/kit-{analyze,build,goal,investigate,plan,refactor,redesign,review,security-review}.sh "<prompt>"`
 - Windows: `pwsh ~/.agents/bin/copilot/kit-build.ps1 "<prompt>"` (matching `.ps1` shims exist for the same wrapper set)

@@ -175,7 +175,36 @@ if (Test-Path $copilotWrapperDir) {
     Add-Check "Copilot workflow wrappers" "WARN" "Not installed; run install.ps1 -For copilot"
 }
 
-# 9. Include markers in host-CLI config files
+# 9. Copilot inherited inline skills
+$copilotInlineSkillChecks = @(
+    @{ Name = "goal"; Pattern = 'Do NOT spawn `goal-orchestrator`\.' },
+    @{ Name = "build"; Pattern = 'Do NOT spawn `build-orchestrator`\.' },
+    @{ Name = "plan"; Pattern = 'Do NOT spawn `plan-orchestrator`\.' },
+    @{ Name = "review"; Pattern = 'Do NOT spawn `review-orchestrator`\.' },
+    @{ Name = "investigate"; Pattern = 'Do NOT spawn `investigate-orchestrator`\.' },
+    @{ Name = "refactor"; Pattern = 'Do NOT spawn `refactor-orchestrator`\.' },
+    @{ Name = "redesign"; Pattern = 'Do NOT spawn `redesign-orchestrator`\.' },
+    @{ Name = "security-review"; Pattern = 'Do NOT spawn `security-review-orchestrator`\.' }
+)
+$copilotInlineMissing = @()
+foreach ($skill in $copilotInlineSkillChecks) {
+    $skillPath = Join-Path $agentsRoot "skills/$($skill.Name)/SKILL.md"
+    if (-not (Test-Path $skillPath)) {
+        $copilotInlineMissing += "$($skill.Name) (missing)"
+        continue
+    }
+    $content = Get-Content $skillPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
+    if ($content -notmatch $skill.Pattern) {
+        $copilotInlineMissing += "$($skill.Name) (not inline override)"
+    }
+}
+if ($copilotInlineMissing.Count -eq 0) {
+    Add-Check "Copilot inherited inline skills" "PASS" "goal/build/plan/review/investigate/refactor/redesign/security-review overrides present"
+} else {
+    Add-Check "Copilot inherited inline skills" "WARN" "Missing or stale: $($copilotInlineMissing -join ', ') -- rerun install.ps1 -For copilot"
+}
+
+# 10. Include markers in host-CLI config files
 foreach ($spec in @(
     @{ Path = Join-Path $HOME ".claude/CLAUDE.md"; Label = "Claude CLAUDE.md" },
     @{ Path = Join-Path $HOME ".codex/AGENTS.md"; Label = "Codex AGENTS.md" },
@@ -204,7 +233,7 @@ foreach ($spec in @(
     }
 }
 
-# 10. Tools execute cleanly. Run each as a subprocess to avoid argument-binding
+# 11. Tools execute cleanly. Run each as a subprocess to avoid argument-binding
 # quirks with mandatory params via splat. We just want to confirm the tool
 # parses and runs to completion -- exit 0/2 are both fine ("nothing actionable"
 # vs "actionable but graceful").
@@ -235,7 +264,7 @@ foreach ($probe in $toolsToProbe) {
     }
 }
 
-# 11. Python + playwright (optional, only flag if user wants design loop)
+# 12. Python + playwright (optional, only flag if user wants design loop)
 $python = if ($env:AGENTS_PYTHON) { $env:AGENTS_PYTHON } else { "python" }
 if (Get-Command $python -ErrorAction SilentlyContinue) {
     $probe = & $python -c "import playwright; import yaml; print('ok')" 2>&1

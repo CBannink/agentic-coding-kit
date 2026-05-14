@@ -87,6 +87,30 @@ pwsh ~/.agents/tools/post-session.ps1 -SessionId "$SESSION_ID" -NonInteractive -
 | `workflow-evidence.ps1 -SessionId <id> -AddVerification <cmd> -WithExitCode 0 -WithCommand <cmd>` | Record verification evidence for the Iron Law |
 | `state-gate.ps1 -SessionId <id> -Mark verification_evidence` | Mark gates after verification |
 | `verify-writeback.ps1 -SessionId <id>` | Writeback gate for user-visible changes |
+| `model-selector.ps1 -Scope <scope> -Role <role> -HostContext copilot-cli` | Dynamic model selection: returns recommended model based on scope, role, trust data, and cross-provider ensemble |
+| `agent-trust-scorer.ps1 -Role <role>` | Trust scoring: reads reflections, returns trust score + calibration prompt block for a subagent |
+
+### Dynamic model selection (MANDATORY before spawning leaf agents)
+
+Before spawning any leaf subagent, run:
+
+```bash
+pwsh ~/.agents/tools/scope-classifier.ps1
+```
+
+Capture the `scope` field (ISOLATED/SHARED/CRITICAL). Then for each agent:
+
+```bash
+pwsh ~/.agents/tools/model-selector.ps1 -Scope <scope> -Role <agent-name> -HostContext copilot-cli
+```
+
+Use the returned `model` field when spawning. For trust-based adjustments:
+
+```bash
+pwsh ~/.agents/tools/agent-trust-scorer.ps1 -Role <agent-name> -Json
+```
+
+Pass `supersession_rate` into model-selector and inject `prompt_block` into the subagent prompt.
 
 ### Skills (read on demand via Read tool)
 
@@ -220,9 +244,13 @@ After each run, check:
 
 **d. Stuck detection** - if SAME BLOCKING issue appears in 3 consecutive iterations → STUCK. Bail.
 
-**e. Empty-diff watchdog** - first empty diff: retry once with explicit "why no diff" prompt. Second consecutive empty → STUCK.
+**e. Lateral-drift detection** - track verification exit code per iteration. If 3 consecutive iterations produce DIFFERENT blockers but verification never improves (exit code unchanged or oscillating), declare LATERAL_DRIFT. Surface to user: "Verification is not converging — the approach may be fundamentally wrong. Consider restarting with a different strategy."
 
-**f. Rollback gate** (CODE/REFACTOR only) - if iteration N leaves verification WORSE than N-1: `git reset --hard <PREV_SHA>`, retry with implementer's CHANGED_FILES tagged "do not re-touch this way". 3 consecutive rollbacks → bail.
+**f. Empty-diff watchdog** - first empty diff: retry once with explicit "why no diff" prompt. Second consecutive empty → STUCK.
+
+**g. Rollback gate** (CODE/REFACTOR only) - if iteration N leaves verification WORSE than N-1: `git reset --hard <PREV_SHA>`, retry with implementer's CHANGED_FILES tagged "do not re-touch this way". 3 consecutive rollbacks → bail.
+
+**h. Rollback-oscillation detection** - if iteration N fixes file A but breaks file B, then iteration N+1 fixes file B but breaks file A (different SHAs, so the basic rollback counter doesn't fire), detect the oscillation pattern by tracking which files cause verification failure across iterations. If the same 2-3 files alternate as failure sources, declare OSCILLATION and bail with a clear message about the conflicting constraints.
 
 ## Phase 6 - DESIGN-specific finalization (DESIGN goal type only)
 
@@ -269,8 +297,10 @@ Then: goal verbatim, what changed (file list), verification status, information 
 - Information sufficiency is still `INSUFFICIENT` after the Phase 2 cap -> bail.
 - Phase 2.5 returned `NEEDS-PLAN` and the planning phases did not yield an actionable plan -> bail.
 - Stuck detection (3 consecutive same-blocker) -> bail.
+- Lateral-drift detection (3 iterations, different blockers, no improvement) -> bail.
 - Empty-diff watchdog (2 consecutive empties) -> bail.
 - Rollback gate fired 3+ times -> bail.
+- Rollback-oscillation detection (same files alternating as failure sources) -> bail.
 - NEEDS_CLARIFICATION verdict -> surface the specific question(s) to the user; do not produce Phase 8 handoff until answered.
 - OFF_TRACK second occurrence -> bail, surface corrected goal understanding, ask user to re-invoke.
 - NEEDS_REBUILD verdict -> bail immediately, surface specific re-prompt suggestion.

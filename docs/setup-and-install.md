@@ -87,6 +87,13 @@ pwsh ~/.agents/bin/copilot/kit-goal.ps1 "achieve this autonomously: ..."
 # Or: copilot --agent goal-orchestrator -p "..."
 ```
 
+On current Copilot CLI builds, the same install also exposes inherited skills
+from `~/.agents/skills/`. That means `/skills` can list `goal`, `build`,
+`investigate`, `analyze`, `gstack-*`, and similar kit skills directly. The
+Copilot-specific slash entry skills are installed to keep orchestration inline
+in the main session and only spawn leaf agents; the wrapper commands above
+remain the explicit fallback path.
+
 If the repo has a per-repo Copilot adapter installed, prefer:
 
 ```powershell

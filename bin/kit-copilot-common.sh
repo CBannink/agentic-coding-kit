@@ -137,6 +137,54 @@ kit_record_subagent() {
     fi
 }
 
+# Detect a timeout command (GNU timeout on Linux/Git-Bash; gtimeout on macOS/Homebrew).
+kit_timeout_cmd() {
+    if command -v timeout >/dev/null 2>&1; then
+        printf '%s' "timeout"; return 0
+    fi
+    if command -v gtimeout >/dev/null 2>&1; then
+        printf '%s' "gtimeout"; return 0
+    fi
+    return 1
+}
+
+# Run copilot with an optional wall-clock timeout.
+# Usage: kit_copilot_timed <seconds> [copilot args...]
+# <seconds> == 0 means no timeout.
+# Exit 124 on timeout (same as GNU timeout convention).
+# Handles both 'copilot' binary mode and 'gh copilot' mode correctly.
+kit_copilot_timed() {
+    local t="${1:?timeout_seconds required}"; shift
+    local _tcmd
+    kit_resolve_copilot_cli || return $?
+    if [ "${t}" -gt 0 ] 2>/dev/null && _tcmd="$(kit_timeout_cmd 2>/dev/null)"; then
+        if [ "${KIT_COPILOT_COMMAND_KIND:-}" = "gh" ]; then
+            "$_tcmd" "$t" gh copilot "$@"
+        else
+            "$_tcmd" "$t" copilot "$@"
+        fi
+    else
+        kit_run_copilot "$@"
+    fi
+}
+
+# Return 0 (true) if the goal looks trivially scoped (single file or short).
+# Trivial goals skip the workflow-explorer phase.
+kit_is_trivial_goal() {
+    local goal="$1"
+    # Explicit file reference (e.g. src/math_utils.py, lib/utils.ts)
+    if printf '%s' "$goal" | grep -qE '\.[a-zA-Z]{2,5}([[:space:]]|$|/)'; then
+        return 0
+    fi
+    # Very short goals (under 12 words) are trivially scoped
+    local wc
+    wc=$(printf '%s' "$goal" | wc -w)
+    if [ "$wc" -lt 12 ]; then
+        return 0
+    fi
+    return 1
+}
+
 kit_heartbeat_start() {
     local agent="${KIT_ACTIVE_AGENT_LABEL:-session}"
     local task="${KIT_ACTIVE_AGENT_TASK:-running}"

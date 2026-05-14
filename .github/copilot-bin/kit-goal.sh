@@ -30,6 +30,22 @@ fi
 kit_log_header "kit-goal" "goal" "$GOAL"
 
 PWSH="$(command -v pwsh 2>/dev/null || command -v powershell 2>/dev/null || true)"
+HOST_IS_WINDOWS=0
+case "$(uname -s 2>/dev/null || echo unknown)" in
+  MINGW*|MSYS*|CYGWIN*) HOST_IS_WINDOWS=1 ;;
+esac
+
+route_wrapper() {
+  local base="${1:?wrapper base required}"
+  shift
+  if [ "$HOST_IS_WINDOWS" -eq 1 ] && [ -n "$PWSH" ] && [ -f "${SCRIPT_DIR}/${base}.ps1" ]; then
+    kit_log "kit-goal: routing via PowerShell wrapper ${base}.ps1"
+    "$PWSH" -NoProfile -File "${SCRIPT_DIR}/${base}.ps1" "$@"
+  else
+    kit_log "kit-goal: routing via Bash wrapper ${base}.sh"
+    bash "${SCRIPT_DIR}/${base}.sh" "$@"
+  fi
+}
 
 # Lifecycle: pre-session
 if [ -n "$PWSH" ]; then
@@ -190,14 +206,14 @@ case "$GOAL_TYPE" in
   CODE|REFACTOR)
     if [ "$NEEDS_PLAN" = "YES" ]; then
       echo "kit-goal: CODE/REFACTOR with planning needed -- routing to kit-build.sh with planning prefix" >&2
-      if bash "${SCRIPT_DIR}/kit-build.sh" "Plan before building: $GOAL" 2>&1 | tee "$SESSION_DIR/goal.md"; then
+      if route_wrapper "kit-build" "Plan before building: $GOAL" 2>&1 | tee "$SESSION_DIR/goal.md"; then
         :
       else
         _route_exit=$?
       fi
     else
       echo "kit-goal: routing CODE/REFACTOR direct -> kit-build.sh" >&2
-      if bash "${SCRIPT_DIR}/kit-build.sh" "$GOAL" 2>&1 | tee "$SESSION_DIR/goal.md"; then
+      if route_wrapper "kit-build" "$GOAL" 2>&1 | tee "$SESSION_DIR/goal.md"; then
         :
       else
         _route_exit=$?
@@ -206,7 +222,7 @@ case "$GOAL_TYPE" in
     ;;
   INVESTIGATION)
     echo "kit-goal: routing INVESTIGATION -> kit-investigate.sh" >&2
-    if bash "${SCRIPT_DIR}/kit-investigate.sh" "$GOAL" 2>&1 | tee "$SESSION_DIR/goal.md"; then
+    if route_wrapper "kit-investigate" "$GOAL" 2>&1 | tee "$SESSION_DIR/goal.md"; then
       :
     else
       _route_exit=$?
@@ -214,7 +230,7 @@ case "$GOAL_TYPE" in
     ;;
   ANALYSIS)
     echo "kit-goal: routing ANALYSIS -> kit-analyze.sh" >&2
-    if bash "${SCRIPT_DIR}/kit-analyze.sh" "$GOAL" 2>&1 | tee "$SESSION_DIR/goal.md"; then
+    if route_wrapper "kit-analyze" "$GOAL" 2>&1 | tee "$SESSION_DIR/goal.md"; then
       :
     else
       _route_exit=$?
@@ -222,7 +238,7 @@ case "$GOAL_TYPE" in
     ;;
   REVIEW)
     echo "kit-goal: routing REVIEW -> kit-review.sh" >&2
-    if bash "${SCRIPT_DIR}/kit-review.sh" "$GOAL" 2>&1 | tee "$SESSION_DIR/goal.md"; then
+    if route_wrapper "kit-review" "$GOAL" 2>&1 | tee "$SESSION_DIR/goal.md"; then
       :
     else
       _route_exit=$?
@@ -230,7 +246,7 @@ case "$GOAL_TYPE" in
     ;;
   BOOTSTRAP)
     echo "kit-goal: routing BOOTSTRAP -> kit-bootstrap.sh" >&2
-    if bash "${SCRIPT_DIR}/kit-bootstrap.sh" "$(pwd)" 2>&1 | tee "$SESSION_DIR/goal.md"; then
+    if route_wrapper "kit-bootstrap" "$(pwd)" 2>&1 | tee "$SESSION_DIR/goal.md"; then
       :
     else
       _route_exit=$?
@@ -238,7 +254,7 @@ case "$GOAL_TYPE" in
     ;;
   DESIGN)
     echo "kit-goal: routing DESIGN -> kit-redesign.sh" >&2
-    if bash "${SCRIPT_DIR}/kit-redesign.sh" "$GOAL" 2>&1 | tee "$SESSION_DIR/goal.md"; then
+    if route_wrapper "kit-redesign" "$GOAL" 2>&1 | tee "$SESSION_DIR/goal.md"; then
       :
     else
       _route_exit=$?

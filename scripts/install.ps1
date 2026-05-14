@@ -133,12 +133,13 @@ function Get-WorkflowAdapterTemplateVars {
             }
         }
         "copilot-cli" {
-            # Copilot CLI has no documented user-level skills directory; the
-            # kit's procedural content lives inline in copilot-instructions.md
-            # and the orchestrator follows it. __SKILL_ROOT__ is left pointing
-            # at ~/.copilot for any future skill auto-discovery surface.
+            # Current Copilot CLI builds inherit skills from ~/.agents/skills
+            # on this machine. Copilot-specific overrides for slash entry
+            # skills are overlaid there during `-For copilot` so inline
+            # orchestration can differ from Claude/OpenCode without changing
+            # the canonical global skill bundle for other hosts.
             return @{
-                "__SKILL_ROOT__" = "~/.copilot/skills"
+                "__SKILL_ROOT__" = "~/.agents/skills"
                 "__HOST_NAME__" = "Copilot CLI"
             }
         }
@@ -1418,10 +1419,19 @@ $endMarker
                     -DestDir   (Join-Path $HomeRoot ".copilot/agents") `
                     -Label     "GitHub Copilot"
 
-                # Copilot CLI is command-based, not in-session orchestration.
-                # Multi-step workflows are shell scripts that chain `copilot --agent X -p` calls.
-                # Per https://docs.github.com/en/copilot/how-tos/copilot-cli/automate-copilot-cli/automate-with-actions
-                # this is the canonical pattern.
+                # Current Copilot CLI builds on this machine inherit workflow
+                # skills from ~/.agents/skills. Overlay the Copilot-specific
+                # slash-entry variants there so `/goal`, `/build`, etc. stay in
+                # the main session and only spawn leaf agents, while other hosts
+                # keep the generic orchestrator-spawning skill bodies.
+                Install-DeviceWideSkills `
+                    -SourceRoot (Join-Path $AdaptersRoot "copilot-cli/.agents/skills") `
+                    -DestRoot   (Join-Path $AgentsRoot "skills") `
+                    -Label      "GitHub Copilot inherited inline-skill overrides"
+
+                # Wrapper scripts remain the explicit compatibility / shell
+                # entrypoints for users who prefer terminal commands or older
+                # Copilot builds that do not expose inherited skills.
                 $copilotBinSrc = Join-Path $AdaptersRoot "copilot-cli/bin"
                 $copilotBinDst = Join-Path $AgentsRoot "bin/copilot"
                 if (Test-Path $copilotBinSrc) {
