@@ -4,6 +4,15 @@ Copilot Chat / Copilot CLI reads this file. Every session starts here.
 The global workflow skills under `~/.agents/skills/` are the canonical
 phase content — this file handles host constraints only.
 
+## Decision hierarchy (before ANY action)
+
+Before spawning anything, ask:
+1. **Can I answer this by reading files?** → Read, don't act.
+2. **Can a single lightweight agent answer this?** → Spawn one, not a workflow.
+3. **Does this need a full skill** (`/build`, `/goal`, etc.)? → Only then invoke.
+
+Reading is not implementing. The main session's advantage is context — use it to route, not to code.
+
 ## Host constraints (critical — modify your behavior)
 
 - Subagent output is NOT streamed (issue #2265) — user sees nothing until

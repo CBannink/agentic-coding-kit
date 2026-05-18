@@ -1334,29 +1334,27 @@ $endMarker
                     -DocPath (Join-Path $HomeRoot ".config/opencode/agentic-kit.md") `
                     -Label   "OpenCode"
 
-                # Orchestrator prompt in OpenCode's global AGENTS.md.
+# Orchestrator prompt in OpenCode's global AGENTS.md.
                 # OpenCode auto-loads ~/.config/opencode/AGENTS.md from every
-                # session. The orchestrator prompt (adaptive routing, agent
-                # toolbox, scope tiers) must be there — not just in per-repo
-                # installs — so every new session starts with orchestrator
-                # identity even without a repo-level AGENTS.md.
+                # session. The orchestrator prompt (decision hierarchy, ONE RULE,
+                # tier table, toolbox, lifecycle, Iron Law, routing) must be there
+                # — not just in per-repo installs — so every new session starts
+                # with orchestrator identity even without a repo-level AGENTS.md.
+                #
+                # ALWAYS REPLACE: the source bundle/AGENTS.md is the canonical
+                # clean orchestrator. Never prepend/append — that causes duplication
+                # when install.ps1 runs multiple times. Copy it fresh each time,
+                # then let Install-DeviceWideAlwaysOnRules handle the always-on
+                # rules block (dedup + refresh inside that function).
                 $ocAgentsPath = Join-Path $HomeRoot ".config/opencode/AGENTS.md"
                 $orchestratorSource = Join-Path $AdaptersRoot "opencode/AGENTS.md"
-                $orchestratorHeader = "# AGENTS.md -- OpenCode Orchestrator"
                 if (Test-Path $ocAgentsPath) {
-                    $currentContent = Get-Content $ocAgentsPath -Raw -Encoding UTF8
-                    $headerPattern = [regex]::Escape($orchestratorHeader)
-                    if ($currentContent -notmatch $headerPattern) {
-                        $orchestratorContent = Get-Content $orchestratorSource -Raw -Encoding UTF8
-                        $separator = "`r`n`r`n<!-- agentic-kit:begin -->`r`n"
-                        $updated = $orchestratorContent.TrimEnd() + $separator + $currentContent
-                        [System.IO.File]::WriteAllText($ocAgentsPath, $updated, (New-Object System.Text.UTF8Encoding($false)))
-                        Write-Host "  OpenCode AGENTS.md: prepended orchestrator prompt"
-                    } else { Write-Host "  OpenCode AGENTS.md: orchestrator prompt already present" }
-                } else {
-                    Copy-Item -Force $orchestratorSource $ocAgentsPath
-                    Write-Host "  OpenCode AGENTS.md: created with orchestrator prompt"
+                    $backup = "$ocAgentsPath.before-agentic-kit-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+                    Copy-Item -Force $ocAgentsPath $backup
+                    Write-Host "  OpenCode AGENTS.md: replacing existing (backup: $(Split-Path $backup -Leaf))"
                 }
+                Copy-Item -Force $orchestratorSource $ocAgentsPath
+                Write-Host "  OpenCode AGENTS.md: written from bundle source"
                 # Always-on rules block is appended inside the orchestrator
                 # content (via marker). Refresh it to ensure latest version.
                 Install-DeviceWideAlwaysOnRules `
