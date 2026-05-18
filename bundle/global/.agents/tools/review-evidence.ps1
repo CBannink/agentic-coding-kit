@@ -17,6 +17,7 @@
 #
 # Stage names (canonical):
 #   wiki-resolver       -- wiki-resolver.ps1 invoked + prompt_block extracted
+#   multi-pass        -- multi-pass-review.ps1 ran, diff shuffled for N passes
 #   surface             -- software/security/api/testing/perf/maint/data-migration reviewers
 #   consequence         -- consequence-agent ran (when public interface / shared type changed)
 #   interaction         -- caller-callee / shared-contract / state-flow reviewers

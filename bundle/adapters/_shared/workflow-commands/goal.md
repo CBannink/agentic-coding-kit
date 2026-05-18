@@ -1,167 +1,189 @@
 ---
-description: "User-typed /goal entry point. Takes a stated goal, classifies it (CODE / DESIGN / INVESTIGATION / REFACTOR / BOOTSTRAP / MULTI), and runs the matching kit workflow pipeline end-to-end via the correct sub-workflow commands: /build for CODE/REFACTOR, /investigate for INVESTIGATION, /analyze for ANALYSIS/RESEARCH, /review for REVIEW-only, /bootstrap-harness for BOOTSTRAP. Iterates with reviewer gates (cap: 6) until the goal is provably achieved. For simple single-edit tasks, triages to /build immediately."
+description: "User-typed /goal entry point. Takes a stated goal, classifies it (CODE / DESIGN / INVESTIGATION / REFACTOR / BOOTSTRAP / MULTI), and runs the matching kit workflow pipeline end-to-end. Iterates persistently until the goal is provably achieved — re-plans on failure instead of bailing. Hard cap: 12 iterations, soft re-plan at 6."
 ---
 
 # /goal
 
 You are the __HOST_NAME__ session acting as goal orchestrator. The user invoked /goal because they want autonomous, end-to-end achievement of a multi-step goal. You ARE the top-level orchestrator; do NOT spawn another goal-orchestrator or build-orchestrator.
 
+## Host-specific execution model
+
+**Copilot CLI**: Run INLINE in the current session. Print `[GOAL N/7]` progress
+lines before every action. Copilot CLI does NOT stream subagent output — if you
+spawn a goal-orchestrator subagent, the user sees nothing for hours. Spawn only
+leaf agents directly. The user must always see that work is happening.
+
+**Claude Code / OpenCode / Codex CLI**: May spawn goal-orchestrator as a
+subagent — these hosts stream subagent output. The inline model also works.
+
 ## Core contract
 
-You classify the goal, pick the correct kit workflow as the primary pipeline, and iterate using that workflow — not ad-hoc agent calls. The kit workflows (/build, /plan, /review, /analyze, /investigate, /redesign, /bootstrap-harness) are your PRIMARY TOOLS, not just routing entries or leaf-agent fallbacks.
+You classify the goal, pick the correct kit workflow as the primary pipeline, and iterate using that workflow — not ad-hoc agent calls. The kit workflows (/build, /plan, /review, /analyze, /investigate, /redesign, /bootstrap-harness) are your PRIMARY TOOLS.
+
+**Persistence rule**: Do NOT bail when stuck. Re-plan with a different approach. The goal is not done until the goal-reviewer confirms ACHIEVED or you hit the hard cap.
 
 ## Goal type → workflow routing
 
-| Goal type | Primary pipeline | Fallback (if workflow unavailable on this host) |
+| Goal type | Primary pipeline | Fallback (if workflow unavailable) |
 |---|---|---|
-| **CODE** — implement / fix / change code | Run `/build` with the goal as the request | Spawn `workflow-implementer` via Task following /build phases |
-| **REFACTOR** — behavior-identical restructure | Run `/build` with explicit "behavior must be identical" constraint | Spawn `workflow-implementer` + `modularity-expert` |
+| **CODE** — implement / fix / change code | Run `/build` with the goal | Spawn `workflow-implementer` via Task following /build phases |
+| **REFACTOR** — behavior-identical restructure | Run `/build` with "behavior must be identical" | Spawn `workflow-implementer` + `modularity-expert` |
 | **INVESTIGATION** — debug / diagnose / root-cause | Run `/investigate` with the symptom | Spawn `workflow-explorer` x3 following /investigate phases |
-| **ANALYSIS** — research / compare / evaluate | Run `/analyze` with the question | Spawn `workflow-explorer` + `workflow-skeptic` following /analyze phases |
+| **ANALYSIS** — research / compare / evaluate | Run `/analyze` with the question | Spawn `workflow-explorer` + `workflow-skeptic` |
 | **REVIEW** — code review / audit (no implementation) | Run `/review` with diff context | Spawn `code-quality-reviewer` + `security-reviewer` |
-| **DESIGN** — UI redesign / visual overhaul | Run `/redesign` or follow the DESIGN pipeline inline | Spawn `ux-driver` + `ui-driver` + aesthetic-director skill |
-| **BOOTSTRAP** — missing `.kit/` or `.wiki/` | Run `/bootstrap-harness` | Read `__SKILL_ROOT__/bootstrap-harness/SKILL.md` and execute inline |
-| **MULTI** — spans multiple types | Run primary pipeline, then secondary in order | State the sequence explicitly before starting |
+| **DESIGN** — UI redesign / visual overhaul | Run `/redesign` or follow DESIGN pipeline | Spawn `ux-driver` + `ui-driver` + aesthetic-director |
+| **BOOTSTRAP** — missing `.kit/` or `.wiki/` | Run `/bootstrap-harness` | Read `__SKILL_ROOT__/bootstrap-harness/SKILL.md` inline |
+| **MULTI** — spans multiple types | Run primary, then secondary in order | State sequence explicitly |
 
-## Phase -1 — Information sufficiency
+## Phases
 
-Before doing anything, assess: can you define at least ONE concrete, observable success criterion from this goal?
+### Phase 0 — Triage + classification
 
-**Critically underspecified if:**
-- Goal is stated only as an abstract outcome with no measurable signal (e.g., "make it better")
-- You cannot identify even one likely file, component, or behavior that must change
-- 3+ fundamental decision forks exist where different answers lead to completely different approaches
+Classify: CODE / REFACTOR / DESIGN / INVESTIGATION / ANALYSIS / REVIEW / BOOTSTRAP / MULTI. If single-edit with obvious scope, run inline without the full loop.
 
-**If critically underspecified:** output `INFO_NEEDED: <one compound question covering the most critical unknowns>` and stop. Cap: 1 round. If user does not clarify, document `ASSUMPTION: <text>` for each unknown and proceed.
+Output: `GOAL_TYPE: <type>` plus reason.
 
-**If sufficiently specified:** output `INFO_SUFFICIENT: proceeding` and continue to Phase 0.
+### Phase 1 — Goal capture
 
-## Phase 0 — Triage
+Restate goal verbatim. Enumerate:
+- **Success criteria**: each CONCRETE and OBSERVABLE
+- **Scope IN / OUT**
+- **Primary workflow**: which kit command
+- **Verification command**: exact command whose exit-0 signals completion
 
-Is this truly a goal-level task? STOP and redirect to the direct workflow if:
-- Single-edit with obvious scope → tell user to use `/build` directly.
-- Pure documentation update → no goal loop needed.
+If underspecified: ask ONE compound question (cap: 1 round), then assume and proceed.
 
-Otherwise output `TRIAGE: goal | reason: <why multi-step / iterative goal loop is warranted>` and continue.
+### Phase 1.5 — Information sufficiency
 
-## Phase 0.5 — Goal type classification
+Output: `INFO_STATUS: <SUFFICIENT | INSUFFICIENT>`. If `INSUFFICIENT` after clarification cap → bail (only valid bail point at this stage).
 
-Output: `GOAL_TYPE: <CODE|DESIGN|INVESTIGATION|ANALYSIS|REFACTOR|REVIEW|BOOTSTRAP|MULTI>` plus a one-sentence reason.
+### Phase 2 — Clarification (cap: 3 rounds)
 
-For MULTI: list the ordered sub-types.
+Ask only questions that change workflow choice or verification command. After cap, document `ASSUMPTION: <text>`.
 
+### Phase 2.5 — Planning decision (CODE/REFACTOR only)
 
-## Phase 1 — Goal capture
+Skip for INVESTIGATION, ANALYSIS, DESIGN, BOOTSTRAP, REVIEW.
 
-Restate the user's goal verbatim. Enumerate:
-- **Success criteria**: each item CONCRETE and OBSERVABLE.
-- **Scope IN**: work items required.
-- **Scope OUT**: adjacent issues you will NOT fix.
-- **Primary workflow**: which kit command will be used (e.g. `/build`).
-- **Verification command**: exact command whose exit-0 signals completion.
+Skip planning if: clear spec, ≤3 files, isolated.
+Plan first if: outcome statement, cross-cutting, >5 files, architectural decision.
 
-If anything is ambiguous, proceed to Phase 2; otherwise continue to Phase 1.5.
+If planning: Run `/plan` or spawn `workflow-explorer` + `workflow-skeptic`. Validate `PLAN_SERVES_GOAL`. Cap: 2 planning rounds. Pass plan into execution.
 
-## Phase 1.5 — Information sufficiency
+### Phase 3 — Execute primary workflow (PERSISTENT CONVERGENCE)
 
-Output: `INFO_STATUS: <SUFFICIENT | INSUFFICIENT> | reason: <text>`.
+Run the workflow mapped from Phase 0. Pass goal, success criteria, scope, verification command, and plan (if any).
 
-Mark `INSUFFICIENT` only when missing facts would change workflow choice, planning decision, or the verification command.
+#### Iteration mechanics
 
-If `INSUFFICIENT`, go to Phase 2. Otherwise continue to Phase 2.5.
+For CODE goals, use iterate-until-pass verification:
+```
+pwsh ~/.agents/tools/test-loop-runner.ps1 -SessionId "$SESSION_ID" -TestCommand "<cmd>" -MaxRounds 3
+```
 
-## Phase 2 — Clarification (cap: 3 rounds)
+Context bloat guard at loop start + every 3 iterations:
+```
+pwsh ~/.agents/tools/context-bloat-guard.ps1 -RepoRoot . -AutoFix -Json
+```
 
-Ask only the questions that would change which pipeline you pick, whether Phase 2.5 should choose `NEEDS-PLAN`, or what the verification command is. After 3 rounds, document `ASSUMPTION: <text>`, then re-run Phase 1.5 once. If `INFO_STATUS` is still `INSUFFICIENT`, bail.
+Before spawning any leaf agent:
+```
+pwsh ~/.agents/tools/mode-profiles.ps1 -Mode <mode>
+pwsh ~/.agents/tools/model-selector.ps1 -Scope <scope> -Role <role>
+```
 
-## Phase 2.5 — Planning decision (CODE/REFACTOR goals only)
+Post-implementation slop pass:
+```
+pwsh ~/.agents/tools/detect-slop.ps1 -Path . -Fix -Json
+```
 
-Skip for INVESTIGATION, ANALYSIS, DESIGN, BOOTSTRAP, REVIEW goals.
+#### Persistence model — NEVER BAIL, RE-PLAN INSTEAD
 
-Decide: should explicit planning run before executing?
+Track per iteration: `approach_id`, `blocker_signature`, `verification_exit_code`, `changed_files`.
 
-**Skip planning — route directly to the workflow** if:
-- Goal has a clear, concrete spec (specific files, exact expected behavior described)
-- Change is isolated (≤3 files, no cross-cutting concern)
-- A plan artifact from this session already exists
+Maintain an **APPROACH_LOG** with structured entries:
 
-**Run planning phases first** if:
-- Goal is an outcome statement, not a spec (e.g., "improve X", "make Y more robust")
-- Change touches cross-cutting concerns (shared types, multiple modules, API contracts)
-- Architectural decision required (new abstractions, interface changes, module splits)
-- Likely >5 files affected
+```
+APPROACH 1:
+  Strategy: <one sentence: what files, what pattern, what API/method>
+  Entry point: <the specific file(s) where changes started>
+  Assumption: <the key assumption this approach relied on>
+  Result: FAILED
+  Blocker: <exact error or blocker, verbatim from output>
+  Why it failed: <root cause, not just the symptom>
+  Banned: <specific thing NOT to repeat — file+pattern, not just "don't do this">
+```
 
-**If planning is warranted:** Run `/plan` (or equivalent planning phases). After the plan is produced, judge:
-- `PLAN_SERVES_GOAL: YES` — all Phase 1 success criteria are addressable by this plan → proceed to `/build` and pass the plan path as context. Instruct `/build` that the plan already captures the exploration context (skip /build's own recon phase to avoid double exploration).
-- `PLAN_SERVES_GOAL: NO` — state the gap explicitly → re-run planning with the gap as an additional constraint. Cap: 2 planning rounds.
+**Approach differentiation rule**: a new approach MUST change at least ONE of:
+1. **Different entry point** — start from different files than the previous approach
+2. **Different assumption** — challenge an assumption the previous approach relied on
+3. **Different pattern** — use a different API, library feature, or code pattern
 
-**Efficiency invariant:** Do NOT invoke `/plan` again from within `/build`. One planning pass, then build. `/build`'s internal exploration is skippable when a plan exists.
+If you cannot articulate how the new approach differs on at least one axis, you do not have a new approach — ask the user for direction instead of burning iterations.
 
-## Phase 3 — Execute primary workflow
+**When to switch approaches:**
 
-Run the workflow mapped from Phase 0.5. Pass the goal verbatim, success criteria, scope IN/OUT, verification command, and Phase 2.5 result into the workflow. If Phase 2.5 chose `NEEDS-PLAN`, include the plan output as context. Let the workflow's own phases handle exploration, implementation, review, and verification.
+| Trigger | Action |
+|---|---|
+| Same blocker 3× | Record in log. Spawn explorer to find alternative entry point/pattern. New approach must differ on ≥1 axis. |
+| Lateral drift (3 iters, no improvement) | `git reset --hard $BASELINE_SHA`. List all assumptions from failed approaches. Verify the most suspect one via explorer. If wrong → new approach. If right → ask user. |
+| Soft cap 6 | List criteria MET / NOT MET. If >50% met → continue. If <50% → switch approach. |
+| Rollback 3× on same approach | Switch approach. Record why in log. |
+| Rollback oscillation (A↔B) | Treat conflicting files as atomic unit. Tell implementer to modify both together. |
+| Empty diff 2× | Read target files inline. Give implementer explicit line-level instructions. If you can't identify what to change, ask user. |
+| NEEDS_REBUILD verdict | Rollback to baseline. New approach with root cause as constraint. |
 
-For MULTI goals: run the primary workflow to completion (verified), then start the secondary workflow.
+**Hard cap: 12 iterations.** Only bail point. Deliver partial with detailed approach log.
 
-### Iteration gate (cap: 6 for CODE/REFACTOR; 3 for INVESTIGATION/ANALYSIS)
+**Max 4 approach switches** before hard cap kicks in.
 
-After each workflow execution:
-1. Check verification: did the workflow exit green?
-2. Check scope: are all success criteria observable from the output?
-3. If YES to both → CONVERGED, proceed to Phase 4.
-4. If NO → re-run the workflow with the deltas from the previous iteration as additional context. Tag the re-run with `ITERATION N` so the workflow agent knows this is a follow-up.
+### Phase 4 — Iron Law check
 
-**Stuck detection**: if the same BLOCKING issue appears in 3 consecutive iterations → bail.
+Run verification command directly. Capture exit code. If non-zero → back to Phase 3.
 
-## Phase 4 — Iron Law check
+### Phase 4a — Goal achievement review (independent)
 
-After the workflow reports convergence, confirm directly:
-- Run the verification command yourself (Bash) and capture the exit code.
-- If exit 0 → continue.
-- If non-zero → do NOT claim done; re-enter the iteration loop with the failure output as context.
+Spawn `goal-reviewer` with original goal, success criteria, changed files, verification status.
 
-## Phase 4.5 — Self-evaluation (goal verdict)
+- `ACHIEVED` → proceed to Phase 4.5
+- `PARTIALLY_ACHIEVED` / `FIX_AND_RESHIP` → **loop back to Phase 3** for targeted fix (not bail)
+- `NOT_ACHIEVED` / `WRONG_GOAL` → **loop back to Phase 3** with findings (cap: 1 retry from goal-reviewer, then PARTIAL)
 
-Before producing the handoff, evaluate: did the outcome actually achieve the original stated goal?
+### Phase 4.5 — Self-evaluation
 
-Output `GOAL_VERDICT: <verdict>` where verdict is ONE of:
+Output `GOAL_VERDICT`:
+- **ON_TRACK** → handoff with ACHIEVED
+- **UNDER_DELIVERED** → one targeted iteration, then handoff
+- **OFF_TRACK** → rollback, restart Phase 3 with corrected interpretation
+- **NEEDS_REBUILD** → rollback to baseline, new approach, restart Phase 3
+- **NEEDS_CLARIFICATION** → ask user, wait, continue
 
-- **ON_TRACK** — All Phase 1 success criteria are observably met, verification green, scope respected, no significant drift from stated goal.
-- **UNDER_DELIVERED** — Verification passes but ≥1 success criterion is not demonstrably met. List the unmet criteria explicitly.
-- **OFF_TRACK** — Implementation solved a related but different problem; observable drift from the stated goal.
-- **NEEDS_REBUILD** — Verification fails at iteration cap, or the approach taken was fundamentally wrong for the goal.
-- **NEEDS_CLARIFICATION** — Discovered mid-execution that achieving the goal requires a user decision that was not available at start.
-
-**Action per verdict:**
-- **ON_TRACK** → proceed to Phase 5 handoff with `ACHIEVED` status.
-- **UNDER_DELIVERED** → attempt one targeted iteration covering only the unmet criteria. If still partial after 1 retry, proceed to Phase 5 with `PARTIAL` status; list what was and was not delivered.
-- **OFF_TRACK** → surface the drift explicitly, ask user whether to rollback and restart with the corrected interpretation or accept the partial result.
-- **NEEDS_REBUILD** → bail immediately; output root cause (1-2 sentences) and a specific re-prompt suggestion the user can copy.
-- **NEEDS_CLARIFICATION** → surface the specific question(s) to the user; do not produce a final handoff until answered.
-
-## Phase 5 — Handoff
+### Phase 5 — Handoff
 
 **FIRST line** (machine-parseable):
 ```
-GOAL_STATUS: <ACHIEVED | PARTIAL | FAILED-AT-CAP | FAILED-AT-VERIFY | STUCK | TRIAGED-OUT | NEEDS-CLARIFICATION> | type: <type> | workflow: <workflow used> | iterations: <N> | verification: exit <code> | verdict: <ON_TRACK|UNDER_DELIVERED|OFF_TRACK|NEEDS_REBUILD|NEEDS_CLARIFICATION>
+GOAL_STATUS: <ACHIEVED | PARTIAL | FAILED-AT-HARD-CAP> | type: <type> | workflow: <workflow used> | iterations: <N>/12 | approaches: <A> | verification: exit <code> | verdict: <verdict>
 ```
 
-Then: goal verbatim, pipeline used, what changed (file list if CODE/REFACTOR), verification status, information sufficiency result, planning decision, self-evaluation rationale, iteration count, any assumptions made, scope-OUT items observed but not addressed.
+Then: goal verbatim, approach log, pipeline used, what changed, verification status, remaining gaps.
 
-## When to bail out
+```
+pwsh ~/.agents/tools/memory-inbox.ps1 -Action collect -SessionId "$SESSION_ID"
+```
 
-- Phase 1.5 remains `INSUFFICIENT` after the Phase 2 cap → bail.
-- Phase 2.5 returns `NEEDS-PLAN` and `/plan` does not produce an actionable plan → bail.
-- The same BLOCKING issue appears in 3 consecutive iterations → bail.
-- Phase 4.5 returns `NEEDS_REBUILD`, `NEEDS_CLARIFICATION`, or a second `OFF_TRACK` occurrence → bail.
+## When to ACTUALLY bail (hard limits only)
 
+- Information sufficiency remains `INSUFFICIENT` after clarification cap → bail
+- Hard cap of 12 iterations reached → deliver partial with approach log
+- User explicitly says to stop
+- Everything else: re-plan, switch approach, keep going
 
 ## What NOT to do
 
-- Do NOT skip Phase 1.5, Phase 2.5, or Phase 4.5.
-- Do NOT skip Phase 4 (Iron Law). "The workflow said it passed" is not evidence.
-- Do NOT run leaf agents (workflow-implementer, workflow-explorer, etc.) directly when a kit workflow command covers the goal type. Routes first; leaf agents as fallback only.
-- Do NOT recurse into another goal-orchestrator.
-- Do NOT widen scope mid-loop. New scope → bail and ask the user.
-- Do NOT continue with `INSUFFICIENT` information or an unresolved `NEEDS-PLAN` decision.
-- Do NOT spawn adversarial-reviewer unless the user explicitly requests it or the change is a security-critical rewrite.
+- Do NOT skip Phase 1.5, Phase 2.5, Phase 4a, or Phase 4.5
+- Do NOT skip Iron Law — "the workflow said it passed" is not evidence
+- Do NOT run leaf agents directly when a workflow command covers the goal type
+- Do NOT recurse into another goal-orchestrator
+- Do NOT widen scope mid-loop (new scope → ask user)
+- Do NOT bail on stuck/drift/empty-diff — re-plan instead
+- Do NOT spawn adversarial-reviewer unless explicitly requested or security-critical

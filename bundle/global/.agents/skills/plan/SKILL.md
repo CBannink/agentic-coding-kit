@@ -1,18 +1,38 @@
 ---
 name: plan
-description: User-typed /plan entry point. Spawns the `plan-orchestrator` subagent via the Task tool so the kit's full phased pipeline runs (clarify, explore, pressure-test, plan.md, approval gate). MUST BE USED when the user types `/plan` or asks to plan, spec, design, scope a change. Use PROACTIVELY rather than running the workflow inline.
+description: Use when the user asks to plan, spec, design, or scope a change. Runs clarify, explore, pressure-test, produce plan artifact, stop for approval.  
 ---
 
 # /plan
 
-Spawn the `plan-orchestrator` subagent via the **Task tool** with the user's verbatim request as the prompt. The orchestrator handles every phase (clarify, explore, pressure-test, plan.md, approval gate) and returns when done.
+Execute these phases in order. The output is a written plan artifact saved to the session directory. Do NOT implement — stop for user approval after Phase 4.
 
-## Action
+## Phase 1 — Clarify
 
-Use the Task tool now. `subagent_type` = `plan-orchestrator`. `description` = `plan workflow`. `prompt` = the user's verbatim request plus any clarifying context they supplied.
+Restate the request in your own words. Identify 2-3 clarifying questions that would change the approach if answered differently. Ask the smallest set — cap at 1 round, then document assumptions and proceed.
 
-## What you DO NOT do
+## Phase 2 — Exploration
 
-- Do NOT run the workflow inline. The orchestrator's body is the canonical pipeline — running phases here in the main session defeats the design.
-- Do NOT skip the Task spawn even if the request looks small. `plan-orchestrator` will classify scope (ISOLATED / SHARED / CRITICAL) and pick the right depth itself.
-- Do NOT spawn other subagents directly from this skill. The orchestrator does the fan-out.
+Spawn `workflow-explorer` with the request, the clarified scope, and 3-8 likely files. Ask it to: list relevant files, ownership, integration points, existing patterns to copy, and risks. Read its synthesis.
+
+If the task touches shared types, public API surfaces, or cross-module contracts, also spawn `modularity-expert` to map blast radius.
+
+## Phase 3 — Pressure-test (optional, skip for trivial plans)
+
+If the plan has tradeoffs (architecture choice, which approach, risk of regression), spawn `workflow-skeptic` with the explorer synthesis and request. Ask it to challenge assumptions and surface hidden failure modes.
+
+## Phase 4 — Write plan artifact
+
+Write a plan to the session path: `${AGENTS_SESSION_ROOT}/{sessionId}/plan.md` (or `.kit/session-state/{sessionId}/plan.md` in a bootstrapped repo).
+
+Include:
+- Objective (one sentence)
+- Approach (concrete: what files, what pattern, what API/method)
+- Files to modify (exact paths)
+- What NOT to change (files/services out of scope)
+- Risks and mitigations
+- Verification command
+
+## Phase 5 — Stop for approval
+
+Present the plan to the user. Ask for approval before any implementation begins. Do NOT proceed to implementation unless the user says go or explicitly routes to `/build`.

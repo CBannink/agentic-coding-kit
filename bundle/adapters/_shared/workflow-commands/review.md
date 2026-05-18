@@ -19,6 +19,17 @@ Pick ONE reviewer based on dominant diff signal:
 
 Spawn a SECOND reviewer ONLY if the first surfaces a finding clearly outside its lane. Findings tagged BLOCKING / NON-BLOCKING / NIT.
 
+## Phase 1b — Multi-pass review (when diff > 5 files OR user requests thorough review)
+
+For diffs spanning 5+ files, or when the user requests `/review --thorough`:
+
+1. Run `pwsh ~/.agents/tools/multi-pass-review.ps1 -SessionId "$SESSION_ID" -Passes 3`
+2. Spawn the Phase 1 reviewer 3 times, each reading a DIFFERENT pass file (randomized file order)
+3. Deduplicate findings across passes — same file:line = merge, keep highest severity
+4. Findings caught in 2+ passes get severity boost (NIT → NON-BLOCKING, NON-BLOCKING → BLOCKING)
+
+This catches ordering-bias bugs where reviewers fatigue on later files. Skip for small diffs (< 5 files) unless explicitly requested.
+
 ## Phase 2 — Adversarial pass (REMOVED from default)
 
 `adversarial-reviewer` no longer in default matrix. Evidence: critic loops past 2-3 reviewers degrade output via false-positive flooding (Anthropic multi-agent research). Spawn ONLY if user explicitly requests adversarial review OR diff is a security-critical rewrite (auth, crypto, schema migration with data loss risk).
@@ -58,7 +69,7 @@ Check `~/.agents/context/reflections.md` length. If 5+ unaddressed entries: spaw
 | Tier | Typical spawns | Composition |
 |---|---|---|
 | ISOLATED | **1** | Single reviewer by signal. |
-| SHARED | **1-2** | Single reviewer; +1 only if first surfaces cross-lane finding. |
+| SHARED | **1-2** (surface: 1-3 passes + dedup) | Single reviewer, multi-pass for large diffs; +1 only if cross-lane. |
 | CRITICAL | **2-3** | Two reviewers (e.g. security + modularity for auth rewrite); +adversarial only if user requests. |
 
 Single-reviewer rule applies at every tier. Adversarial NOT in default matrix. Cite Anthropic multi-agent research + barkain delegation-orchestrator deprecation if reasoning about whether to add more critics.

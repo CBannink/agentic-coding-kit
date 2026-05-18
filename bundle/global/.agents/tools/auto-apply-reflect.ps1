@@ -80,6 +80,63 @@ foreach ($sig in $signatureCounts.Keys) {
     [void]$applied.Add("specialist-memory: $role <- $finding ($($signatureCounts[$sig])x)")
 }
 
+# Bucket 2: prompt pattern accumulation -- additive reflections with count >= 2
+# and a valid Suggested-target file get a marked block appended.
+# Parses entries in the same way as auto-consolidate.ps1 and prompt-improver.ps1.
+
+function Parse-AdditiveEntries([string]$path) {
+    if (-not (Test-Path $path)) { return @() }
+    $out = @()
+    $lines = Get-Content $path -Encoding UTF8
+    $cur = $null
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        $l = $lines[$i]
+        if ($l -match "^- \[(\d{4}-\d{2}-\d{2})\].*?\[class:([^\]]+)\]") {
+            if ($cur) { $out += $cur }
+            $cnt = 1
+            if ($l -match "\[seen (\d+)x\]") { $cnt = [int]$Matches[1] }
+            $cur = [pscustomobject]@{ class=$Matches[2]; pattern=""; target=""; count=$cnt }
+        } elseif ($cur) {
+            if ($l -match "^\s*Pattern:\s*(.*)$")               { $cur.pattern = $Matches[1].Trim() }
+            elseif ($l -match "^\s*Suggested target:\s*(.*)$")  { $cur.target  = $Matches[1].Trim() }
+            elseif ($l -match "^- \[" -or $l -match "^##\s")   { $out += $cur; $cur = $null; $i-- }
+            elseif ($l.Trim() -eq "" -and $cur.pattern)        { $out += $cur; $cur = $null }
+        }
+    }
+    if ($cur) { $out += $cur }
+    return @($out | Where-Object { $_.class -eq "additive" -and $_.count -ge 2 -and $_.target })
+}
+
+$globalReflect = Join-Path $env:USERPROFILE ".agents/context/reflections.md"
+$repoReflect   = Join-Path $RepoRoot ".kit/context/reflections.md"
+
+foreach ($rPath in @($globalReflect, $repoReflect)) {
+    foreach ($entry in (Parse-AdditiveEntries $rPath)) {
+        # Resolve target path (expand ~ and relative paths)
+        $tRaw = $entry.target
+        $tPath = $tRaw -replace "^~", $env:USERPROFILE
+        if (-not [System.IO.Path]::IsPathRooted($tPath)) {
+            $tPath = Join-Path $RepoRoot $tPath
+        }
+        if (-not (Test-Path $tPath)) { continue }
+
+        # Skip if pattern already present in target
+        $targetContent = Get-Content $tPath -Raw -Encoding UTF8
+        $checkStr = $entry.pattern.Substring(0, [Math]::Min(60, $entry.pattern.Length))
+        if ($targetContent -match [regex]::Escape($checkStr)) { continue }
+
+        $date = Get-Date -Format "yyyy-MM-dd"
+        $block = "`n<!-- auto-reflected prompt improvement ($date) -->`n$($entry.pattern)`n"
+
+        if (-not $DryRun) {
+            $snapPath = Join-Path $snapshotsDir "$(Get-Date -Format 'yyyyMMdd-HHmmss')_prompt-patch.md"
+            Set-Content -Path $snapPath -Value $targetContent -Encoding utf8 -NoNewline
+            [System.IO.File]::AppendAllText($tPath, $block, [System.Text.UTF8Encoding]::new($false))
+        }
+        [void]$applied.Add("prompt-pattern: $tPath <- $($entry.pattern.Substring(0,[Math]::Min(60,$entry.pattern.Length))) ($($entry.count)x)")
+    }
+}
+
 # Audit log
 if ($applied.Count -gt 0 -and -not $DryRun) {
     $stamp = Get-Date -Format 'o'

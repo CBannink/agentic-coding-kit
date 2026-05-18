@@ -33,6 +33,25 @@ For SHARED + CRITICAL or any multi-file change: spawn `workflow-implementer` via
 
 For ISOLATED single-file mechanical edits: do them inline with Read + Edit.
 
+## Phase 2.5 — AI slop refactoring (automatic, every build)
+
+After implementation, run slop detection on changed files:
+
+```
+pwsh ~/.agents/tools/detect-slop.ps1 -Path . -Fix -Json
+```
+
+The `-Fix` flag handles cosmetic fixes mechanically (trailing whitespace, excess blank lines).
+
+If the report contains `warning`-severity findings (commented-out code, empty catch, oversized functions, generic variable names):
+1. Spawn `slop-refactorer` with the report and changed files
+2. The refactorer reads each finding, applies judgment-level fixes, and verifies tests still pass
+3. If tests break after a fix, the refactorer reverts that specific fix
+
+Skip spawning if only `info`-severity findings remain after auto-fix.
+
+This pass runs on EVERY build, not opt-in. AI-generated code should look human-written by the time it ships. The slop-refactorer is scoped to files changed in this session only — it does NOT refactor pre-existing slop.
+
 ## Phase 3 — Review (single reviewer by default)
 
 **One reviewer covers most cases.** Pick ONE based on dominant diff signal:
@@ -98,3 +117,9 @@ Check `~/.agents/context/reflections.md` length. If 5+ unaddressed entries: spaw
 **Adversarial-reviewer NOT in default matrix at any tier.** Evidence: critic loops past 2-3 reviewers produce diminishing returns + false-positive flooding (Anthropic multi-agent research; barkain delegation-orchestrator deprecation note). Reserve for explicit user-requested adversarial passes or genuine security-critical rewrites.
 
 **Rule of thumb:** prefer 1-line inline edits over implementer spawn. Prefer ONE reviewer over multiple unless evidence demands more. Every spawn beyond the typical count must be justifiable in the handoff.
+
+## Test generation
+
+For test generation tasks specifically, prefer the `/test-gen` skill which runs
+a build-verified iteration loop (generate → run → fix → re-run, max 5 rounds)
+instead of single-shot test generation. Tests are not "done" until they pass.

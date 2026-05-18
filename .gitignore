@@ -13,6 +13,15 @@ inspiration/
 .kit/session-state/
 **/.kit/session-state/
 
+# Generated/installed kit artifacts (canonical source in bundle/)
+.kit/
+.wiki/
+bin/
+.github/agents/
+.github/copilot-bin/
+.github/copilot-instructions.md
+.github/hooks/
+
 # Test artifacts
 .pytest_cache/
 .deepeval/

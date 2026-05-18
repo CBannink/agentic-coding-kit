@@ -1,18 +1,53 @@
 ---
 name: refactor
-description: User-typed /refactor entry point. Spawns the `refactor-orchestrator` subagent via the Task tool so the kit's full phased pipeline runs (principle, consequence-trace, implement, behavior-equivalence, modularity, iron-law). MUST BE USED when the user types `/refactor` or asks to refactor, restructure, clean up, consolidate, DRY/SOLID. Use PROACTIVELY rather than running the workflow inline.
+description: Use when the user asks to refactor, restructure, clean up, consolidate, or apply DRY/SOLID. Runs principle lock, consequence trace, implement with behavior equivalence, review, verify.
 ---
 
 # /refactor
 
-Spawn the `refactor-orchestrator` subagent via the **Task tool** with the user's verbatim request as the prompt. The orchestrator handles every phase (principle, consequence-trace, implement, behavior-equivalence, modularity, iron-law) and returns when done.
+Behavior MUST be identical after refactoring. Only structure changes. No feature additions.
 
-## Action
+## Phase 1 — Principle lock
 
-Use the Task tool now. `subagent_type` = `refactor-orchestrator`. `description` = `refactor workflow`. `prompt` = the user's verbatim request plus any clarifying context they supplied.
+State the refactoring principle explicitly. Without a named principle, refactors drift into rewrites. Valid principles:
+- **Reuse-first**: extract shared logic, eliminate duplication
+- **Boundary cleanup**: separate concerns, fix layer violations
+- **Type safety**: add types, remove `any`, tighten contracts
+- **DI rewiring**: decouple dependencies, invert control
+- **Layered architecture**: enforce module boundaries
 
-## What you DO NOT do
+Output: `PRINCIPLE: <name> | target: <files/directories>`
 
-- Do NOT run the workflow inline. The orchestrator's body is the canonical pipeline — running phases here in the main session defeats the design.
-- Do NOT skip the Task spawn even if the request looks small. `refactor-orchestrator` will classify scope (ISOLATED / SHARED / CRITICAL) and pick the right depth itself.
-- Do NOT spawn other subagents directly from this skill. The orchestrator does the fan-out.
+## Phase 2 — Consequence trace
+
+Spawn `workflow-explorer` to map: all call sites of the target code, test files that cover it, public exports/APIs/types that must NOT change. Read the synthesis.
+
+Also check `.wiki/features.md` for any user-visible behavior that depends on the target surface. If the refactor changes a public API or export, the wiki must be updated.
+
+## Phase 3 — Prompt synthesis (before implementer)
+
+Spawn `prompt-synthesizer` with: the refactor principle, call-site map, target type "implementer", and the constraint "Behavior must be identical — run tests before and after." Use its `PROMPT_SYNTHESIS` output.
+
+## Phase 4 — Implementation
+
+Spawn `workflow-implementer` with the synthesized prompt from Phase 3. Do NOT implement inline — always delegate.
+
+Mark gate: `pwsh ~/.agents/tools/state-gate.ps1 -SessionId "<id>" -Mark "implementation_done"`
+
+## Phase 5 — Behavior-equivalence review
+
+Spawn `code-quality-reviewer` with explicit REFACTOR prompt: "Verify behavior unchanged. Original test cases still asserting? Public APIs untouched? Every error path preserved? Accidental simplifications that change semantics?"
+
+If behavior drift is found: re-spawn implementer with the drift as deltas. Cap at 2 iterations.
+
+## Phase 6 — Modularity verification
+
+Spawn `modularity-expert` to confirm the principle from Phase 1 was achieved. If the refactor claimed to extract shared logic but left duplicates, or claimed to fix layering but created new violations, surface this.
+
+## Phase 7 — Verification
+
+Run verification command inline. Capture exit code. Spawn `final-verifier`. Run writeback: `pwsh ~/.agents/tools/verify-writeback.ps1 -SessionId "<id>"`. Mark gates.
+
+## Phase 8 — Handoff
+
+Summarize: principle, files changed, behavior preserved (verification exit code), any modularity findings.

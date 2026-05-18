@@ -61,6 +61,22 @@ delegate rather than stay inline in the main session.
 - non-trivial review should delegate reviewer agents when the host supports them
 - after exploration synthesis, the main session should stop reading source files
 
+## Mode profiles
+
+When spawning subagents, resolve their mode profile first:
+
+```
+pwsh ~/.agents/tools/mode-profiles.ps1 -Mode <mode>
+```
+
+Embed the returned `prompt_block` in the subagent's system prompt. Mode profiles
+enforce tool and file restrictions per role. Repos can override built-in profiles
+via `.kit/modes/{mode}.json` (fields merged on top; only include what you want to
+change).
+
+Built-in modes: `debug`, `architect`, `reviewer`, `implementer`, `explorer`,
+`security-reviewer`.
+
 ## Frontend aesthetic direction
 
 When `/build` or `/redesign` introduces greenfield UI, the kit checks for `DESIGN.md` first. If missing, the `aesthetic-director` skill runs as Step 0 of the visual gate — proposes 2-3 named directions (Swiss Minimalism, Editorial, Brutalism, Glassmorphism, Dark OLED Luxury, Cyberpunk, etc.), user picks, locks DESIGN.md with typography pairing + OKLCH palette + density + motion + a mandatory **banned-defaults list**. Downstream `ux-driver` and `ui-driver` read DESIGN.md and refuse to silently substitute generic taste when it's missing. Lightweight alternative: paste a 5-line `<always_use_X_theme>` block in CLAUDE.md / AGENTS.md and skip the skill.
@@ -169,6 +185,7 @@ If files change after verification has been captured, treat the verification as 
 | `test-loop.ps1` | Run test command, capture output, mark verification gate, detect loops |
 | `edit-with-lint.ps1` | Apply file edit with linter validation, atomic write+revert |
 | `specialist-memory-resolver.ps1` | Inject role-specific repo memory into spawned agents |
+| `mode-profiles.ps1` | Resolve tool/file restrictions for a named agent mode; embed `prompt_block` in subagent prompt |
 | `auto-consolidate.ps1` | Dedup/archive/promote reflections (mechanical, no agent) |
 | `compress-memory.ps1` | Archive old session dirs, age out history, dedup memory files |
 | `harness-propose.ps1` | Detect recurring kit-level patterns, write proposals (no auto-apply) |
@@ -179,5 +196,9 @@ If files change after verification has been captured, treat the verification as 
 | `swarm-classifier.ps1` | sequential / swarm-review / swarm-fanout from verb+scope+opt-in |
 | `playwright-runner.ps1` + `.py` | Capture screenshots from a YAML screen-flow |
 | `visual-diff.ps1` | Pair before/after screenshots, produce diff PNGs |
+| `context-bloat-guard.ps1 -RepoRoot . -AutoFix -Json` | Context size check — run at session start and every 3 iterations in goal loops |
+| `multi-pass-review.ps1 -SessionId <id> -Passes 3` | Multi-pass shuffled review for large diffs (>5 files) — 2× bug detection rate |
+| `test-loop-runner.ps1 -SessionId <id> -TestCommand "<cmd>" -MaxRounds 5` | Iterate-until-pass test runner for /test-gen and verification loops |
+| `memory-inbox.ps1 -Action collect -SessionId <id>` | Collect learned patterns into memory inbox — run at session end |
 
 Read the docs in the kit for the full operating model.

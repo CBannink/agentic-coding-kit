@@ -1,18 +1,43 @@
 ---
 name: review
-description: User-typed /review entry point. Spawns the `review-orchestrator` subagent via the Task tool so the kit's full phased pipeline runs (surface review parallel, adversarial pass, false-positive verify). MUST BE USED when the user types `/review` or asks to review, audit, check quality, find bugs. Use PROACTIVELY rather than running the workflow inline.
+description: Use when the user asks to review, audit, check quality, or find bugs in code. Runs single-reviewer scope classify, targeted review pass, false-positive check, consolidated report.
 ---
 
 # /review
 
-Spawn the `review-orchestrator` subagent via the **Task tool** with the user's verbatim request as the prompt. The orchestrator handles every phase (surface review parallel, adversarial pass, false-positive verify) and returns when done.
+Review only. Do NOT edit code — point the user at /build with findings.
 
-## Action
+## Phase 1 — Scope
 
-Use the Task tool now. `subagent_type` = `review-orchestrator`. `description` = `review workflow`. `prompt` = the user's verbatim request plus any clarifying context they supplied.
+Read the diff: `git diff HEAD` (or the user-named range). Classify:
+- **ISOLATED**: 1 module, <=5 files changed. Single reviewer.
+- **SHARED**: 2+ modules or shared interfaces. Reviewer + possible second.
+- **CRITICAL**: Auth, schema, breaking change. Full pass.
 
-## What you DO NOT do
+## Phase 2 — Reviewer pass
 
-- Do NOT run the workflow inline. The orchestrator's body is the canonical pipeline — running phases here in the main session defeats the design.
-- Do NOT skip the Task spawn even if the request looks small. `review-orchestrator` will classify scope (ISOLATED / SHARED / CRITICAL) and pick the right depth itself.
-- Do NOT spawn other subagents directly from this skill. The orchestrator does the fan-out.
+Spawn exactly ONE reviewer by default. Pick based on what the diff changes:
+
+| Diff touches | Reviewer |
+|---|---|
+| New/moved files, shared types, DI wiring | `modularity-expert` |
+| Auth, HTTP, DB writes, user input, paths | `security-reviewer` |
+| Everything else | `code-quality-reviewer` |
+
+Spawn a SECOND reviewer only if the first surfaces a finding outside its lane. Do NOT default to two reviewers.
+
+Each reviewer returns findings with file:line, severity, and recommended fix.
+
+## Phase 3 — False-positive check
+
+For every BLOCKING finding: read the file:line yourself. Confirm the finding applies. Downgrade verified-false to NIT.
+
+## Phase 4 — Consolidated report
+
+One consolidated review with sections:
+- **BLOCKING**: file:line + concrete fix suggestion
+- **NON-BLOCKING**: file:line
+- **NITS**: bullets, no file:line needed
+- **Overall verdict**: one paragraph
+
+Tag BLOCKING / NON-BLOCKING / NIT for every finding.

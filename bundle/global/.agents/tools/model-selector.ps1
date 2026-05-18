@@ -41,17 +41,17 @@ param(
 $modelMap = @{
     fast = @{
         "claude-code"  = "claude-haiku-4-5"
-        "opencode"     = "claude-haiku-4-5"
+        "opencode"     = "opencode-go/deepseek-v4-flash"
         "copilot-cli"  = "gpt-5.4-mini"
     }
     balanced = @{
         "claude-code"  = "claude-sonnet-4-6"
-        "opencode"     = "claude-sonnet-4-6"
+        "opencode"     = "opencode-go/minimax-m2.7"
         "copilot-cli"  = "claude-sonnet-4.6"
     }
     premium = @{
         "claude-code"  = "claude-opus-4-7"
-        "opencode"     = "claude-opus-4-7"
+        "opencode"     = "opencode-go/deepseek-v4-pro"
         "copilot-cli"  = "gpt-5.4"
     }
 }

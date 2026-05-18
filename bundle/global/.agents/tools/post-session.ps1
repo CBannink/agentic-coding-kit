@@ -965,6 +965,12 @@ if ($complianceScript -and (Test-Path $complianceScript)) {
     Write-Host "${DIM}(compliance script not on disk -- skipping auto-check)${RESET}"
 }
 
+# ── Memory inbox collection (gather learnable patterns from this session) ─────
+$memoryInboxTool = Join-Path $TOOLS "memory-inbox.ps1"
+if (Test-Path $memoryInboxTool) {
+    & $script:AgentsShell -NoProfile -File $memoryInboxTool -Action collect -SessionId $SessionId -RepoRoot (Get-Location).Path 2>$null | Out-Null
+}
+
 # ── Done ──────────────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "${BOLD}${GREEN}╔══════════════════════════════════════════════╗${RESET}"

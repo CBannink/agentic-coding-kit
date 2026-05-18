@@ -428,6 +428,19 @@ Write-Host "${DIM}Session ID saved. Run post-session when done:${RESET}"
 Write-Host "${YELLOW}  pwsh ~/.agents/tools/post-session.ps1 -SessionId $SessionId -Mode $Mode -Task `"$taskSlug`"${RESET}"
 Write-Host ""
 
+# Context bloat guard -- auto-compress if files exceed hard limits
+$bloatGuard = & $script:AgentsShell -NoProfile -File "$TOOLS/context-bloat-guard.ps1" -RepoRoot (Get-Location).Path -AutoFix -Json 2>$null
+if ($bloatGuard) {
+    try {
+        $bg = $bloatGuard | ConvertFrom-Json
+        if ($bg.status -eq "critical") {
+            Write-Host "WARN: context files exceed hard limits -- auto-compress ran. Check $($bg.total_critical) file(s)."
+        } elseif ($bg.status -eq "warn") {
+            Write-Host "Note: $($bg.total_warnings) context file(s) approaching soft limit."
+        }
+    } catch {}
+}
+
 # Save session metadata for post-session to use
 $metaDir = Get-SessionDir $SessionId
 New-Item -ItemType Directory -Path $metaDir -Force | Out-Null

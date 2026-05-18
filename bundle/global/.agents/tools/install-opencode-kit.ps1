@@ -1,12 +1,19 @@
 # install-opencode-kit.ps1
 # Installs the kit into OpenCode (~/.config/opencode/).
-# - Syncs agent .md files (frontmatter normalized for OpenCode: description unquoted, no tools field)
+# - Syncs agent .md files from primary source (e.g. ~/.claude/agents/) plus
+#   any additional directories passed via -AdditionalAgentDirs (workflow agents
+#   that Claude Code doesn't have).
 # - Syncs the canonical block into prompt.md using <!-- agentic-kit:begin/end --> markers
 #
 # Idempotent. Detects existing kit install + prompts before overwrite.
 
 [CmdletBinding()]
-param([switch]$DryRun, [switch]$Force, [switch]$NoBackup)
+param(
+    [switch]$DryRun,
+    [switch]$Force,
+    [switch]$NoBackup,
+    [string[]]$AdditionalAgentDirs
+)
 $ErrorActionPreference = 'Stop'
 
 $ClaudeRoot   = Join-Path $HOME ".claude"
@@ -148,6 +155,20 @@ if (Test-Path $claudeAgents) {
         else { Write-NoBom $outPath $normalized; Do-It "/$([System.IO.Path]::GetFileNameWithoutExtension($_.Name))" }
     }
 } else { Warn "no ~/.claude/agents found" }
+
+# Copy from additional agent directories (workflow agents that Claude Code
+# doesn't have but OpenCode needs). Sources should use OpenCode-compatible
+# frontmatter (no tools: field) already.
+foreach ($srcDir in $AdditionalAgentDirs) {
+    if (-not (Test-Path $srcDir)) { Skip "additional agent dir not found: $srcDir"; continue }
+    Do-It "copying additional agents from $srcDir"
+    if (-not $DryRun) {
+        Get-ChildItem -LiteralPath $srcDir -Filter *.md -File | ForEach-Object {
+            $outPath = Join-Path $opencodeAgents $_.Name
+            Copy-Item -Force $_.FullName $outPath
+        }
+    }
+}
 
 # ---------- 3. verify ----------
 Say "`n[3/3] Verify" 'Cyan'

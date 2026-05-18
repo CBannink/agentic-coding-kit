@@ -1,37 +1,82 @@
 ---
 name: goal
-description: "User-typed /goal entry point. Classifies the stated goal (CODE / DESIGN / INVESTIGATION / REFACTOR / BOOTSTRAP / MULTI / PR_REVIEW) and routes to the correct kit workflow end-to-end via the goal-orchestrator subagent. MUST BE USED when the user types `/goal` or says 'achieve this autonomously', 'drive this to completion', or 'iterate until done'. Use PROACTIVELY rather than running the workflow inline."
+description: Use when the user says "achieve this autonomously", "iterate until done", "drive this to completion", or any multi-step end-to-end task. Classifies type, routes to the correct workflow, iterates with review gates until provably achieved.
 ---
 
 # /goal
 
-Spawn the `goal-orchestrator` subagent via the **Task tool** with the user's verbatim request as the prompt. The orchestrator classifies the goal type, picks the correct kit workflow as the primary pipeline, and iterates until the goal is provably achieved or hits a guarded cap.
+Multi-step autonomous completion. Classify the goal, pick the right pipeline, iterate until done. Do NOT bail on failure — re-plan with a different approach.
 
-## Action
+## Phase 0 — Triage
 
-Use the Task tool now. `subagent_type` = `goal-orchestrator`. `description` = `goal workflow`. `prompt` = the user's verbatim request plus any clarifying context they supplied.
+- **Single-edit task with obvious scope**: redirect to `/build` instead.
+- **Pure documentation**: no goal loop needed, write directly.
+- **Multi-step, ambiguous, or cross-type**: continue with this workflow.
 
-## Goal type routing
+Output: `TRIAGE: goal | reason: <why>` or `TRIAGE: redirect to /build | reason: <why>`
 
-| Goal type | Primary pipeline |
-|-----------|-----------------|
-| CODE | `/build` |
-| DESIGN | `/redesign` |
-| INVESTIGATION | `/investigate` |
-| REFACTOR | `/refactor` |
-| BOOTSTRAP | `/bootstrap-harness` |
-| MULTI | decompose → route each sub-goal |
-| **PR_REVIEW** | **see below** |
+## Phase 0.5 — Goal type classification
 
-### PR_REVIEW routing
+Pick ONE primary type:
 
-When the goal is to review a pull request or audit a branch diff, use the kit's
-`pr-reviewer` agent (available on all supported hosts). Return a structured review
-with `PR_REVIEW: <APPROVE|REQUEST_CHANGES|COMMENT>` at the top and Blocking /
-Non-blocking / Nits / Praise sections.
+| Type | Pipeline |
+|---|---|
+| **CODE** | /build → implement → review → verify |
+| **REFACTOR** | /refactor → consequence-trace → implement → modularity-check → verify |
+| **DESIGN** | /redesign → aesthetic-lock → capture → design → implement → visual-diff |
+| **INVESTIGATION** | /investigate → hypotheses → evidence → Build Brief |
+| **ANALYSIS** | /analyze → explore → synthesize → verify |
+| **REVIEW** | /review → reviewer pass → verify |
+| **BOOTSTRAP** | /bootstrap-harness → scaffold → init |
+| **MULTI** | Decompose into sub-goals, route each independently, sequence the results |
 
-## What you DO NOT do
+Output: `GOAL_TYPE: <type> | reason: <reason>`
 
-- Do NOT run the workflow inline. The goal-orchestrator's body is the canonical pipeline -- running phases here in the main session defeats the design.
-- Do NOT skip the Task spawn even if the request looks simple. `goal-orchestrator` will triage simple tasks to `/build` immediately.
-- Do NOT spawn other subagents directly from this skill. The goal-orchestrator does the fan-out and workflow routing.
+## Phase 1 — Goal capture
+
+Restate the goal verbatim. Enumerate:
+- **Success criteria**: each CONCRETE and OBSERVABLE
+- **Scope IN**: work items required
+- **Scope OUT**: adjacent issues you will NOT fix
+- **Verification command**: exact command whose exit-0 signals completion
+
+## Phase 2 — Brief planning decision (CODE/REFACTOR only)
+
+Skip planning if: clear spec, <=3 files, isolated change. Plan first if: outcome statement, cross-cutting, >5 files, architectural decision.
+
+If planning: spawn `workflow-explorer` + `workflow-skeptic` to produce a plan artifact, validate it against success criteria, then continue to Phase 3 with the plan as context.
+
+## Phase 3 — Recon (exactly once)
+
+Spawn `workflow-explorer` with: goal, success criteria, scope IN/OUT, 3-8 likely files, pointers to `.kit/context/memory.md` and `.wiki/index.md`. Skip if Phase 2 already produced a validated plan that covers the exploration surface.
+
+## Phase 4 — Build-review-iterate loop (persistent convergence)
+
+Capture baseline: `BASELINE_SHA = git rev-parse HEAD`
+
+Each iteration:
+1. Spawn `prompt-synthesizer` with: user goal, success criteria, APPROACH_LOG, exploration synthesis, deltas from last iteration, target type "implementer". Use its `PROMPT_SYNTHESIS` output as the implementer prompt.
+2. Spawn `workflow-implementer` with the synthesized prompt.
+3. Run slop detection: `pwsh ~/.agents/tools/detect-slop.ps1 -Path . -Fix -Json`. Spawn `slop-refactorer` if warning-severity findings remain.
+4. Run verification inline. If non-zero, include error in next iteration's deltas for the prompt-synthesizer.
+5. If verification green AND scope appears complete: spawn `prompt-synthesizer` with diff context + target reviewer type, then spawn the reviewer with the synthesized prompt.
+6. No BLOCKING → converged. BLOCKING → re-prompt implementer with deltas.
+
+**Stuck detection**: same file:line:rule blocker in 3 consecutive iterations → spawn `workflow-explorer` to find an alternative approach. Same 2-3 files oscillating as failure sources → tell implementer to modify them as a single atomic unit. 6 soft cap, 12 hard cap.
+
+## Phase 5 — Goal achievement review
+
+Spawn `goal-reviewer` with: original goal, success criteria, files changed, verification status. If NOT ACHIEVED, loop back to Phase 4 once with findings as constraints. If still not achieved, proceed with PARTIAL.
+
+## Phase 6 — Final verification
+
+Spawn `final-verifier` with BASELINE_SHA→HEAD diff, verification + last exit-0, goal verbatim + criteria. Self-evaluate verdict: ON_TRACK / UNDER_DELIVERED / OFF_TRACK / NEEDS_REBUILD.
+
+## Phase 7 — Handoff
+
+Output machine-parseable first line:
+```
+GOAL_STATUS: <ACHIEVED|PARTIAL|FAILED-AT-CAP> | type: <type> | iterations: <N>/12
+```
+
+Then: goal verbatim, approach log, files changed, verification status, remaining gaps.

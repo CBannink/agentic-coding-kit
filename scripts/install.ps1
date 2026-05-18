@@ -1334,12 +1334,33 @@ $endMarker
                     -DocPath (Join-Path $HomeRoot ".config/opencode/agentic-kit.md") `
                     -Label   "OpenCode"
 
-                # Always-on rules in OpenCode's documented global rules file:
-                # ~/.config/opencode/AGENTS.md (per opencode.ai/docs). The kit
-                # previously wrote to prompt.md, which OpenCode does not
-                # auto-load -- the canonical block was silently ignored.
+                # Orchestrator prompt in OpenCode's global AGENTS.md.
+                # OpenCode auto-loads ~/.config/opencode/AGENTS.md from every
+                # session. The orchestrator prompt (adaptive routing, agent
+                # toolbox, scope tiers) must be there — not just in per-repo
+                # installs — so every new session starts with orchestrator
+                # identity even without a repo-level AGENTS.md.
+                $ocAgentsPath = Join-Path $HomeRoot ".config/opencode/AGENTS.md"
+                $orchestratorSource = Join-Path $AdaptersRoot "opencode/AGENTS.md"
+                $orchestratorHeader = "# AGENTS.md -- OpenCode Orchestrator"
+                if (Test-Path $ocAgentsPath) {
+                    $currentContent = Get-Content $ocAgentsPath -Raw -Encoding UTF8
+                    $headerPattern = [regex]::Escape($orchestratorHeader)
+                    if ($currentContent -notmatch $headerPattern) {
+                        $orchestratorContent = Get-Content $orchestratorSource -Raw -Encoding UTF8
+                        $separator = "`r`n`r`n<!-- agentic-kit:begin -->`r`n"
+                        $updated = $orchestratorContent.TrimEnd() + $separator + $currentContent
+                        [System.IO.File]::WriteAllText($ocAgentsPath, $updated, (New-Object System.Text.UTF8Encoding($false)))
+                        Write-Host "  OpenCode AGENTS.md: prepended orchestrator prompt"
+                    } else { Write-Host "  OpenCode AGENTS.md: orchestrator prompt already present" }
+                } else {
+                    Copy-Item -Force $orchestratorSource $ocAgentsPath
+                    Write-Host "  OpenCode AGENTS.md: created with orchestrator prompt"
+                }
+                # Always-on rules block is appended inside the orchestrator
+                # content (via marker). Refresh it to ensure latest version.
                 Install-DeviceWideAlwaysOnRules `
-                    -ExistingPath  (Join-Path $HomeRoot ".config/opencode/AGENTS.md") `
+                    -ExistingPath  $ocAgentsPath `
                     -LongFormPath  (Join-Path $HomeRoot ".config/opencode/agentic-kit.md") `
                     -Label         "OpenCode"
 
@@ -1357,22 +1378,25 @@ $endMarker
                     -DestRoot   (Join-Path $HomeRoot ".config/opencode/skills") `
                     -Label      "OpenCode"
 
-                # Host-specific reviewer / expert agents. Use the OpenCode-specific
-                # sanitizer so Claude-format `tools:` / `permissionMode:` / `maxTurns:`
-                # frontmatter keys (which OpenCode's loader rejects with "expected
-                # object") get stripped before writing.
-                Install-OpenCodeAgentsFromSource `
-                    -SourceDir (Join-Path $AdaptersRoot "opencode/.opencode/agents") `
-                    -DestDir   (Join-Path $HomeRoot ".config/opencode/agents") `
-                    -Label     "OpenCode"
-
-                # Workflow-agents from _shared/ also need OpenCode sanitization.
-                # Install-WorkflowAdapterAssets just rendered them via Render-Template
-                # which preserved Claude format; rewrite them through the sanitizer.
+                # Workflow-agents from _shared/ need OpenCode sanitization.
+                # Install-WorkflowAdapterAssets rendered them via Render-Template
+                # which preserved Claude format; rewrite through the sanitizer.
+                # Install these FIRST so adapter-specific overrides can win below.
                 Install-OpenCodeAgentsFromSource `
                     -SourceDir (Join-Path $AdaptersRoot "_shared/workflow-agents") `
                     -DestDir   (Join-Path $HomeRoot ".config/opencode/agents") `
                     -Label     "OpenCode workflow"
+
+                # Host-specific reviewer / expert agents. Use the OpenCode-specific
+                # sanitizer so Claude-format `tools:` / `permissionMode:` / `maxTurns:`
+                # frontmatter keys (which OpenCode's loader rejects with "expected
+                # object") get stripped before writing.
+                # Install SECOND so adapter-specific files (with hardcoded host name,
+                # no template variables) override the shared workflow-agent versions.
+                Install-OpenCodeAgentsFromSource `
+                    -SourceDir (Join-Path $AdaptersRoot "opencode/.opencode/agents") `
+                    -DestDir   (Join-Path $HomeRoot ".config/opencode/agents") `
+                    -Label     "OpenCode"
 
                 # Lifecycle plugin
                 $pluginSrc = Join-Path $AdaptersRoot "opencode/.opencode/plugins/agentic-kit.ts"
@@ -1419,15 +1443,13 @@ $endMarker
                     -DestDir   (Join-Path $HomeRoot ".copilot/agents") `
                     -Label     "GitHub Copilot"
 
-                # Current Copilot CLI builds on this machine inherit workflow
-                # skills from ~/.agents/skills. Overlay the Copilot-specific
-                # slash-entry variants there so `/goal`, `/build`, etc. stay in
-                # the main session and only spawn leaf agents, while other hosts
-                # keep the generic orchestrator-spawning skill bodies.
-                Install-DeviceWideSkills `
-                    -SourceRoot (Join-Path $AdaptersRoot "copilot-cli/.agents/skills") `
-                    -DestRoot   (Join-Path $AgentsRoot "skills") `
-                    -Label      "GitHub Copilot inherited inline-skill overrides"
+                # Copilot CLI uses the global skills under ~/.agents/skills/
+                # directly. The global skills now reference only leaf agents
+                # that Copilot CLI can spawn (workflow-implementer,
+                # workflow-explorer, etc.) — no orchestrator-subagent proxies.
+                # Copilot-specific rules (progress output, inline execution,
+                # leaf-agent-only) live in copilot-instructions.md.
+                # No overrides needed.
 
                 # Wrapper scripts remain the explicit compatibility / shell
                 # entrypoints for users who prefer terminal commands or older
