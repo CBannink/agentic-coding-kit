@@ -1423,6 +1423,36 @@ $endMarker
                     Copy-Item -Force $pluginSrc $pluginDst
                     Write-Host "  OpenCode plugin: $pluginDst"
                 }
+
+                # Ensure default_agent is set to orchestrator in opencode.jsonc
+                # Only modifies if default_agent is not already set (leaves user's config untouched)
+                $configPath = Join-Path $HomeRoot ".config\opencode\opencode.jsonc"
+                if (Test-Path $configPath) {
+                    $content = [System.IO.File]::ReadAllText($configPath)
+                    $modified = $false
+
+                    # 1. Insert default_agent at the start if not already set
+                    if ($content -notmatch '"default_agent"\s*:\s*"') {
+                        $content = $content -replace '(?ms)^\s*\{', '{"default_agent": "orchestrator",', 1
+                        $modified = $true
+                    }
+
+                    # 2. Ensure orchestrator agent entry exists in the agent block
+                    if ($content -notmatch '"orchestrator"\s*:\s*\{') {
+                        # Find the agent block and add orchestrator entry
+                        $content = $content -replace '("agent"\s*:\s*\{)', "$1`n    // Orchestrator (session default — the main agent)`n    `"orchestrator`": {`n      `"model`": `"opencode-go/deepseek-v4-pro`",`n      `"mode`": `"primary`",`n      `"description`": `"Main session orchestrator — routes all requests, spawns subagents and workflows`"`n    },", 1
+                        $modified = $true
+                    }
+
+                    if ($modified) {
+                        [System.IO.File]::WriteAllText($configPath, $content, [System.Text.Encoding]::UTF8)
+                        Write-Host "  Updated opencode.jsonc with default_agent + orchestrator entry"
+                    } else {
+                        Write-Host "  opencode.jsonc already has orchestrator configured — not modifying"
+                    }
+                } else {
+                    Write-Host "  opencode.jsonc not found at $configPath — skipping config update (add default_agent + orchestrator entry manually)"
+                }
             }
             "generic" {
                 # No standard auto-discovery for generic CLIs (Aider, Cline,
