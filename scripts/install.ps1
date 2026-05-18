@@ -1253,9 +1253,28 @@ $endMarker
                     -DocPath (Join-Path $HomeRoot ".claude/agentic-kit.md") `
                     -Label   "Claude Code"
 
-                # Minimal always-on rules block (wiki + Iron Law + commands)
+                # Orchestrator prompt in Claude Code's global CLAUDE.md.
+                # Claude Code auto-loads ~/.claude/CLAUDE.md from every session.
+                # The orchestrator prompt (decision hierarchy, ONE RULE, tier
+                # table, toolbox, lifecycle, Iron Law, intent routing) must be
+                # there — not just in per-repo installs — so every new session
+                # starts with orchestrator identity even without a repo CLAUDE.md.
+                #
+                # ALWAYS REPLACE: copy the bundle source fresh each time, then let
+                # Install-DeviceWideAlwaysOnRules handle the always-on block.
+                $claudeMdPath = Join-Path $HomeRoot ".claude/CLAUDE.md"
+                $claudeMdSource = Join-Path $AdaptersRoot "claude-code/CLAUDE.md"
+                if (Test-Path $claudeMdPath) {
+                    $backup = "$claudeMdPath.before-agentic-kit-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+                    Copy-Item -Force $claudeMdPath $backup
+                    Write-Host "  Claude Code CLAUDE.md: replacing existing (backup: $(Split-Path $backup -Leaf))"
+                }
+                Copy-Item -Force $claudeMdSource $claudeMdPath
+                Write-Host "  Claude Code CLAUDE.md: written from bundle source"
+
+                # Always-on rules block appended after the orchestrator content.
                 Install-DeviceWideAlwaysOnRules `
-                    -ExistingPath  (Join-Path $HomeRoot ".claude/CLAUDE.md") `
+                    -ExistingPath  $claudeMdPath `
                     -LongFormPath  (Join-Path $HomeRoot ".claude/agentic-kit.md") `
                     -Label         "Claude Code"
 
