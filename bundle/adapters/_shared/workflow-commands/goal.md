@@ -76,6 +76,19 @@ Run the workflow mapped from Phase 0. Pass goal, success criteria, scope, verifi
 
 #### Iteration mechanics
 
+**MECHANICAL pre-implementation gate (every iteration, no exceptions — this is a routing rule, not a style preference):**
+
+```bash
+git diff --name-only HEAD
+```
+
+Count the files changed since session start. If **>1 file OR any new file**: spawn `workflow-implementer`. Do NOT proceed inline. Violating this bypasses review gates.
+
+| Condition | Action |
+|---|---|
+| 1 existing file touched, no new files | Inline Edit/Write allowed |
+| >1 file OR new file created | Spawn `workflow-implementer` immediately |
+
 For CODE goals, use iterate-until-pass verification:
 ```
 pwsh ~/.agents/tools/test-loop-runner.ps1 -SessionId "$SESSION_ID" -TestCommand "<cmd>" -MaxRounds 3

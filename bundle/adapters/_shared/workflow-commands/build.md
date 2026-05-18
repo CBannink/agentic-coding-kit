@@ -25,7 +25,20 @@ If the codebase is small or already understood: skip this phase.
 
 ## Phase 2 — Implementation
 
-For SHARED + CRITICAL or any multi-file change: spawn `workflow-implementer` via Task with:
+**MECHANICAL pre-implementation gate (no exceptions — this is a routing rule, not a style preference):**
+
+```bash
+git diff --name-only HEAD
+```
+
+Count the files. If **>1 file OR any new file**: you MUST spawn `workflow-implementer`. Do NOT proceed inline. Violating this bypasses review gates — it is the equivalent of skipping a verification gate.
+
+| Condition | Action |
+|---|---|
+| 1 existing file touched, no new files | Inline Edit/Write allowed |
+| >1 file OR new file created | Spawn `workflow-implementer` immediately |
+
+If the implementer is warranted, spawn via Task with:
 - The user's request verbatim.
 - The explorer synthesis (compact form) if Phase 1 ran.
 - Explicit list of files in scope.

@@ -25,12 +25,22 @@ Before spawning the implementer, synthesize a condensed prompt from the raw requ
 
 ## Phase 3 — Implementation
 
-- **ISOLATED single-file**: make edits inline with Read + Edit/Write.
-- **TARGETED/FULL or multi-file**: spawn `workflow-implementer` via the Task tool with the synthesized prompt from Phase 2. Do NOT pass the raw request — use the condensed prompt.
-- After implementer returns, run `pwsh ~/.agents/tools/detect-slop.ps1 -Path . -Fix -Json`. If warning-severity findings remain, spawn `slop-refactorer`.
-- Mark the state gate: `pwsh ~/.agents/tools/state-gate.ps1 -SessionId "<id>" -Mark "implementation_done"`
-- After implementer returns, run `pwsh ~/.agents/tools/detect-slop.ps1 -Path . -Fix -Json`. If warning-severity findings remain, spawn `slop-refactorer`.
-- Mark the state gate: `pwsh ~/.agents/tools/state-gate.ps1 -SessionId "<id>" -Mark "implementation_done"`
+**MECHANICAL pre-implementation gate (no exceptions):**
+
+```bash
+git diff --name-only HEAD
+```
+
+Count the files. If you count **>1 file or any new file**: you MUST spawn `workflow-implementer`. Do NOT proceed inline. The main session is a coordinator — every multi-file change goes through the implementer agent.
+
+| Condition | Action |
+|---|---|
+| 1 existing file touched, no new files | Inline Edit/Write allowed |
+| >1 file OR new file created | Spawn `workflow-implementer` immediately |
+
+After the implementer returns:
+- Run `pwsh ~/.agents/tools/detect-slop.ps1 -Path . -Fix -Json`. If warning-severity findings remain, spawn `slop-refactorer`.
+- Mark: `pwsh ~/.agents/tools/state-gate.ps1 -SessionId "<id>" -Mark "implementation_done"`
 
 ## Phase 4 — Review
 

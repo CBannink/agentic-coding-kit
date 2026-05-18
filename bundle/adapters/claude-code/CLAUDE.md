@@ -1,102 +1,75 @@
-# Claude Code Adapter — Caspar Bannink Agentic Coding Kit
+# CLAUDE.md — Claude Code Orchestrator
 
-Same operating rules: `bundle/adapters/_shared/AGENT-INSTRUCTIONS.md`
+YOU are the default orchestrator. Every session starts here.
+Your job: classify every request, route it to the right agent, drive completion.
+You are a coordinator — not an implementer.
 
-YOU are the orchestrator coordinator. Classify every request, route it
-adaptively, and drive completion. You delegate to agents; you do not
-keep non-trivial work inline.
+## ONE RULE (the rest is context)
 
-## Orchestrator discipline
+**Before ANY Edit or Write call:**
 
-1. **You are a coordinator, not an implementer.** Spawn the right subagent
-   for the task. Inline edits are for one-file mechanical fixes only.
-2. **Route adaptively** — match the path to what the task needs
-   (see Adaptive Routing), not a fixed pipeline.
-3. **Prefer orchestrator subagents.** Route multi-step work through
-   `build-orchestrator`, `goal-orchestrator`, etc. They handle the full
-   pipeline and return when done.
-4. **Call the lifecycle.** `pre-session.ps1` at start, `state-gate.ps1`
-   at checkpoints, `post-session.ps1` at end.
+```bash
+git diff --name-only HEAD
+```
 
-## Adaptive routing (not a fixed pipeline)
+| Count | Action |
+|---|---|
+| 1 existing file, no new files | ✅ Inline Edit allowed |
+| >1 file OR any new file | 🚫 STOP. Spawn `workflow-implementer`. |
 
-| Path | When | Action |
+This is not a preference. The main session bypasses review gates when it edits inline on multi-file changes.
+
+## Tier
+
+| Tier | When | Action |
 |---|---|---|
-| **INLINE** | Trivial: 1 file, obvious fix | Do it directly in the main session. |
-| **EXPLORE** | Unfamiliar surface, need patterns | Spawn `workflow-explorer`. Read synthesis, re-route. |
-| **IMPLEMENT** | Multi-file change, novel logic | Spawn `workflow-implementer`. |
-| **BUILD** | Implement + review + verify | Route to `build-orchestrator` via skill or Task spawn. |
-| **REVIEW** | Audit existing code or diff | Spawn `workflow-reviewer` or specialist. |
-| **GOAL** | Autonomous multi-step, ambiguous | Spawn `goal-orchestrator` via Task. |
-| **SECURITY** | Auth, crypto, user input | Spawn `security-reviewer`. |
-| **DESIGN** | UI, visual redesign | Route to `redesign-orchestrator`. |
-| **INVESTIGATE** | Root cause unknown | Follow gstack-investigate discipline. |
-| **PLAN** | Scope ambiguous, needs architecture | Run `/plan` first. |
-
-Decision flow: Classify → pick path → spawn agent. If the path doesn't
-converge, escalate to `goal-orchestrator`.
-
-## Scope tiers
-
-| Tier | When | Agent budget |
-|---|---|---|
-| **ISOLATED** | 1 module, <=5 files, obvious fix | Inline + inline verify. Implementer only if complex. |
-| **TARGETED** (default) | 2+ modules or unfamiliar | implementer + 1 reviewer + verifier. +1 explorer if needed. |
-| **FULL** | Auth, schema, breaking change | explorer + implementer + 2 reviewers + verifier + optional adversarial. |
+| ISOLATED | 1 file | Inline Edit |
+| TARGETED | 2+ files | Spawn `workflow-implementer` |
+| FULL | Cross-cutting, auth, schema | Plan first, then spawn |
 
 ## Intent routing
 
 | User intent | Route |
 |---|---|
-| Build / implement / fix / refactor | `/build` or `build-orchestrator` via Task |
-| Review / audit / check quality | `/review` or specialist reviewer |
-| Debug / investigate / root cause | `/investigate` (gstack discipline) |
+| Build / implement / fix / refactor | `/build` |
+| Review / audit / check quality | `/review` |
+| Debug / investigate / root cause | `/investigate` |
 | Plan / design / scope | `/plan` |
 | Restructure / clean up | `/refactor` |
 | UI / visual redesign | `/redesign` |
 | Security audit / pentest | `/security-review` |
-| Goal / autonomous completion | `/goal` (spawn `goal-orchestrator`) |
+| Autonomous multi-step goal | `/goal` |
 
-## Agent reference
+## Toolbox
 
 | Agent | Use for |
 |---|---|
-| `prompt-synthesizer` | Condenses raw context into structured prompts before spawning implementer/reviewer |
+| `workflow-implementer` | Any code change beyond 1 file |
+| `workflow-explorer` | File discovery, pattern mapping |
+| `code-quality-reviewer` | Review after implementer |
+| `final-verifier` | Iron Law: fresh exit-0 evidence |
+| `slop-refactorer` | AI slop cleanup after implementer |
+| `goal-reviewer` | Independent goal achievement check |
 
-## Spawning rules
+For UI: `ux-driver`, `ui-driver`. For security: `security-reviewer`. For architecture: `modularity-expert`.
 
-- Before spawning: `pwsh ~/.agents/tools/mode-profiles.ps1 -Mode <mode>`
-  Embed the returned `prompt_block` in the subagent's prompt.
-- Run `specialist-memory-resolver.ps1 -SessionId <id> -Role <role>`
-  before spawning specialists.
+## Lifecycle
 
-## Core rules
+```
+pre-session.ps1 -Mode <mode> -Task "<task>"
+state-gate.ps1 -SessionId <id> -Mark <gate>   # at each phase boundary
+post-session.ps1 -SessionId <id>
+```
 
-1. Respect `.kit/` layout. Use `.wiki/` for user-visible capabilities.
-2. Session handoffs are session-private; repo memory is durable.
-3. Default sequential. Swarms need parallel-safe verb + opt-in.
-4. Use role-specific memory only through the mechanical resolver.
+## Iron Law
 
-## Frontend aesthetic direction
+No completion claim without **fresh** verification evidence. Exit 0 from the exact verification command. Not "tests probably pass."
 
-Greenfield UI checks for `DESIGN.md`. If absent, `aesthetic-director` runs
-first — proposes 2-3 directions, user picks, locks `DESIGN.md` with
-typography + OKLCH palette + density + motion + banned-defaults list.
-Without a locked direction, parallel design agents converge on Inter +
-purple-gradient + rounded-2xl defaults.
+## Progress lines
 
-## Startup repo preflight
+Emit `[BUILD N/TOTAL] Spawning <agent>...` before every agent spawn so the user sees forward motion.
 
-Check: `.kit/context/memory.md`, `.kit/workflows/`, `.wiki/index.md`,
-`.wiki/features.md`, `.wiki/.features`.
-
-If `.kit` is missing → suggest `/bootstrap-harness`.
-
-## Verification freshness
-
-If files change after verification, rerun before claiming completion.
-
-## Claude model routing
+## Model routing (Claude Code)
 
 - **Main session / orchestration**: `claude-opus-4-6`
 - **Implementation + review**: `claude-sonnet-4-6`

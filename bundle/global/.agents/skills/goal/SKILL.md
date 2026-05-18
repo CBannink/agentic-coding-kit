@@ -54,6 +54,19 @@ Spawn `workflow-explorer` with: goal, success criteria, scope IN/OUT, 3-8 likely
 
 Capture baseline: `BASELINE_SHA = git rev-parse HEAD`
 
+**MECHANICAL pre-implementation gate (no exceptions, every iteration):**
+
+```bash
+git diff --name-only HEAD
+```
+
+Count the files changed since BASELINE_SHA. If you count **>1 file or any new file**: you MUST spawn `workflow-implementer`. Do NOT proceed inline. This is a routing rule, not a style preference — violating it bypasses the harness's review gates.
+
+| Condition | Action |
+|---|---|
+| 1 existing file touched, no new files | Inline Edit/Write allowed |
+| >1 file OR new file created | Spawn `workflow-implementer` immediately |
+
 Each iteration:
 1. Spawn `prompt-synthesizer` with: user goal, success criteria, APPROACH_LOG, exploration synthesis, deltas from last iteration, target type "implementer". Use its `PROMPT_SYNTHESIS` output as the implementer prompt.
 2. Spawn `workflow-implementer` with the synthesized prompt.

@@ -265,6 +265,19 @@ Max 4 approach switches before hard cap kicks in.
 
 ### Per-iteration steps
 
+**MECHANICAL pre-implementation gate (every iteration, no exceptions):**
+
+```bash
+git diff --name-only BASELINE_SHA
+```
+
+Count the files changed since BASELINE_SHA. If **>1 file or any new file**: spawn `workflow-implementer`. Do NOT proceed inline. Violating this rule bypasses the review gates — it is the equivalent of skipping a verification gate.
+
+| Condition | Action |
+|---|---|
+| 1 existing file touched, no new files | Inline Edit/Write allowed |
+| >1 file OR new file created | Spawn `workflow-implementer` immediately |
+
 **a. Implementer call** - structured prompt (ITERATION, APPROACH_ID, GOAL, SUCCESS_CRITERIA, SCOPE_OUT, EXPLORER_SYNTHESIS, VERIFICATION_COMMAND, PLANNING_DECISION, PLAN_OUTPUT_IF_ANY, APPROACH_LOG, DELTAS_FROM_LAST_ITERATION, INSTRUCTIONS).
 
 For DESIGN: implementer prompt also includes `DESIGN.md` contents and pointers to before-screenshots so it knows the target aesthetic.
