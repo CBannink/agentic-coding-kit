@@ -30,6 +30,7 @@ You ARE the orchestrator. Spawn `workflow-explorer`, `git-archaeology`, `kit-ini
 | `.wiki/codebase.md` | Where important code lives; style conventions |
 | `.wiki/features.md` | User-visible capabilities |
 | `.wiki/.features` | Machine-readable feature index |
+| `.kit/context/reusables.md` | Hyper-compressed index of reusable UI components, API functions, and utilities |
 | `<host_root_for_repo>` adapter | `AGENTS.md` / `CLAUDE.md` / `.github/copilot-instructions.md` per host |
 
 ## Workflow (goal-conditioned, iterates)
@@ -125,6 +126,23 @@ Read `~/.agents/skills/kit-init/SKILL.md` and execute the kit-init workflow. Pas
 
 Read `~/.agents/skills/wiki-init/SKILL.md` and execute the wiki-init workflow with conventions context. `wiki-init`'s `architecture.md` should reflect the detected layering, DI pattern, API style, etc. extracted in Phase 1.
 
+### Phase 4.5 — Map Reusables (spawn workflow-explorer)
+
+Spawn `workflow-explorer` to map reusable code and counteract AI slop. A senior engineer looks for specific reuse categories before writing new code. Pass this exact prompt to the explorer:
+
+"Map the codebase for reusable elements to counteract AI slop. As a senior engineer, look for:
+1) API & Data Layer (fetch wrappers, axios clients, endpoint definitions, react-query hooks, gql queries)
+2) Core UI/Design System (Button, Modal, Form components, layout wrappers)
+3) State & Store (Redux slices, Zustand stores, auth contexts)
+4) Cross-cutting Utilities (date formatting, loggers, error handlers, string manipulators)
+5) Core Domain Interfaces/Types (User, Product, etc.)
+
+CRITICAL: This index must not bloat. It must remain under 5000 tokens.
+- DO NOT include implementation bodies.
+- DO NOT list every single file. Group by category.
+- Output format must be extremely condensed: `- filePath: exportName(args) - 3 word description`
+Write this hyper-compressed menu to `.kit/context/reusables.md`."
+
 ### Phase 5 — Convergence check (goal gate, mechanical)
 
 Bash-check every required outcome:
@@ -132,7 +150,8 @@ Bash-check every required outcome:
 ```bash
 # All of these must exist AND be > 200 bytes (i.e., not empty placeholder)
 for f in .kit/context/memory.md .kit/context/conventions.md \
-         .wiki/index.md .wiki/architecture.md .wiki/codebase.md .wiki/features.md; do
+         .kit/context/reusables.md .wiki/index.md .wiki/architecture.md \
+         .wiki/codebase.md .wiki/features.md; do
   if [ ! -f "$f" ] || [ $(wc -c < "$f") -lt 200 ]; then
     echo "MISSING_OR_EMPTY: $f"
   fi

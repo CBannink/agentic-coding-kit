@@ -42,11 +42,21 @@ $resolvedDir = Join-Path $sessionDir "resolved-specialist-memory"
 New-Item -ItemType Directory -Path $resolvedDir -Force | Out-Null
 
 $memoryDir = Join-Path $RepoRoot ".kit\context\agent-memory"
+$reusablesPath = Join-Path $RepoRoot ".kit\context\reusables.md"
 $sharedPath = Join-Path $memoryDir "shared.md"
 $rolePath = Join-Path $memoryDir "$Role.md"
 
 $sections = [System.Collections.ArrayList]::new()
 $usedFiles = [System.Collections.ArrayList]::new()
+
+if (Test-Path $reusablesPath) {
+    $reusablesText = Get-Content $reusablesPath -Raw
+    if ($reusablesText.Trim()) {
+        [void]$usedFiles.Add($reusablesPath)
+        # Cap reusables at ~4500 chars (approx 1500 tokens) to ensure it never blows up context.
+        [void]$sections.Add("## reusables.md (Available Code/Components)`n" + (Normalize-Excerpt -Text $reusablesText -MaxChars 4500 -MaxLines 150))
+    }
+}
 
 if (Test-Path $sharedPath) {
     $sharedText = Get-Content $sharedPath -Raw
