@@ -1,12 +1,13 @@
 ---
 name: analyze
 description: >
-  Use when the user says /analyze or asks to research, compare, investigate, or evaluate with
-  multiple perspectives. On invoke: reads ~/.agents/instructions.md, then repo-local
-  .kit/workflows/analyze.md + memory.md + handoffs.md. Runs multi-role explore→synthesize→verify
-  loop using gstack investigate/office-hours/plan-eng-review and Superpowers discipline.
-  33x cost, GitHub-recommended for agentic exploration).
-  investigate routes through ~/.agents/skills/gstack-investigate/SKILL.md (wrapper — not the raw vendored path).
+  Use when the user says /analyze or asks to evaluate a feature, idea, architecture
+  choice, or product wedge with multiple expert perspectives. Not for simple factual
+  questions or ordinary planning. On invoke: reads ~/.agents/instructions.md, then
+  repo-local .kit/workflows/analyze.md + memory.md + handoffs.md. Runs explore →
+  expert-roundtable → verify → synthesis using gstack investigate/office-hours/
+  plan-eng-review and Superpowers discipline. Expensive by design; reserve it for
+  questions that genuinely benefit from multiple experts arguing about tradeoffs.
 ---
 
 # Analyze Workflow
@@ -18,6 +19,46 @@ Before concluding anything:
 - Call out assumptions explicitly and downgrade them until verified.
 - Prefer the simplest explanation that still fits the evidence.
 - If one missing fact would change the recommendation, fetch it or ask instead of guessing.
+
+## Eligibility gate
+
+Use `/analyze` when the user is asking for a **decision-quality judgment**, not a
+fact lookup:
+
+- evaluating a feature or product idea
+- comparing implementation or architecture options
+- pressure-testing a proposal before building
+- deciding whether something is the right wedge / problem / design direction
+
+Do **not** use `/analyze` for:
+
+- simple factual questions answerable inline
+- routine implementation planning (`/plan`)
+- root-cause debugging (`/investigate`)
+- ordinary code review (`/review`)
+
+If the question is answerable inline from 2-3 targeted reads, answer inline and
+do not fan out the analysis workflow just because the topic sounds strategic.
+
+## Router handoff
+
+This workflow is meant to load **after** the top-level router has decided the
+task belongs in `/analyze`.
+
+If the current session already has a routing handoff, **honor it**:
+
+- `WORKFLOW_MODE: targeted | full`
+- `SCOPE_CLASS: isolated | shared | critical`
+- `ROUTING_REASON: <why this mode was chosen>`
+
+If the user invoked `/analyze` directly and no handoff exists, classify now:
+
+- bounded feature / idea / architecture evaluation → `targeted`
+- multi-option, high-risk, or product + architecture evaluation → `full`
+
+Do **not** reopen the `inline vs workflow` question when that handoff exists.
+You may escalate from `targeted` to `full` with evidence, but you should not
+fan out the full roster by default.
 
 ## Plugin Registry (lazy — pass path to sub-agent, do NOT load upfront)
 
@@ -89,6 +130,23 @@ If `.kit/skills/index.json` exists:
 - `claim-verifier`
   Purpose: verify disputed or important claims against code, docs, tests, or data.
 
+## Expert roundtable model
+
+These agents do **not** talk to each other directly. Simulate the discussion via
+an orchestrator-mediated roundtable:
+
+1. Build one shared **evidence packet** from exploration.
+2. Ask each expert for an **opening position** from that same packet.
+3. Build a compact **peer packet** summarizing the other experts' positions.
+4. Ask each expert for one **response round**:
+   - what they agree with
+   - what they reject
+   - whether the peer arguments changed their recommendation
+5. Only then verify factual claims and synthesize.
+
+This gives you the value of expert disagreement without pretending the host can
+run a free-form multi-agent chat room.
+
 ## Workflow
 
 ## Workflow Tier (judge before spawning any agents)
@@ -96,10 +154,11 @@ If `.kit/skills/index.json` exists:
 | Tier | Pick when | Agent policy |
 |------|-----------|-------------|
 | **INLINE** | Question is narrow and answerable from 2–3 targeted reads. Design already understood. No real tradeoffs to surface. | Orchestrator does it inline: read, reason, answer. No sub-agents. |
-| **TARGETED** | 2–4 independent angles needed, OR some uncertainty about design/tradeoffs, OR comparing ≤3 options | 2 explorers max (not 4). Pragmatist only — add skeptic only if real tradeoffs exist. Skip claim-verifier if evidence is direct (file:line). |
-| **FULL** | Architecture readiness, design unknown, genuine multi-option tradeoffs with non-obvious blast radius, security/production-risk topic | Full cycle: 2–3 explorers + pragmatist + skeptic + claim-verifier + consequence-agent. |
+| **TARGETED** | One feature / idea / option set needs actual judgment, but blast radius is bounded | 1–2 explorers + `pragmatist` + `skeptic`, with one orchestrator-mediated response round. Skip claim-verifier only when evidence is already direct and undisputed. |
+| **FULL** | Architecture readiness, design unknown, multi-option tradeoffs, or explicit production/product risk | 2–3 explorers + `pragmatist` + `skeptic` + conditional `security-reliability` / `product-wedge` + response round + `claim-verifier` + optional consequence analysis. |
 
-**Default when unsure: TARGETED, not FULL.** Use FULL only when you genuinely cannot synthesise without multiple adversarial perspectives.
+**Default when unsure: TARGETED, not FULL.** Use FULL only when the decision
+actually needs more than the core roundtable.
 
 ### Agent-spawn gate (apply before every sub-agent dispatch)
 
@@ -115,31 +174,31 @@ Before spawning any agent, answer: **"Can I answer this inline from what I alrea
    - **Parallel instance guard**: scan `.kit/context/handoffs.md` for session-tagged entries from the last 60 min. Read only the tag line of each recent entry. If a recent entry has a different task slug than your current task → log "⚠️ PARALLEL INSTANCE on [{task}]" and treat shared files as append-only. If same task → resume from that entry. If no recent entries → load normally.
    - **memory.md filter**: use only entries that are repo-architectural facts. Entries that look like task progress from another instance are noise — ignore them.
    - **Session Handoff Index scan**: after loading memory.md, scan the `## Session Handoff Index` table. For each row: ask "does this session's summary overlap with what I'm analyzing?" If yes → read that handoff path before proceeding. If no → skip it entirely. Never auto-load all handoffs.
-2. Explore with 2–3 parallel fact-finding agents. Gather facts only — no conclusions yet.
+2. Explore with 1–3 parallel fact-finding agents. Gather facts only — no conclusions yet.
    - **Spawn explore agents with `model: "a fast explorer model"`** — 0.33x cost, parallel tool-calling, codebase mapping.
-   - **Max 3 explorers.** Most tasks need 1–2. Spawn only when parallel exploration of genuinely independent areas saves time. Single-module questions → inline read, not an explorer.
-3. Synthesize findings into a shared evidence packet.
-4. Theorize with at least 2 perspective agents arguing from different trade-offs.
+   - **TARGETED**: 1–2 explorers.
+   - **FULL**: 2–3 explorers.
+3. Synthesize findings into one shared evidence packet.
+4. Run the expert roundtable opening statements.
    - Always include: `pragmatist` + `skeptic`
    - **Pragmatist: `model: "a balanced model"`** — execution realism from Claude's training.
    - **Skeptic: `model: "a premium reasoning model"`** — cross-provider by design. GPT challenges Claude's pragmatist output with genuinely different priors. Disagreement between them is signal, not noise. See ensemble rule in copilot-instructions.md.
-   - **Other theorize agents: `model: "a premium reasoning model"`** — synthesis and arbitration.
-   - Add `security-reliability` only when topic explicitly covers auth, trust boundaries, data handling, or production risk — not as a default for every analysis
-   - Add `product-wedge` only for product direction, architecture selection, or build-vs-buy topics
+   - Add `security-reliability` only when topic explicitly covers auth, trust boundaries, data handling, or production risk.
+   - Add `product-wedge` only for product direction, architecture selection, build-vs-buy, or status-quo replacement.
+4.2. Run one orchestrator-mediated **response round**.
+   - Give each expert a compact peer packet of the other positions.
+   - Require each expert to state: strongest agreement, strongest objection, and whether they changed their recommendation.
 4.3. **Claim-verifier pass** — **BLOCKING GATE** before synthesis:
    Run `claim-verifier` on the combined theorize outputs.
    - For every factual claim made by pragmatist or skeptic that is disputable: verify it against code, docs, or direct evidence with a file:line citation.
    - Downgrade claims that cannot be verified: mark as "unverified assertion" in the evidence packet.
    - Do NOT let unverified claims enter the synthesis as confirmed facts.
    - Claims about tradeoffs and opinions are exempt — only factual claims about what code does, what tests cover, what APIs return, etc. need verification.
-4.5. Run `consequence-agent` when the analysis involves a proposed change, design option comparison, or
-   architectural decision that touches shared interfaces, public API surfaces, or cross-module contracts.
-   - **Spawn with `model: "a premium reasoning model"`** — multi-hop causal chains need premium reasoning.
-   - Skill: `~/.agents/skills/consequence/SKILL.md`
-   - In /analyze context: run one consequence-agent per option when comparing options — this projects
-     the concrete blast radius of each choice and enables evidence-based comparison.
-   - Output feeds into **synthesis (step 5)**, not back into theorize (which is already complete). The verified claims from step 4.3 are passed to the consequence-agent as input.
-   - Skip for pure research tasks with no implementation options being evaluated.
+4.5. If the analysis compares implementation options that touch shared interfaces,
+   public API surfaces, or cross-module contracts, include a dedicated blast-radius
+   pass in the synthesis. This can be done by a premium-reasoning verifier or a
+   second round of `modularity`-focused exploration; do not skip blast radius when
+   the recommendation would meaningfully reshape the codebase.
 5. Identify agreements, disagreements, and blind spots explicitly.
 6. If the topic is root-cause analysis → use **gstack-investigate** discipline instead.
 7. If the topic is architecture readiness → use **gstack-plan-eng-review** pressure.
@@ -169,7 +228,7 @@ Before spawning any agent, answer: **"Can I answer this inline from what I alrea
     - Affected files: [exact paths]
     - Ownership proof: [for each file: why it directly owns the defect or required change]
     - False owners ruled out: [nearby plausible files checked and why they are not the right fix target]
-    - Known blast radius: [consequence-agent summary, or "not traced"]
+    - Known blast radius: [blast-radius pass summary, or "not traced"]
     - Architectural constraints discovered: [list]
     - Modules already mapped — /build Phase 0 can skip: [list]
     - Next steps for /build: [ordered task list]
@@ -187,6 +246,8 @@ Before the final synthesis, include a compact **Workflow Evidence** block.
 ## Rules
 
 - Never skip the explore phase for non-trivial analysis.
+- Never treat `/analyze` as a default synonym for "think harder." It is for real
+  multi-perspective evaluation of a feature, idea, or architecture choice.
 - Present disagreements instead of silently picking a winner.
 - Keep facts separate from recommendations.
 - Cite concrete evidence (file:line or doc section) in the final synthesis.

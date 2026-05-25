@@ -76,7 +76,7 @@ if ($isFilePath) {
     try {
         $rawDiff = & git @gitArgs 2>&1
         if ($LASTEXITCODE -ne 0) {
-            Out-Error "git diff exited $LASTEXITCODE: $rawDiff"
+            Out-Error "git diff exited ${LASTEXITCODE}: $rawDiff"
         }
         $rawDiff = $rawDiff -join "`n"
     } catch {

@@ -1,5 +1,5 @@
 ---
-description: User-typed /security-review entry point. Run the kit's phased pipeline for this workflow on __HOST_NAME__. Main session orchestrates; spawns workflow-explorer / workflow-implementer / specialist agents (code-quality-reviewer, security-reviewer, modularity-expert, final-verifier) via the Task tool per phase. Description-match also routes to the matching security-review-orchestrator subagent if loaded; both paths reach the same leaves.
+description: User-typed /security-review entry point. Run the kit's phased pipeline for this workflow on __HOST_NAME__. Main session orchestrates, decides mode, and spawns only leaf agents via the Task tool.
 ---
 
 # /security-review

@@ -182,7 +182,10 @@ $requiredSharedTemplates = @(
     "workflow-agents/workflow-implementer.md",
     "workflow-agents/workflow-reviewer.md",
     "workflow-agents/workflow-skeptic.md",
-    "workflow-agents/workflow-ui-qa.md"
+    "workflow-agents/workflow-ui-qa.md",
+    "specialist-agents/adversarial-reviewer.md",
+    "specialist-agents/goal-orchestrator.md",
+    "specialist-agents/pr-reviewer.md"
 )
 $sharedRoot = Join-Path $Bundle "adapters/_shared"
 $missingSharedTemplates = 0

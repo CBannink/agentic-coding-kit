@@ -1,95 +1,153 @@
 ---
 name: goal
-description: Use when the user says "achieve this autonomously", "iterate until done", "drive this to completion", or any multi-step end-to-end task. Classifies type, routes to the correct workflow, iterates with review gates until provably achieved.
+description: Use when the user says "achieve this autonomously", "iterate until done", "drive this to completion", or any multi-step end-to-end task. The current session becomes the goal orchestrator, routes to the correct workflow, and keeps iterating until the goal is provably achieved.
 ---
 
 # /goal
 
-Multi-step autonomous completion. Classify the goal, pick the right pipeline, iterate until done. Do NOT bail on failure — re-plan with a different approach.
+Thin autonomous wrapper. The current session owns convergence; the routed
+workflow does the work for one pass.
 
-## Phase 0 — Triage
+## Ownership model
 
-- **Single-edit task with obvious scope**: redirect to `/build` instead.
-- **Pure documentation**: no goal loop needed, write directly.
-- **Multi-step, ambiguous, or cross-type**: continue with this workflow.
+The **current session** is the goal orchestrator for the duration of `/goal`.
+It owns:
 
-Output: `TRIAGE: goal | reason: <why>` or `TRIAGE: redirect to /build | reason: <why>`
+- success criteria
+- scope in / out
+- iteration count
+- approach notes
+- convergence judgment
 
-## Phase 0.5 — Goal type classification
+The workflows you route into (`/build`, `/refactor`, `/investigate`,
+`/analyze`, `/review`, `/redesign`, `/bootstrap-harness`) are **execution
+subroutines**, not new owners.
 
-Pick ONE primary type:
+## Router handoff
 
-| Type | Pipeline |
+This workflow is meant to load **after** the top-level router has decided the
+task belongs in `/goal` rather than staying inline.
+
+If the current session already has a routing handoff, **honor it**:
+
+- `WORKFLOW_MODE: targeted | full`
+- `SCOPE_CLASS: isolated | shared | critical`
+- `ROUTING_REASON: <why this mode was chosen>`
+
+If the user invoked `/goal` directly and no handoff exists, classify now:
+
+- trivial isolated task -> redirect to `/build`
+- normal autonomous goal -> `targeted`
+- cross-cutting / risky / ambiguous goal -> `full`
+
+Do **not** spawn another goal orchestrator. `/goal` is already the ownership
+layer for this session.
+
+## Mode contract
+
+| Mode | Meaning |
 |---|---|
-| **CODE** | /build → implement → review → verify |
-| **REFACTOR** | /refactor → consequence-trace → implement → modularity-check → verify |
-| **DESIGN** | /redesign → aesthetic-lock → capture → design → implement → visual-diff |
-| **INVESTIGATION** | /investigate → hypotheses → evidence → Build Brief |
-| **ANALYSIS** | /analyze → explore → synthesize → verify |
-| **REVIEW** | /review → reviewer pass → verify |
-| **BOOTSTRAP** | /bootstrap-harness → scaffold → init |
-| **MULTI** | Decompose into sub-goals, route each independently, sequence the results |
+| `targeted` | one primary workflow at a time, minimal extra pressure |
+| `full` | optional planning/recon first, then broader iteration pressure |
 
-Output: `GOAL_TYPE: <type> | reason: <reason>`
+## Goal type -> workflow routing
 
-## Phase 1 — Goal capture
-
-Restate the goal verbatim. Enumerate:
-- **Success criteria**: each CONCRETE and OBSERVABLE
-- **Scope IN**: work items required
-- **Scope OUT**: adjacent issues you will NOT fix
-- **Verification command**: exact command whose exit-0 signals completion
-
-## Phase 2 — Brief planning decision (CODE/REFACTOR only)
-
-Skip planning if: clear spec, <=3 files, isolated change. Plan first if: outcome statement, cross-cutting, >5 files, architectural decision.
-
-If planning: spawn `workflow-explorer` + `workflow-skeptic` to produce a plan artifact, validate it against success criteria, then continue to Phase 3 with the plan as context.
-
-## Phase 3 — Recon (exactly once)
-
-Spawn `workflow-explorer` with: goal, success criteria, scope IN/OUT, 3-8 likely files, pointers to `.kit/context/memory.md` and `.wiki/index.md`. Skip if Phase 2 already produced a validated plan that covers the exploration surface.
-
-## Phase 4 — Build-review-iterate loop (persistent convergence)
-
-Capture baseline: `BASELINE_SHA = git rev-parse HEAD`
-
-**MECHANICAL pre-implementation gate (no exceptions, every iteration):**
-
-```bash
-git diff --name-only HEAD
-```
-
-Count the files changed since BASELINE_SHA. If you count **>1 file or any new file**: you MUST spawn `workflow-implementer`. Do NOT proceed inline. This is a routing rule, not a style preference — violating it bypasses the harness's review gates.
-
-| Condition | Action |
+| Goal type | Primary workflow |
 |---|---|
-| 1 existing file touched, no new files | Inline Edit/Write allowed |
-| >1 file OR new file created | Spawn `workflow-implementer` immediately |
+| **CODE** | `/build` |
+| **REFACTOR** | `/refactor` |
+| **INVESTIGATION** | `/investigate` |
+| **ANALYSIS** | `/analyze` |
+| **REVIEW** | `/review` |
+| **DESIGN** | `/redesign` |
+| **BOOTSTRAP** | `/bootstrap-harness` |
+| **MULTI** | sequence two or more of the above explicitly |
 
-Each iteration:
-1. Spawn `prompt-synthesizer` with: user goal, success criteria, APPROACH_LOG, exploration synthesis, deltas from last iteration, target type "implementer". Use its `PROMPT_SYNTHESIS` output as the implementer prompt.
-2. Spawn `workflow-implementer` with the synthesized prompt.
-3. Run slop detection: `pwsh ~/.agents/tools/detect-slop.ps1 -Path . -Fix -Json`. Spawn `slop-refactorer` if warning-severity findings remain.
-4. Run verification inline. If non-zero, include error in next iteration's deltas for the prompt-synthesizer.
-5. If verification green AND scope appears complete: spawn `prompt-synthesizer` with diff context + target reviewer type, then spawn the reviewer with the synthesized prompt.
-6. No BLOCKING → converged. BLOCKING → re-prompt implementer with deltas.
+## Workflow
 
-**Stuck detection**: same file:line:rule blocker in 3 consecutive iterations → spawn `workflow-explorer` to find an alternative approach. Same 2-3 files oscillating as failure sources → tell implementer to modify them as a single atomic unit. 6 soft cap, 12 hard cap.
+### Phase 0 - Triage
 
-## Phase 5 — Goal achievement review
+- If this is a small obvious execution task, redirect to `/build`.
+- Otherwise classify the primary goal type and name the workflow you will use.
 
-Spawn `goal-reviewer` with: original goal, success criteria, files changed, verification status. If NOT ACHIEVED, loop back to Phase 4 once with findings as constraints. If still not achieved, proceed with PARTIAL.
+Output:
 
-## Phase 6 — Final verification
-
-Spawn `final-verifier` with BASELINE_SHA→HEAD diff, verification + last exit-0, goal verbatim + criteria. Self-evaluate verdict: ON_TRACK / UNDER_DELIVERED / OFF_TRACK / NEEDS_REBUILD.
-
-## Phase 7 — Handoff
-
-Output machine-parseable first line:
 ```
-GOAL_STATUS: <ACHIEVED|PARTIAL|FAILED-AT-CAP> | type: <type> | iterations: <N>/12
+GOAL_TYPE: <type> | workflow: </command> | mode: <targeted|full>
 ```
 
-Then: goal verbatim, approach log, files changed, verification status, remaining gaps.
+### Phase 1 - Goal contract
+
+Restate the goal and lock:
+
+- **Success criteria**: concrete and observable
+- **Scope IN**
+- **Scope OUT**
+- **Verification command**
+- **Assumptions** only when needed
+
+Ask only the smallest clarification that changes workflow choice or success
+criteria. If still underspecified after one clarification round, state an
+assumption and continue.
+
+### Phase 2 - Prep only when needed
+
+Use prep sparingly:
+
+- run `/plan` only when the approach is unclear or the change is cross-cutting
+- run `workflow-explorer` only when the relevant surface is unfamiliar
+- in `targeted` mode, prefer at most one prep step before execution
+- in `full` mode, use both only when they materially reduce thrash
+
+### Phase 3 - Iterate by workflow pass
+
+For each iteration:
+
+1. Run **one pass** of the chosen workflow.
+2. Compare the result against the success criteria.
+3. Re-run the verification command when files changed.
+4. If the same blocker repeats twice, change approach or add `/plan` if you skipped it.
+5. Stop when the criteria are met and verification is green.
+
+Caps:
+
+- soft cap: 6 iterations
+- hard cap: 12 iterations
+
+The point of `/goal` is to own convergence, not to duplicate `/build`,
+`/investigate`, or `/analyze` internals.
+
+### Phase 4 - Independent check
+
+Before declaring success, run one independent check:
+
+- use `final-verifier` for code-heavy completion
+- use `goal-reviewer` when the main risk is "did we actually achieve the goal?"
+
+If the check says the goal is not achieved, loop once with those findings as
+constraints. If it still falls short, return `PARTIAL`.
+
+### Phase 5 - Handoff
+
+First line:
+
+```
+GOAL_STATUS: <ACHIEVED|PARTIAL|FAILED-AT-CAP> | type: <type> | workflow: <workflow used> | iterations: <N>/12
+```
+
+Then include:
+
+- goal verbatim
+- success criteria summary
+- workflows used
+- what changed
+- verification status
+- remaining gaps, if any
+
+## What `/goal` must not do
+
+- do **not** spawn another goal orchestrator
+- do **not** hand convergence ownership to another workflow
+- do **not** duplicate the detailed mechanics that belong in `/build`, `/review`, or `/investigate`
+- do **not** widen scope silently
+- do **not** bail on the first failure; change approach first

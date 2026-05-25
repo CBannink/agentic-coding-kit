@@ -10,7 +10,8 @@ session. The kit's recommended ensemble pattern uses cross-provider
 diversity to catch blind spots a single-provider review would miss.
 
 > **Note**: As of 2026-05, `model-selector.ps1` automates this routing.
-> The goal-orchestrator calls it before every subagent spawn. You only need
+> The active `/goal` workflow (or the compatibility `goal-orchestrator` shim)
+> calls it before every subagent spawn. You only need
 > this document if you want to understand or override the defaults.
 > Override via env vars: `MODEL_FAST`, `MODEL_BALANCED`, `MODEL_PREMIUM`,
 > or via `MODEL_MAP_FILE` pointing to a JSON override file.

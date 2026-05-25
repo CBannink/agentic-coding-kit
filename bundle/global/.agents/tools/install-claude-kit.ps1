@@ -1,12 +1,11 @@
-# install-opencode-kit.ps1
+# install-claude-kit.ps1
 # Compatibility shim: delegate to the canonical repo installer.
 
 [CmdletBinding()]
 param(
     [switch]$DryRun,
     [switch]$Force,
-    [switch]$NoBackup,
-    [string[]]$AdditionalAgentDirs
+    [switch]$NoBackup
 )
 
 $ErrorActionPreference = 'Stop'
@@ -46,13 +45,10 @@ $installScript = Resolve-GeneralInstallScript
 if ($NoBackup) {
     Say "  WARN  -NoBackup is ignored by the shim; backup behavior is owned by scripts/install.ps1." 'Yellow'
 }
-if ($AdditionalAgentDirs.Count -gt 0) {
-    Say "  WARN  -AdditionalAgentDirs is ignored by the shim; OpenCode assets now come from the general installer." 'Yellow'
-}
 
 if ($DryRun) {
-    Say "Dry run: would run pwsh `"$installScript`" -HomeRoot `"$HOME`" -For opencode$(if ($Force) { ' -Force' } else { '' })" 'Cyan'
+    Say "Dry run: would run pwsh `"$installScript`" -HomeRoot `"$HOME`" -For claude$(if ($Force) { ' -Force' } else { '' })" 'Cyan'
     exit 0
 }
 
-& $installScript -HomeRoot $HOME -For opencode -Force:$Force
+& $installScript -HomeRoot $HOME -For claude -Force:$Force

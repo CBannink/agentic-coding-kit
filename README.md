@@ -30,7 +30,7 @@ follows the same disciplined loop regardless of which CLI you're using.
 │  Your CLI (Claude Code / OpenCode / Codex / Copilot / Kilo / etc.) │
 │         │                                                           │
 │         │ reads ~/.<cli>/agentic-kit.md (companion file)           │
-│         │ + include marker in CLAUDE.md / AGENTS.md / prompt.md    │
+│         │ + include marker in CLAUDE.md / AGENTS.md                │
 │         ▼                                                           │
 │  ╔══════════════════════════════════════════════════════════════╗  │
 │  ║  Shared brain: ~/.agents/                                    ║  │
@@ -91,7 +91,7 @@ what it picked. You can override, but the default is the right answer.
 
 ### Why one shared brain across CLIs
 
-Every CLI has its own config conventions (`CLAUDE.md`, `AGENTS.md`, `prompt.md`,
+Every CLI has its own config conventions (`CLAUDE.md`, `AGENTS.md`,
 `~/.copilot/copilot-instructions.md`, `.kilocode/rules/`). Rather than fork the
 kit per CLI, the kit's logic lives in `~/.agents/` once, and a thin **adapter**
 per CLI writes the right global or repo-local instructions for that host.
@@ -291,7 +291,7 @@ The `-Upgrade` flag moves your existing `~/.agents/` to a timestamped backup bef
 | Adapter | Surface | Lifecycle automation |
 |---|---|---|
 | **Claude Code** | `CLAUDE.md` + `.claude/commands/*.md` (8 commands) | ✅ `~/.claude/settings.json` hooks fire `pre-session` / `post-session` / `subagent-stop` / `pre-compact` automatically |
-| **OpenCode** | `prompt.md` + `~/.config/opencode/plugins/agentic-kit.ts` | ✅ TypeScript plugin wires `session.created` / `session.deleted` / `session.idle` / `session.compacted` |
+| **OpenCode** | `AGENTS.md` + `~/.config/opencode/plugins/agentic-kit.ts` | ✅ TypeScript plugin wires `session.created` / `session.deleted` / `session.idle` / `session.compacted` |
 | **Copilot CLI** | `~/.copilot/copilot-instructions.md` (+ optional repo override at `.github/copilot-instructions.md`) plus inherited skills from `~/.agents/skills/` on current builds | ✅ Lifecycle baked into instructions, plus repo-scoped `.github/hooks/*.json`; on current builds the inherited `/goal` / `/build` / `/investigate` / `/review`-style skills stay inline in the main Copilot session and only spawn leaf agents; `~/.agents/bin/copilot/kit-*.sh` and direct `gh copilot --agent ...` remain explicit fallback entrypoints |
 | **Codex CLI** | `AGENTS.md` | Manual — Codex hook surface varies by version, no fabricated config shipped |
 | **Kilo Code** | `AGENTS.md` + `.kilocode/rules/*.md` (5 modes) | Manual or via VSCode tasks.json |
@@ -700,7 +700,7 @@ Concrete additions that fit the kit's leaf-agent + slash-command + shell-script 
 ### Architectural improvements (kit-internal)
 
 - **Goal-conditioned `/build` and `/review`** — extend the convergence-loop pattern beyond `goal-orchestrator` to other workflows so they self-iterate when verification fails.
-- **Shared specialist-agent source** — currently 10 specialist agents are duplicated across `claude-code/.claude/agents/` and `opencode/.opencode/agents/`. Move to `_shared/specialist-agents/` with per-host frontmatter sanitization at install time. Same pattern as `_shared/workflow-agents/` already does.
+- **Shared specialist-agent source** — reusable specialist agents now live under `_shared/specialist-agents/`, and installers translate them into Claude/OpenCode/Copilot-native formats at install time. Keep new reusable agents there rather than duplicating them per host.
 - **OpenCode plugin: native subagent spawn instrumentation** — currently the plugin records lifecycle events but doesn't capture the tree of subagent spawns the way Claude Code's settings.json hooks do.
 - **Copilot CLI workflow scripts: native version of writeback gate** — shell scripts at `~/.agents/bin/copilot/` should run `verify-writeback.ps1` at the end automatically (currently the workflow body's mechanical gate is Claude/OpenCode only).
 - **MCP-server orchestration** (ruflo / claude-flow style) — the kit currently relies on description-matching auto-routing + slash commands. An MCP server providing `kit_build`, `kit_review` tools would give deterministic invocation across hosts that support MCP — at the cost of a server to maintain.

@@ -209,7 +209,7 @@ foreach ($spec in @(
     @{ Path = Join-Path $HOME ".claude/CLAUDE.md"; Label = "Claude CLAUDE.md" },
     @{ Path = Join-Path $HOME ".codex/AGENTS.md"; Label = "Codex AGENTS.md" },
     @{ Path = Join-Path $HOME ".copilot/copilot-instructions.md"; Label = "Copilot instructions" },
-    @{ Path = Join-Path $HOME ".config/opencode/prompt.md"; Label = "OpenCode prompt.md" }
+    @{ Path = Join-Path $HOME ".config/opencode/AGENTS.md"; Label = "OpenCode AGENTS.md" }
 )) {
     if (Test-Path $spec.Path) {
         $content = Get-Content $spec.Path -Raw -Encoding UTF8 -ErrorAction SilentlyContinue

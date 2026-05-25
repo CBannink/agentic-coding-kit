@@ -17,10 +17,10 @@ across all primary hosts in one command.
 
 | Adapter | Status | Instruction file (user-global) | Installer |
 |---|---|---|---|
-| `claude-code/` | Primary | `~/.claude/CLAUDE.md` | (handled directly by `sync-all-hosts.ps1`; no separate installer) |
+| `claude-code/` | Primary | `~/.claude/CLAUDE.md` | `install-claude-kit.ps1` (shim over `scripts/install.ps1 -For claude`) |
 | `codex-cli/` | Primary | `~/.codex/AGENTS.md` | `install-codex-kit.ps1` (agents as TOML, multi_agent flag) |
-| `opencode/` | Primary | `~/.config/opencode/prompt.md` | `install-opencode-kit.ps1` (frontmatter normalization) |
-| `copilot-cli/` | Primary | `~/.copilot/copilot-instructions.md` | `install-copilot-kit.ps1` (global instructions, custom agents, repo hooks, and shell wrappers under `~/.agents/bin/copilot/`) |
+| `opencode/` | Primary | `~/.config/opencode/AGENTS.md` | `install-opencode-kit.ps1` (shim over `scripts/install.ps1 -For opencode`) |
+| `copilot-cli/` | Primary | `~/.copilot/copilot-instructions.md` | `install-copilot-kit.ps1` (shim over `scripts/install.ps1 -For copilot`) |
 
 ## Experimental hosts
 
@@ -54,13 +54,19 @@ This:
   `workflow-*` agents) live once under
   `bundle/adapters/_shared/{workflow-commands,workflow-agents}/` and are
   rendered into host-native dirs by the installer.
-- **Host-specific expert/reviewer agent files** stay in each adapter dir when
-  their frontmatter or model metadata genuinely differs by host.
+- **Shared specialist agents** now live once under
+  `bundle/adapters/_shared/specialist-agents/` and are converted/sanitized per
+  host at install time.
+- **Host-specific agent files** stay in adapter dirs only when they are truly
+  single-host surfaces (for example OpenCode's primary `orchestrator.md`).
 - Per-host installers translate to host-specific format on install:
-  - Claude Code: copy host-specific expert agents as-is and render shared
-    workflow markdown into `~/.claude/...`.
-  - OpenCode: copy host-specific expert agents as-is, render shared workflow
-    markdown into `~/.config/opencode/...`, and normalize plugin payloads.
+  - Claude Code: copy shared specialist agents as-is and render shared workflow
+    markdown into `~/.claude/...`.
+  - OpenCode: sanitize shared workflow + specialist markdown into
+    `~/.config/opencode/...`, then overlay OpenCode-only primary-agent files and
+    normalize plugin payloads.
+  - Copilot CLI: convert shared workflow + specialist markdown into `.agent.md`
+    files at install time.
   - Codex CLI: convert to `.toml` (`name`, `description`,
     `developer_instructions` body).
   - Copilot CLI: install custom agents natively, but user-defined slash

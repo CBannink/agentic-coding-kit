@@ -68,7 +68,7 @@ agent(s). If the path doesn't converge, escalate to `goal-orchestrator`.
 | `playwright-navigator` | Discover Playwright routes + selectors |
 | `ux-driver` | UI structural critique (IA, hierarchy, a11y) |
 | `ui-driver` | Visual polish (typography, color, spacing) |
-| `prompt-synthesizer` | Condenses raw context into structured prompts for downstream agents |
+| `prompt-synthesizer` | Optional noisy-handoff compressor for downstream agent prompts |
 | `pr-reviewer` | Holistic PR review with verdict |
 
 ## Spawning rules

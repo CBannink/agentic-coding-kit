@@ -12,30 +12,61 @@
 
 # CASPAR BANNINK AGENTIC CODING KIT — GLOBAL RULES
 
-## Routing
+## Router-first execution model
 
-The kit ships orchestrator subagents. Claude Code routes to them via
-description-matching when the user's request matches one of these surfaces:
+The top-level session is the router. Before loading any heavy workflow:
 
-| Intent | Subagent that fires |
-|---|---|
-| Build / implement / fix / refactor / change code | `build-orchestrator` |
-| Review / audit / check quality / find bugs | `review-orchestrator` |
-| Debug / diagnose / root-cause / investigate | `investigate-orchestrator` |
-| Plan / spec / design / scope a change | `plan-orchestrator` |
-| Refactor / restructure / consolidate / clean up | `refactor-orchestrator` |
-| Greenfield UI / multi-component visual redesign | `redesign-orchestrator` |
-| Security audit / pentest / vuln scan | `security-review-orchestrator` |
+1. **Classify intent** — which workflow owns the request?
+2. **Classify scope** — `isolated`, `shared`, or `critical`
+3. **Map scope to execution mode**
 
-Each orchestrator's body delegates to specialist subagents
-(`code-quality-reviewer`, `security-reviewer`, `modularity-expert`,
-`workflow-implementer`, `workflow-explorer`, `final-verifier`, etc.) via
-the Task tool. Orchestrators do NOT make Edit/Write calls themselves.
+| Scope | Mode | Default behavior |
+|---|---|---|
+| `isolated` | `inline` | answer directly or do a one-file mechanical edit |
+| `shared` | `targeted` | load the chosen workflow and use the minimal leaf-agent set |
+| `critical` | `full` | load the chosen workflow with extra exploration/review pressure |
 
-You can also invoke a specialist directly:
-- `MUST BE USED for code review` → `code-quality-reviewer` fires.
-- `MUST BE USED for security audit` → `security-reviewer` fires.
-- (See each agent's `description:` for the full set of triggers.)
+### Inline path
+
+- Stay in the main session.
+- Do **not** load `/build`, `/goal`, or another heavy workflow just to bless a
+  trivial change.
+- The first edit gate still applies: multi-file or new-file work escalates out
+  of inline immediately.
+
+### Workflow path
+
+Load the matching workflow only after routing decides the request is not inline.
+Pass the handoff explicitly:
+
+- `WORKFLOW_MODE: targeted | full`
+- `SCOPE_CLASS: isolated | shared | critical`
+- `ROUTING_REASON: <why this mode was chosen>`
+
+The workflow may escalate its mode with evidence, but it should not re-decide
+whether the task belonged inline in the first place unless the user invoked the
+workflow directly and no router handoff exists.
+
+### Clarification gate
+
+Before routing into a heavy workflow, decide whether the request is clear enough
+to classify safely.
+
+- If ambiguity would materially change **scope**, **workflow choice**,
+  **success criteria**, or the **verification command**, ask **one focused
+  clarification** first.
+- If the ambiguity is minor and does not change execution materially, state the
+  assumption and continue.
+- Clarification belongs to the **router**, not to `prompt-synthesizer` or the
+  downstream worker.
+
+### Direct specialist use
+
+You can still invoke a specialist directly when the request is already narrow:
+- code review → `code-quality-reviewer`
+- security audit → `security-reviewer`
+- architecture / modularity → `modularity-expert`
+- focused file discovery → `workflow-explorer`
 
 ## Iron Law
 
@@ -68,8 +99,8 @@ or include the warning in your final response so the user sees the gap).
 | Each subagent spawn | `state-gate.ps1 -AddAgent` + `workflow-evidence.ps1 -AddAgent` |
 | Session end | `post-session.ps1` |
 
-On hosts without native hooks (Copilot CLI), the orchestrator subagents
-call these scripts inline as part of their phase pipelines.
+On hosts without native hooks, the active workflow calls these scripts inline as
+part of its phase pipeline.
 
 ## Repo wins on conflict
 

@@ -1,5 +1,5 @@
 ---
-description: User-typed /build entry point. Run the kit's phased pipeline for this workflow on __HOST_NAME__. Main session orchestrates; spawns workflow-explorer / workflow-implementer / specialist agents (code-quality-reviewer, security-reviewer, modularity-expert, final-verifier) via the Task tool per phase. Description-match also routes to the matching build-orchestrator subagent if loaded; both paths reach the same leaves.
+description: User-typed /build entry point. Run the kit's phased pipeline for this workflow on __HOST_NAME__. Main session orchestrates, decides mode, and spawns only leaf agents via the Task tool.
 ---
 
 # /build
@@ -8,11 +8,41 @@ You are the main Claude Code / OpenCode session. The user invoked /build because
 
 Run the kit's phased build pipeline. You ARE the orchestrator. Delegate to leaf subagents via the Task tool when delegation pays off; do simple edits inline.
 
-If a `build-orchestrator` subagent loaded via description-match auto-routing, it will run this same pipeline in its own fresh context — fine, let it. If you reached this command via the user typing `/build`, YOU run the pipeline.
+## Router handoff
 
-## Phase 0 — Scope
+This workflow is meant to load **after** the top-level router has already
+decided that the task belongs in `/build`.
 
-Read `git status` + `git diff --stat HEAD`. Classify:
+If the current session already has a routing handoff, **honor it**:
+
+- `WORKFLOW_MODE: inline | targeted | full`
+- `SCOPE_CLASS: isolated | shared | critical`
+- `ROUTING_REASON: <why this mode was chosen>`
+
+Do **not** reopen the `inline vs workflow` question when that handoff exists.
+You may escalate mode with evidence, but you should not demote a routed workflow
+back to inline just to save spawns.
+
+If the user invoked `/build` directly and no handoff exists, classify now:
+
+| Scope class | Default mode |
+|---|---|
+| `isolated` | `inline` |
+| `shared` | `targeted` |
+| `critical` | `full` |
+
+## Mode contract
+
+| Mode | Meaning | Default shape |
+|---|---|---|
+| `inline` | one-file, obvious, low-risk | main session + direct verify |
+| `targeted` | bounded multi-file change | implementer + 1 reviewer + final-verifier |
+| `full` | cross-cutting or high-risk | explorer + implementer + review pressure + final-verifier |
+
+## Phase 0 — Handoff or classification
+
+If `WORKFLOW_MODE` is already present, accept it and continue. Otherwise,
+read `git status` + `git diff --stat HEAD`. Classify:
 - **ISOLATED** — 1 module, no shared types, ≤5 files. Inline edits OK; spawn workflow-implementer only for genuinely complex logic.
 - **SHARED** — 2+ modules or shared interfaces. Spawn workflow-implementer for the change.
 - **CRITICAL** — auth, schema migration, breaking change. Spawn workflow-implementer + extra adversarial pressure.
@@ -31,7 +61,9 @@ If the codebase is small or already understood: skip this phase.
 git diff --name-only HEAD
 ```
 
-Count the files. If **>1 file OR any new file**: you MUST spawn `workflow-implementer`. Do NOT proceed inline. Violating this bypasses review gates — it is the equivalent of skipping a verification gate.
+Count the files. If **>1 file OR any new file**: you MUST spawn
+`workflow-implementer`. Do NOT proceed inline. If `WORKFLOW_MODE=inline` and
+the gate fails, escalate immediately to `targeted` and continue.
 
 | Condition | Action |
 |---|---|

@@ -728,7 +728,7 @@ if ($resolvedFor) {
         }
         # Collapse a duplicated canonical heading that may have leaked outside
         # all marker pairs (e.g., user manually merged a duplicate at some point).
-        $heading = '# CASPAR BANNINK AGENTIC CODING KIT — GLOBAL RULES'
+        $heading = '# CASPAR BANNINK AGENTIC CODING KIT - GLOBAL RULES'
         $hits = [regex]::Matches($cleaned, [regex]::Escape($heading))
         if ($hits.Count -gt 1) {
             $cleaned = $cleaned.Substring(0, $hits[0].Index).TrimEnd() + "`r`n"
@@ -968,8 +968,7 @@ $endMarker
             # Drop Claude-only keys that OpenCode rejects (tools list,
             # permissionMode, maxTurns, disallowedTools).
             $newFmLines = @()
-            foreach ($line in ($fm -split "`r?`n")) {
-                if ($line -match '^\s*(tools|permissionMode|maxTurns|disallowedTools)\s*:') { continue }
+            foreach ($line in ($fm -split "\r?\n")) {                if ($line -match '^\s*(tools|permissionMode|maxTurns|disallowedTools)\s*:') { continue }
                 $newFmLines += $line
             }
             $newFm = ($newFmLines -join "`r`n").TrimEnd()
@@ -1012,13 +1011,12 @@ $endMarker
                     $raw = $raw.Replace($k, $copilotTemplateVars[$k])
                 }
             }
-            if ($raw -notmatch '(?s)^---\r?\n(.*?)\r?\n---\r?\n(.*)$') { continue }
+            if ($raw -notmatch '(?ms)^---\r?\n(.*?)\r?\n---\r?\n(.*)$') { continue }
             $fm = $matches[1]
             $body = $matches[2]
             $name = ''
             $desc = ''
-            foreach ($line in ($fm -split "`r?`n")) {
-                if ($line -match '^\s*name\s*:\s*(.+?)\s*$')        { $name = $matches[1].Trim('"').Trim("'") }
+            foreach ($line in ($fm -split "\r?\n")) {                if ($line -match '^\s*name\s*:\s*(.+?)\s*$')        { $name = $matches[1].Trim('"').Trim("'") }
                 elseif ($line -match '^\s*description\s*:\s*(.+?)\s*$') { $desc = $matches[1].Trim('"').Trim("'") }
             }
             if (-not $name) { $name = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) }
@@ -1257,7 +1255,7 @@ $endMarker
                 # Claude Code auto-loads ~/.claude/CLAUDE.md from every session.
                 # The orchestrator prompt (decision hierarchy, ONE RULE, tier
                 # table, toolbox, lifecycle, Iron Law, intent routing) must be
-                # there — not just in per-repo installs — so every new session
+                # there - not just in per-repo installs - so every new session
                 # starts with orchestrator identity even without a repo CLAUDE.md.
                 #
                 # ALWAYS REPLACE: copy the bundle source fresh each time, then let
@@ -1357,11 +1355,11 @@ $endMarker
                 # OpenCode auto-loads ~/.config/opencode/AGENTS.md from every
                 # session. The orchestrator prompt (decision hierarchy, ONE RULE,
                 # tier table, toolbox, lifecycle, Iron Law, routing) must be there
-                # — not just in per-repo installs — so every new session starts
+                # - not just in per-repo installs - so every new session starts
                 # with orchestrator identity even without a repo-level AGENTS.md.
                 #
                 # ALWAYS REPLACE: the source bundle/AGENTS.md is the canonical
-                # clean orchestrator. Never prepend/append — that causes duplication
+                # clean orchestrator. Never prepend/append - that causes duplication
                 # when install.ps1 runs multiple times. Copy it fresh each time,
                 # then let Install-DeviceWideAlwaysOnRules handle the always-on
                 # rules block (dedup + refresh inside that function).
@@ -1433,14 +1431,14 @@ $endMarker
 
                     # 1. Insert default_agent at the start if not already set
                     if ($content -notmatch '"default_agent"\s*:\s*"') {
-                        $content = $content -replace '(?ms)^\s*\{', '{"default_agent": "orchestrator",', 1
+                        $content = $content -replace '(-ms)^\s*\{', '{"default_agent": "orchestrator",', 1
                         $modified = $true
                     }
 
                     # 2. Ensure orchestrator agent entry exists in the agent block
                     if ($content -notmatch '"orchestrator"\s*:\s*\{') {
                         # Find the agent block and add orchestrator entry
-                        $content = $content -replace '("agent"\s*:\s*\{)', "$1`n    // Orchestrator (session default — the main agent)`n    `"orchestrator`": {`n      `"model`": `"opencode-go/deepseek-v4-pro`",`n      `"mode`": `"primary`",`n      `"description`": `"Main session orchestrator — routes all requests, spawns subagents and workflows`"`n    },", 1
+                        $content = $content -replace '("agent"\s*:\s*\{)', "$1`n    // Orchestrator (session default - the main agent)`n    `"orchestrator`": {`n      `"model`": `"opencode-go/deepseek-v4-pro`",`n      `"mode`": `"primary`",`n      `"description`": `"Main session orchestrator - routes all requests, spawns subagents and workflows`"`n    },", 1
                         $modified = $true
                     }
 
@@ -1448,10 +1446,10 @@ $endMarker
                         [System.IO.File]::WriteAllText($configPath, $content, [System.Text.Encoding]::UTF8)
                         Write-Host "  Updated opencode.jsonc with default_agent + orchestrator entry"
                     } else {
-                        Write-Host "  opencode.jsonc already has orchestrator configured — not modifying"
+                        Write-Host "  opencode.jsonc already has orchestrator configured - not modifying"
                     }
                 } else {
-                    Write-Host "  opencode.jsonc not found at $configPath — skipping config update (add default_agent + orchestrator entry manually)"
+                    Write-Host "  opencode.jsonc not found at $configPath - skipping config update (add default_agent + orchestrator entry manually)"
                 }
             }
             "generic" {
@@ -1493,7 +1491,7 @@ $endMarker
                 # Copilot CLI uses the global skills under ~/.agents/skills/
                 # directly. The global skills now reference only leaf agents
                 # that Copilot CLI can spawn (workflow-implementer,
-                # workflow-explorer, etc.) — no orchestrator-subagent proxies.
+                # workflow-explorer, etc.) - no orchestrator-subagent proxies.
                 # Copilot-specific rules (progress output, inline execution,
                 # leaf-agent-only) live in copilot-instructions.md.
                 # No overrides needed.

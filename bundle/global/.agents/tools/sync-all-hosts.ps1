@@ -22,6 +22,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+$Hosts = @($Hosts | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+
 $AgentsRoot   = Join-Path $HOME ".agents"
 $ClaudeRoot   = Join-Path $HOME ".claude"
 $GeminiRoot   = Join-Path $HOME ".gemini"
@@ -133,12 +135,16 @@ foreach ($h in $Hosts) {
     switch ($h.ToLower()) {
         'claude' {
             Section "Claude (CLAUDE.md)"
-            if (-not (Test-Path $ClaudeRoot)) { Say "  ~/.claude not found -- skipping" 'Yellow'; continue }
-            $target = Join-Path $ClaudeRoot 'CLAUDE.md'
-            $action = Sync-CanonicalBlock -TargetPath $target -CanonicalContent $canonical -EnvVarMap $ClaudeMap
-            $verb = if ($DryRun) { 'would ' } else { '' }
-            Say "  $verb$action canonical block in $target" 'Green'
-            $results += [pscustomobject]@{ host='claude'; file=$target; action=$action }
+            $installer = Join-Path $AgentsRoot 'tools\install-claude-kit.ps1'
+            if (Test-Path $installer) {
+                $installerArgs = @{}
+                if ($DryRun) { $installerArgs.DryRun = $true }
+                if ($Force)  { $installerArgs.Force = $true }
+                & $installer @installerArgs | Out-Host
+                $results += [pscustomobject]@{ host='claude'; file=(Join-Path $ClaudeRoot 'CLAUDE.md'); action='via-installer' }
+            } else {
+                Say "  install-claude-kit.ps1 not found" 'Yellow'
+            }
         }
         'gemini' {
             Section "Gemini (GEMINI.md + agents)"
@@ -160,14 +166,14 @@ foreach ($h in $Hosts) {
             }
         }
         'opencode' {
-            Section "OpenCode (prompt.md + agents)"
+            Section "OpenCode (AGENTS.md + orchestrator)"
             $installer = Join-Path $AgentsRoot 'tools\install-opencode-kit.ps1'
             if (Test-Path $installer) {
                 $installerArgs = @{}
                 if ($DryRun) { $installerArgs.DryRun = $true }
                 if ($Force)  { $installerArgs.Force = $true }
                 & $installer @installerArgs | Out-Host
-                $results += [pscustomobject]@{ host='opencode'; file=(Join-Path $OpenCodeRoot 'prompt.md'); action='via-installer' }
+                $results += [pscustomobject]@{ host='opencode'; file=(Join-Path $OpenCodeRoot 'AGENTS.md'); action='via-installer' }
             } else {
                 Say "  install-opencode-kit.ps1 not found" 'Yellow'
             }

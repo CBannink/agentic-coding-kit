@@ -1,5 +1,5 @@
 ---
-description: User-typed /review entry point. Run the kit's phased pipeline for this workflow on __HOST_NAME__. Main session orchestrates; spawns workflow-explorer / workflow-implementer / specialist agents (code-quality-reviewer, security-reviewer, modularity-expert, final-verifier) via the Task tool per phase. Description-match also routes to the matching review-orchestrator subagent if loaded; both paths reach the same leaves.
+description: User-typed /review entry point. Run the kit's phased pipeline for this workflow on __HOST_NAME__. Main session orchestrates, decides mode, and spawns only leaf agents via the Task tool.
 ---
 
 # /review
@@ -8,7 +8,7 @@ You are the main Claude Code / OpenCode session. The user invoked /review becaus
 
 Run the kit's hierarchical review pipeline. You ARE the orchestrator. Read `git diff HEAD` (or the diff range the user named) to scope.
 
-If `review-orchestrator` loaded via description-match, let it. Otherwise YOU coordinate.
+You coordinate this workflow directly.
 
 ## Phase 1 — Surface review (single reviewer by default)
 

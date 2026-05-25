@@ -30,18 +30,19 @@ AGENTS.md / system-prompt files).
 - `/plan` — clarify, explore, map files, pressure-test, stop for approval
 - `/build` — execute approved plan, review, verify
 - `/review` — hierarchical swarm review (sequential implement, parallel reviewers OK)
-- `/analyze` — multi-angle synthesis
+- `/analyze` — multi-angle feature / idea / architecture evaluation; not for simple factual lookups
 - `/investigate` — root-cause-first debugging
 - `/refactor` — principle-driven restructuring with consequence tracing
 - `/redesign` — multi-component UI work (parallel design agents per component). Locks aesthetic direction via `aesthetic-director` skill if `DESIGN.md` is missing — prevents parallel agents from each defaulting to LLM aesthetic (Inter + purple gradient + rounded cards) and producing variations of one boring look.
 - `/security-review` — adversarial audit (parallel attack-class agents)
-- `/goal` — autonomous end-to-end achievement; classifies goal type (CODE / DESIGN / INVESTIGATION / REFACTOR / BOOTSTRAP / MULTI) and routes to the correct workflow (/build, /investigate, /analyze, /review, /redesign, /bootstrap-harness), iterates with reviewer gates (cap: 6) until the goal is provably achieved
+- `/goal` — thin autonomous wrapper; the active orchestrator owns success criteria and convergence, routes to the correct workflow, and iterates by workflow pass until the goal is provably achieved
 
 ## Workflow source of truth
 
 The **global workflow skills** are the canonical source of behavior. Adapter
 files are transport layers only:
 
+- top-level host prompts should stay small and do **routing first**
 - command files should be thin wrappers around the matching workflow skill
 - adapter docs should explain host capabilities, not redefine workflow semantics
 - adapter-specific agent names may differ, but the workflow contract should not
@@ -49,6 +50,64 @@ files are transport layers only:
 If an adapter starts behaving differently from the global workflow skill, treat
 that as harness drift and fix the source-of-truth problem rather than layering
 more adapter-specific exceptions.
+
+## Two-stage routing model
+
+Every host should make the same two decisions in the same order:
+
+1. **Intent** — which workflow owns this request? (`/build`, `/review`,
+   `/goal`, `/investigate`, etc.)
+2. **Execution mode** — should this stay inline or load the heavy workflow?
+
+Use `scope` as the bridge between the two:
+
+| Scope class | Default execution mode | Meaning |
+|---|---|---|
+| `isolated` | `inline` | one-file, obvious, no shared interface or new file |
+| `shared` | `targeted` | bounded multi-file or unfamiliar-but-normal change |
+| `critical` | `full` | auth, schema, public contract, or cross-cutting risk |
+
+### Inline path
+
+- Do **not** read the heavy workflow skill just to confirm a trivial fix.
+- Answer or edit directly under the one-file gate.
+- Escalate to `targeted` immediately if the edit/create gate fails.
+
+### Workflow path
+
+Only after the router chooses a workflow should it load the heavy workflow body.
+Pass the handoff explicitly in the prompt or session context:
+
+- `WORKFLOW_MODE: inline | targeted | full`
+- `SCOPE_CLASS: isolated | shared | critical`
+- `ROUTING_REASON: <why this mode was chosen>`
+
+The loaded workflow should **honor that handoff**. It may escalate mode with
+evidence, but it should not reopen the `inline vs workflow` question unless the
+user invoked the workflow directly and no handoff exists.
+
+### Clarification gate
+
+Before loading a heavy workflow, check whether the request is clear enough to
+route safely.
+
+- If ambiguity would change **scope**, **workflow choice**, **success
+  criteria**, or the **verification command**, ask **one focused clarification**
+  first.
+- If the ambiguity is minor and does not materially change execution, state the
+  assumption and continue.
+- The top-level router owns clarification. Do **not** push this responsibility
+  down to `prompt-synthesizer` or the worker you are about to spawn.
+
+### Prompt synthesis
+
+- Default to direct `router -> worker` handoffs.
+- Use `prompt-synthesizer` only when the handoff is genuinely noisy: long
+  multi-source context, retry/re-spawn after failure, or a cross-model handoff
+  that needs a tighter brief.
+- If `prompt-synthesizer` still finds material ambiguity, route that back to the
+  top-level router. It is a compression helper, not a clarification owner or
+  spawn decision-maker.
 
 ## Non-trivial `/build` discipline
 

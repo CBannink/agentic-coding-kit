@@ -535,39 +535,39 @@ Describe "kit-goal.sh routes through kit workflow wrappers" {
         $content | Should -Match "/bootstrap-harness"
     }
 
-    It "copilot goal-orchestrator agent references kit-build.sh" {
-        $agentPath = Join-Path $script:RepoRoot "bundle/adapters/copilot-cli/.github/agents/goal-orchestrator.agent.md"
+    It "shared goal-orchestrator agent references kit-build.sh" {
+        $agentPath = Join-Path $script:RepoRoot "bundle/adapters/_shared/specialist-agents/goal-orchestrator.md"
         $content = Get-Content $agentPath -Raw -ErrorAction SilentlyContinue
         $content | Should -Match "kit-build\.sh"
     }
 
-    It "copilot goal-orchestrator agent references kit-investigate.sh" {
-        $agentPath = Join-Path $script:RepoRoot "bundle/adapters/copilot-cli/.github/agents/goal-orchestrator.agent.md"
+    It "shared goal-orchestrator agent references kit-investigate.sh" {
+        $agentPath = Join-Path $script:RepoRoot "bundle/adapters/_shared/specialist-agents/goal-orchestrator.md"
         $content = Get-Content $agentPath -Raw -ErrorAction SilentlyContinue
         $content | Should -Match "kit-investigate\.sh"
     }
 
-    It "copilot goal-orchestrator agent references kit-analyze.sh" {
-        $agentPath = Join-Path $script:RepoRoot "bundle/adapters/copilot-cli/.github/agents/goal-orchestrator.agent.md"
+    It "shared goal-orchestrator agent references kit-analyze.sh" {
+        $agentPath = Join-Path $script:RepoRoot "bundle/adapters/_shared/specialist-agents/goal-orchestrator.md"
         $content = Get-Content $agentPath -Raw -ErrorAction SilentlyContinue
         $content | Should -Match "kit-analyze\.sh"
     }
 
-    It "copilot goal-orchestrator agent references lifecycle pre-session" {
-        $agentPath = Join-Path $script:RepoRoot "bundle/adapters/copilot-cli/.github/agents/goal-orchestrator.agent.md"
+    It "shared goal-orchestrator agent references lifecycle pre-session" {
+        $agentPath = Join-Path $script:RepoRoot "bundle/adapters/_shared/specialist-agents/goal-orchestrator.md"
         $content = Get-Content $agentPath -Raw -ErrorAction SilentlyContinue
         $content | Should -Match "pre-session\.ps1"
     }
 
-    It "copilot goal-orchestrator agent uses a valid pre-session mode" {
-        $agentPath = Join-Path $script:RepoRoot "bundle/adapters/copilot-cli/.github/agents/goal-orchestrator.agent.md"
+    It "shared goal-orchestrator agent uses a valid pre-session mode" {
+        $agentPath = Join-Path $script:RepoRoot "bundle/adapters/_shared/specialist-agents/goal-orchestrator.md"
         $content = Get-Content $agentPath -Raw -ErrorAction SilentlyContinue
         $content | Should -Not -Match "-Mode goal"
         $content | Should -Match "-Mode analyze"
     }
 
-    It "claude-code goal-orchestrator agent routes CODE to /build" {
-        $agentPath = Join-Path $script:RepoRoot "bundle/adapters/claude-code/.claude/agents/goal-orchestrator.md"
+    It "shared goal-orchestrator agent routes CODE to /build" {
+        $agentPath = Join-Path $script:RepoRoot "bundle/adapters/_shared/specialist-agents/goal-orchestrator.md"
         $content = Get-Content $agentPath -Raw -ErrorAction SilentlyContinue
         $content | Should -Match "/build"
         $content | Should -Match "/investigate"
@@ -723,7 +723,7 @@ Describe "kit-goal.sh routing determinism" {
     BeforeAll {
         $script:GoalShPath = Join-Path $script:RepoRoot "bundle/adapters/copilot-cli/bin/kit-goal.sh"
         $script:GoalShContent = Get-Content $script:GoalShPath -Raw -ErrorAction SilentlyContinue
-        $script:AgentPath = Join-Path $script:RepoRoot "bundle/adapters/copilot-cli/.github/agents/goal-orchestrator.agent.md"
+        $script:AgentPath = Join-Path $script:RepoRoot "bundle/adapters/_shared/specialist-agents/goal-orchestrator.md"
         $script:AgentContent = Get-Content $script:AgentPath -Raw -ErrorAction SilentlyContinue
     }
 

@@ -3,7 +3,7 @@ name: workflow-skeptic
 description: MUST BE USED to challenge plans, diffs, and proposed approaches for hidden regressions, failure modes, and scope drift. Use PROACTIVELY for non-trivial build and review work BEFORE shipping.
 mode: subagent
 model: sonnet
-tools: Read, Grep, Glob, Bash
+suggested_tools: Read, Grep, Glob, Bash
 permissionMode: plan
 disallowedTools: Edit,Write
 maxTurns: 10
