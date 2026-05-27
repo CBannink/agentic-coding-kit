@@ -7,6 +7,11 @@ description: "Use when the user asks to implement, fix, refactor, change, add, o
 
 Execute these phases in order. Each phase tells you which agents to spawn and when to keep work inline.
 
+Codex clarification: if the user asks to use the build or builder workflow,
+that is explicit permission to use this workflow's normal subagents. Do not
+claim a host policy required inline execution unless the task is truly
+single-file mechanical work.
+
 ## Router handoff
 
 This workflow is meant to load **after** the top-level router has already

@@ -8,6 +8,11 @@ You are the main Claude Code / OpenCode session. The user invoked /build because
 
 Run the kit's phased build pipeline. You ARE the orchestrator. Delegate to leaf subagents via the Task tool when delegation pays off; do simple edits inline.
 
+If the user asks to use the build or builder workflow, treat that as explicit
+permission to use this workflow's normal leaf agents. Do not load this workflow
+and then keep multi-file or non-trivial work inline because of a generic
+"subagents only when explicitly asked" host rule.
+
 ## Router handoff
 
 This workflow is meant to load **after** the top-level router has already

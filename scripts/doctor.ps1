@@ -169,7 +169,7 @@ if (Test-Path $codexConfig) {
                       ($codexConfigContent -match 'sandbox_mode\s*=\s*"danger-full-access"') -and
                       ($codexConfigContent -match 'multi_agent\s*=\s*true')
     if ($codexRuntimeOk) {
-        $hooksState = if ($codexConfigContent -match 'codex_hooks\s*=\s*true') { "hooks enabled" } else { "hooks disabled" }
+        $hooksState = if ($codexConfigContent -match '(?m)^\s*hooks\s*=\s*true') { "hooks enabled" } else { "hooks disabled" }
         Add-Check "Codex no-prompt runtime" "PASS" "approval_policy=never, sandbox_mode=danger-full-access, $hooksState"
     } else {
         Add-Check "Codex no-prompt runtime" "WARN" "Missing no-prompt config -- rerun install.ps1 -For codex"

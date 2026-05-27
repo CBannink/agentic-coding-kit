@@ -369,6 +369,86 @@ function Install-WorkflowAdapterAssets {
     }
 }
 
+function Install-OpenCodeAgentsFromSource {
+    param(
+        [string]$SourceDir,
+        [string]$DestDir,
+        [string]$Label
+    )
+    if (-not (Test-Path $SourceDir)) { return }
+    New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+    $count = 0
+    foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
+        $raw = Get-Content $f.FullName -Raw -Encoding UTF8
+        if ($raw -notmatch '(?ms)^---\r?\n(.*?)\r?\n---\r?\n(.*)$') { continue }
+        $fm = $matches[1]
+        $body = $matches[2]
+        $newFmLines = @()
+        foreach ($line in ($fm -split "\r?\n")) {
+            if ($line -match '^\s*(tools|permissionMode|maxTurns|disallowedTools|model)\s*:') { continue }
+            $newFmLines += $line
+        }
+        $newFm = ($newFmLines -join "`r`n").TrimEnd()
+        $dst = Join-Path $DestDir $f.Name
+        [System.IO.File]::WriteAllText($dst, ("---`r`n$newFm`r`n---`r`n$body"), (New-Object System.Text.UTF8Encoding($false)))
+        $count++
+    }
+    if ($count -gt 0) { Write-Host "  $Label agents: $count installed at $DestDir (OpenCode-sanitized: tools/permissionMode/maxTurns stripped)" }
+}
+
+function Install-CopilotAgentsFromClaudeSource {
+    param(
+        [string]$SourceDir,
+        [string]$DestDir,
+        [string]$Label
+    )
+    if (-not (Test-Path $SourceDir)) { return }
+    New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+    $copilotTemplateVars = Get-WorkflowAdapterTemplateVars -AdapterName "copilot-cli"
+    $count = 0
+    foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
+        $raw = Get-Content $f.FullName -Raw -Encoding UTF8
+        if ($copilotTemplateVars) {
+            foreach ($k in $copilotTemplateVars.Keys) {
+                $raw = $raw.Replace($k, $copilotTemplateVars[$k])
+            }
+        }
+        if ($raw -notmatch '(?ms)^---\r?\n(.*?)\r?\n---\r?\n(.*)$') { continue }
+        $fm = $matches[1]
+        $body = $matches[2]
+        $name = ''
+        $desc = ''
+        foreach ($line in ($fm -split "\r?\n")) {
+            if ($line -match '^\s*name\s*:\s*(.+?)\s*$') { $name = $matches[1].Trim('"').Trim("'") }
+            elseif ($line -match '^\s*description\s*:\s*(.+?)\s*$') { $desc = $matches[1].Trim('"').Trim("'") }
+        }
+        if (-not $name) { $name = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) }
+        if ($desc) {
+            $desc = $desc -replace [char]0x2014, '-'
+            $desc = $desc -replace [char]0x2013, '-'
+            $desc = $desc -replace [char]0x2192, '->'
+            $desc = $desc -replace [char]0x2190, '<-'
+            $desc = $desc -replace [char]0x2018, "'"
+            $desc = $desc -replace [char]0x2019, "'"
+            $desc = $desc -replace [char]0x201C, '"'
+            $desc = $desc -replace [char]0x201D, '"'
+            $desc = $desc -replace [char]0x2026, '...'
+            $desc = $desc -replace '[^\x20-\x7E]', ''
+            $desc = $desc -replace '"', "'"
+            if ($desc.Length -gt 300) { $desc = $desc.Substring(0, 297) + '...' }
+        }
+        $newFm = "---`r`nname: $name"
+        if ($desc) { $newFm += "`r`ndescription: ""$desc""" }
+        $newFm += "`r`n---`r`n"
+        $base = [System.IO.Path]::GetFileNameWithoutExtension($f.Name)
+        $outName = if ($base.EndsWith('.agent')) { $f.Name } else { $base + '.agent.md' }
+        $dst = Join-Path $DestDir $outName
+        [System.IO.File]::WriteAllText($dst, ($newFm + $body), (New-Object System.Text.UTF8Encoding($false)))
+        $count++
+    }
+    if ($count -gt 0) { Write-Host "  $Label agents: $count installed at $DestDir (.agent.md format, minimal frontmatter, template vars resolved)" }
+}
+
 function Install-Adapter {
     param([string]$Name, [string]$TargetRepo)
     $src = Join-Path $AdaptersRoot $Name
@@ -1005,126 +1085,6 @@ $endMarker
         if ($count -gt 0) { Write-Host "  $Label hooks: $count installed at $DestDir" }
     }
 
-    # OpenCode's frontmatter parser rejects Claude-format `tools: A, B, C` as
-    # "expected object". OpenCode wants either no `tools:` field or its own
-    # mapping format. This function reads each agent file, strips Claude-only
-    # frontmatter keys (tools, permissionMode, maxTurns) before writing to the
-    # OpenCode destination. Keeps name, description, and mode.
-    function Install-OpenCodeAgentsFromSource {
-        param(
-            [string]$SourceDir,
-            [string]$DestDir,
-            [string]$Label
-        )
-        if (-not (Test-Path $SourceDir)) { return }
-        New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
-        $count = 0
-        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-        foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
-            $raw = Get-Content $f.FullName -Raw -Encoding UTF8
-            # Strip BOM if present
-            if ($raw.Length -gt 0 -and [int][char]$raw[0] -eq 0xFEFF) { $raw = $raw.Substring(1) }
-            if ($raw -notmatch '(?ms)^---\r?\n(.*?)\r?\n---\r?\n(.*)$') { continue }
-            $fm = $matches[1]
-            $body = $matches[2]
-            # Drop host-specific keys that OpenCode rejects or should inherit
-            # from the harness/session (tools list, permissionMode, maxTurns,
-            # disallowedTools, model).
-            $newFmLines = @()
-            foreach ($line in ($fm -split "\r?\n")) {                if ($line -match '^\s*(tools|permissionMode|maxTurns|disallowedTools|model)\s*:') { continue }
-                $newFmLines += $line
-            }
-            $newFm = ($newFmLines -join "`r`n").TrimEnd()
-            $out = "---`r`n$newFm`r`n---`r`n$body"
-            $dst = Join-Path $DestDir $f.Name
-            [System.IO.File]::WriteAllText($dst, $out, $utf8NoBom)
-            $count++
-        }
-        if ($count -gt 0) { Write-Host "  $Label agents: $count installed at $DestDir (OpenCode-sanitized: tools/permissionMode/maxTurns stripped)" }
-    }
-
-    # Convert Claude/OpenCode-format agent .md files into Copilot's `.agent.md`
-    # format with minimal documented frontmatter (name + description). Strips
-    # Host-specific keys (permissionMode, maxTurns, tools, mode)
-    # which are not in Copilot's documented schema.
-    #
-    # Empirically observed: Copilot CLI's frontmatter parser silently rejects
-    # agent files whose description contains Unicode chars, single-quoted
-    # YAML lists in unquoted values, or descriptions over ~300 chars. This
-    # function sanitises descriptions to the documented-supported subset:
-    # ASCII-only, double-quoted, max 300 chars.
-    function Install-CopilotAgentsFromClaudeSource {
-        param(
-            [string]$SourceDir,
-            [string]$DestDir,
-            [string]$Label
-        )
-        if (-not (Test-Path $SourceDir)) { return }
-        New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
-        # Template variables for Copilot CLI adapter (resolve __HOST_NAME__ and
-        # __SKILL_ROOT__ so installed agents never contain unresolved placeholders).
-        $copilotTemplateVars = Get-WorkflowAdapterTemplateVars -AdapterName "copilot-cli"
-        $count = 0
-        foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
-            $raw = Get-Content $f.FullName -Raw -Encoding UTF8
-            # Apply template substitution before parsing frontmatter so that
-            # __HOST_NAME__ is replaced regardless of where it appears in the file.
-            if ($copilotTemplateVars) {
-                foreach ($k in $copilotTemplateVars.Keys) {
-                    $raw = $raw.Replace($k, $copilotTemplateVars[$k])
-                }
-            }
-            if ($raw -notmatch '(?ms)^---\r?\n(.*?)\r?\n---\r?\n(.*)$') { continue }
-            $fm = $matches[1]
-            $body = $matches[2]
-            $name = ''
-            $desc = ''
-            foreach ($line in ($fm -split "\r?\n")) {                if ($line -match '^\s*name\s*:\s*(.+?)\s*$')        { $name = $matches[1].Trim('"').Trim("'") }
-                elseif ($line -match '^\s*description\s*:\s*(.+?)\s*$') { $desc = $matches[1].Trim('"').Trim("'") }
-            }
-            if (-not $name) { $name = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) }
-
-            # Sanitise description for Copilot's strict parser:
-            #   1. Replace common Unicode (em-dash, en-dash, smart quotes, arrows) with ASCII.
-            #   2. Strip any remaining non-ASCII chars.
-            #   3. Cap at 300 chars (observed Copilot parser limit).
-            #   4. Remove embedded double quotes (would break the YAML wrapping).
-            if ($desc) {
-                $desc = $desc -replace [char]0x2014, '-'   # em-dash
-                $desc = $desc -replace [char]0x2013, '-'   # en-dash
-                $desc = $desc -replace [char]0x2192, '->'  # right arrow
-                $desc = $desc -replace [char]0x2190, '<-'  # left arrow
-                $desc = $desc -replace [char]0x2018, "'"   # left single quote
-                $desc = $desc -replace [char]0x2019, "'"   # right single quote
-                $desc = $desc -replace [char]0x201C, '"'   # left double quote
-                $desc = $desc -replace [char]0x201D, '"'   # right double quote
-                $desc = $desc -replace [char]0x2026, '...' # horizontal ellipsis
-                $desc = $desc -replace '[^\x20-\x7E]', ''  # strip remaining non-ASCII
-                $desc = $desc -replace '"', "'"            # internal double quotes -> single
-                if ($desc.Length -gt 300) { $desc = $desc.Substring(0, 297) + '...' }
-            }
-
-            $newFm = "---`r`nname: $name"
-            if ($desc) { $newFm += "`r`ndescription: ""$desc""" }
-            $newFm += "`r`n---`r`n"
-            # Compute output filename. If source already ends in `.agent.md` (i.e., it's
-            # already a Copilot-format file from bundle/adapters/copilot-cli/.github/agents/),
-            # preserve the name. Otherwise (Claude-source `.md`), append `.agent.md`.
-            $base = [System.IO.Path]::GetFileNameWithoutExtension($f.Name)
-            if ($base.EndsWith('.agent')) {
-                $outName = $f.Name  # already has .agent.md
-            } else {
-                $outName = $base + '.agent.md'
-            }
-            $dst = Join-Path $DestDir $outName
-            # UTF-8 NO BOM. Copilot CLI's agent loader rejects files starting with BOM
-            # the same way Claude Code does. Set-Content -Encoding UTF8 in PS 5.1 adds BOM.
-            [System.IO.File]::WriteAllText($dst, ($newFm + $body), (New-Object System.Text.UTF8Encoding($false)))
-            $count++
-        }
-        if ($count -gt 0) { Write-Host "  $Label agents: $count installed at $DestDir (.agent.md format, minimal frontmatter, template vars resolved)" }
-    }
-
     function ConvertTo-TomlBasicString {
         param([string]$Value)
         if ($null -eq $Value) { $Value = "" }
@@ -1204,7 +1164,7 @@ $endMarker
         # Remove stale root-level values from older/manual installs before
         # writing the managed block. These are kit-owned in Codex installs.
         $content = [regex]::Replace($content, '(?m)^\s*(approval_policy|sandbox_mode)\s*=.*\r?\n', '')
-        $content = [regex]::Replace($content, '(?m)^\s*(multi_agent|codex_hooks)\s*=.*\r?\n', '')
+        $content = [regex]::Replace($content, '(?m)^\s*(multi_agent|codex_hooks|hooks)\s*=.*\r?\n', '')
 
 $runtimeBlock = @"
 $startMarker
@@ -1216,7 +1176,7 @@ $endMarker
 
 "@
 
-        $featureKeys = "multi_agent = true`r`ncodex_hooks = false"
+        $featureKeys = "multi_agent = true`r`nhooks = false"
         if ($content -match '(?m)^\[features\]\s*$') {
             $featuresHeader = New-Object regex '(?m)^\[features\]\s*$'
             $content = $featuresHeader.Replace($content, "[features]`r`n$featureKeys", 1)
@@ -1226,7 +1186,7 @@ $endMarker
 
         New-Item -ItemType Directory -Path (Split-Path -Parent $ConfigPath) -Force | Out-Null
         Set-Content -Path $ConfigPath -Value ($runtimeBlock + $content.TrimStart()) -Encoding UTF8
-        Write-Host "  Codex CLI runtime: approval_policy=never, sandbox_mode=danger-full-access, multi_agent=true, codex_hooks=false"
+        Write-Host "  Codex CLI runtime: approval_policy=never, sandbox_mode=danger-full-access, multi_agent=true, hooks=false"
     }
 
     function Set-CopilotQuietSettings {

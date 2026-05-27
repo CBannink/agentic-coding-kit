@@ -60,6 +60,12 @@ names) — same as Claude / OpenCode.
 Codex does not expose the same slash-command surface as Claude/OpenCode, so
 workflow routing is prompt/skill/agent based rather than slash-command based.
 
+When the user asks to use a workflow by name, including "build workflow",
+"builder workflow", "review workflow", or "goal workflow", that is explicit
+permission to use the workflow's normal leaf agents. Do not reinterpret it as
+"load the workflow text but keep all work inline." Inline work is only for
+single-file mechanical edits or direct answers.
+
 Run `pwsh ~/.agents/tools/pre-session.ps1 -Mode <mode> -Task "<task>"` to start
 a tracked session. The pre-session script emits a brief you should read before
 planning. Run `post-session.ps1` to finalize and register the handoff.

@@ -11,9 +11,6 @@ param(
 $ErrorActionPreference = 'Stop'
 
 function Get-BashExecutable {
-    $candidate = Get-Command bash -ErrorAction SilentlyContinue
-    if ($candidate) { return $candidate.Source }
-
     $fallbacks = @(
         'C:\Program Files\Git\bin\bash.exe',
         'C:\Program Files\Git\usr\bin\bash.exe',
@@ -24,6 +21,9 @@ function Get-BashExecutable {
     foreach ($path in $fallbacks) {
         if (Test-Path $path) { return $path }
     }
+
+    $candidate = Get-Command bash -ErrorAction SilentlyContinue
+    if ($candidate) { return $candidate.Source }
 
     throw "Git Bash not found. Install Git for Windows or add bash.exe to PATH."
 }
