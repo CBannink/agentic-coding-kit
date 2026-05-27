@@ -1,6 +1,6 @@
 ---
 name: ux-driver
-description: Screenshot-based UX critic — judges information architecture, flow, hierarchy, scannability, cognitive load, and a11y structure of a running UI. Runs BEFORE ui-driver. May halt the loop with "this screen is wrong" before any visual polish happens. Pairs with playwright-explorer (capture) and ui-driver (visual pass).
+description: Screenshot-based UX critic for structure, flow, hierarchy, scannability, cognitive load, and a11y. Runs before ui-driver.
 ---
 
 # UX Driver Skill

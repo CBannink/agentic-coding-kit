@@ -1,6 +1,6 @@
 ---
 name: kit-migrate
-description: CONVERGES a repo's local agentic conventions to align with the kit's global pattern, while preserving local domain preferences. Actively migrates competing pipeline content (handoffs/, memory/, session_state.md, root MEMORY.md, etc.) into kit equivalents under .kit/, archives the originals via git mv, and surgically updates the repo's CLAUDE.md to drop conflicting pipeline rules but keep build/test/style/agent-persona preferences intact. NOT a passive coexist mode -- this is a one-time convergence event. Use when the user says "migrate this repo to the kit", "install kit on top of existing setup", or when /kit-init / /wiki-init reports a competing pipeline.
+description: Use to migrate an existing repo's agentic rules into the kit pattern while preserving repo build, test, style, and product preferences.
 ---
 
 # Kit Migrate Skill

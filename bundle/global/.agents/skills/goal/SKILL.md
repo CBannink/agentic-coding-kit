@@ -1,6 +1,6 @@
 ---
 name: goal
-description: Use when the user says "achieve this autonomously", "iterate until done", "drive this to completion", or any multi-step end-to-end task. The current session becomes the goal orchestrator, routes to the correct workflow, and keeps iterating until the goal is provably achieved.
+description: Use for autonomous multi-step goals. Routes to the right workflow and iterates until success criteria are proven or blocked.
 ---
 
 # /goal

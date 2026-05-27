@@ -1,6 +1,6 @@
 ---
 name: ui-driver
-description: Screenshot-based UI critic — judges typography, color, spacing, density, motion, and AI-slop visual patterns of a running UI. Runs AFTER ux-driver gives structure_ok=true. Emits one concrete change at a time and pairs with visual-diff for verification. Successor to design-driver for the visual pass.
+description: Screenshot-based UI critic for typography, color, spacing, density, motion, and AI-slop. Runs after ux-driver approves structure.
 ---
 
 # UI Driver Skill

@@ -1,6 +1,6 @@
 ---
 name: aesthetic-director
-description: Pre-coding aesthetic direction picker. Locks the project to a named visual language (typography pairing, palette, density, motion) BEFORE any UI generation. Writes DESIGN.md + an optional CLAUDE.md theme block so every downstream agent (ux-driver, ui-driver, redesign, design-driver) generates from the same locked direction instead of defaulting to Inter + purple gradient + rounded cards. Invoke at the start of /redesign when no DESIGN.md exists, or standalone when the user asks for a "fresh look" / "theme this project."
+description: Use before UI generation to choose a visual direction and write DESIGN.md. Trigger for redesigns, fresh looks, or theme setup.
 ---
 
 # Aesthetic Director

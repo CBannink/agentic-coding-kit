@@ -1,6 +1,6 @@
 ---
 name: wiki-init
-description: Bootstraps the .wiki/ directory for a repo that doesn't have one. Surveys active code plus recent git history (entry points, routers, public exports, services, scheduled jobs, UI routes, conventions), identifies major sections, and writes per-section docs plus architecture.md, codebase.md, features.md, and .features rollups. Use when .wiki/ is missing, when /build / /plan / /review reports the wiki rule isn't satisfied, or when the user says "we don't have docs" / "bootstrap the wiki" / "set up .wiki".
+description: Use when .wiki/ is missing. Builds architecture, codebase, features, and section docs from real code so agents can retrieve repo context.
 ---
 
 # Wiki Init Skill

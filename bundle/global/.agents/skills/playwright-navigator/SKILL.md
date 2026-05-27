@@ -1,6 +1,6 @@
 ---
 name: playwright-navigator
-description: Figures out HOW Playwright should reach a target screen — auth steps, route, navigation actions, wait conditions — and emits a screen-flows.yaml block. Used by playwright-explorer when a route isn't already mapped. Prevents brittle "click around until found" automation.
+description: Finds Playwright navigation paths, auth steps, routes, selectors, and waits for target screens. Emits screen-flows.yaml blocks.
 ---
 
 # Playwright Navigator Skill

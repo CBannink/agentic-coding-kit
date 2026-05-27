@@ -1,6 +1,6 @@
 ---
 name: swarm
-description: Fan-out → reduce template for parallel-safe work. Spawns N agents per item (file/component/perspective), single synthesizer merges, single verifier checks. Used for greenfield UI, repo-wide audits, security reviews, bulk migrations, multi-perspective brainstorms.
+description: Fan-out/reduce workflow for parallel-safe work such as repo-wide audits, greenfield UI, security reviews, and bulk migrations.
 ---
 
 # Swarm Skill — Fan-Out → Reduce

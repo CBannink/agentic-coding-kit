@@ -1,6 +1,6 @@
 ---
 name: kit-init
-description: Bootstraps the .kit/ tree (durable repo memory, workflow briefs, agent-memory, repo-local workflow overrides) for a repo that doesn't have one. Surveys real code plus recent git history for durable architectural facts and conventions, writes .kit/context/memory.md + handoffs.md + history.md + reflections.md + workflow-briefs/*.md + agent-memory/shared.md + .kit/workflows/{shared,build,review}.md as appropriate. Use when .kit/ is missing, when /build / /plan / /review reports memory files aren't found, or when the user says "set up the kit's repo memory" / "we don't have .kit/ yet".
+description: Use when .kit/ is missing or repo memory needs setup. Creates compact repo facts, conventions, workflow briefs, and agent memory from code evidence.
 ---
 
 # Kit Init Skill

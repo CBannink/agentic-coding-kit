@@ -1,6 +1,6 @@
 ---
 name: design-driver
-description: Lightweight solo design critic for INLINE/TARGETED polish (single screen, single concern). For /redesign and frontend /build gates, prefer the ux-driver -> ui-driver pair which separates structural from visual critique. This skill remains for one-off small polish where spawning two agents is overkill.
+description: Lightweight solo design critic for small single-screen polish. Prefer ux-driver plus ui-driver for full redesign or frontend build gates.
 ---
 
 # Design Driver Skill (solo / lightweight)

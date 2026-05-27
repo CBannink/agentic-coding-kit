@@ -1,6 +1,6 @@
 ---
 name: playwright-explorer
-description: Drives a local dev server through user flows from .wiki/features.md, captures stable annotated screenshots with multi-fallback selector resilience. Used by /redesign and design polish loops to provide ground-truth visual state to the design-driver agent.
+description: Captures stable annotated screenshots of local app flows for redesign, UX/UI review, and visual verification loops.
 ---
 
 # Playwright Explorer Skill
