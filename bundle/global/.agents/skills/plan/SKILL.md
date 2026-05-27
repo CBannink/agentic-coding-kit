@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Use when the user asks to plan, spec, design, or scope a change. Honors router handoff. TARGETED plan: explorer plus pressure test. FULL plan: adds blast-radius and security pressure for high-risk changes. Produces plan artifact and stops for approval.  
+description: "Use when the user asks to plan, spec, design, or scope a change. Honors router handoff. TARGETED plan: explorer plus pressure test. FULL plan: adds blast-radius and security pressure for high-risk changes. Produces plan artifact and stops for approval."
 ---
 
 # /plan

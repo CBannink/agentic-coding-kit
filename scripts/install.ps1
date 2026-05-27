@@ -68,6 +68,7 @@ $BundleRepo   = Join-Path $RepoRoot "bundle/repo-template"
 $AdaptersRoot = Join-Path $RepoRoot "bundle/adapters"
 $SharedWorkflowCommandsRoot = Join-Path $AdaptersRoot "_shared/workflow-commands"
 $SharedWorkflowAgentsRoot = Join-Path $AdaptersRoot "_shared/workflow-agents"
+$SharedSpecialistAgentsRoot = Join-Path $AdaptersRoot "_shared/specialist-agents"
 
 $AgentsRoot = Join-Path $HomeRoot ".agents"
 
@@ -96,6 +97,24 @@ function Copy-Tree {
     }
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
     Copy-Item -Recurse -Force (Join-Path $Source '*') $Destination
+}
+
+function Copy-TreeIfMissing {
+    param(
+        [string]$Source,
+        [string]$Destination
+    )
+    if (-not (Test-Path $Source)) { return }
+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+    foreach ($item in (Get-ChildItem -Force -LiteralPath $Source)) {
+        $destPath = Join-Path $Destination $item.Name
+        if ($item.PSIsContainer) {
+            Copy-TreeIfMissing -Source $item.FullName -Destination $destPath
+        } elseif (-not (Test-Path $destPath)) {
+            New-Item -ItemType Directory -Path (Split-Path -Parent $destPath) -Force | Out-Null
+            Copy-Item -Force $item.FullName $destPath
+        }
+    }
 }
 
 function Render-Template {
@@ -141,6 +160,12 @@ function Get-WorkflowAdapterTemplateVars {
             return @{
                 "__SKILL_ROOT__" = "~/.agents/skills"
                 "__HOST_NAME__" = "Copilot CLI"
+            }
+        }
+        "codex-cli" {
+            return @{
+                "__SKILL_ROOT__" = "~/.codex/skills"
+                "__HOST_NAME__" = "Codex"
             }
         }
         default { return $null }
@@ -358,6 +383,12 @@ function Install-Adapter {
     # Hooks are repo-scope only on Copilot per the official hooks reference;
     # there is no documented user-level hooks path.
     if ($Name -eq "copilot-cli") {
+        $copilotAgentDest = Join-Path $TargetRepo ".github/agents"
+        Install-CopilotAgentsFromClaudeSource `
+            -SourceDir $SharedSpecialistAgentsRoot `
+            -DestDir   $copilotAgentDest `
+            -Label     "Copilot CLI specialist"
+
         $hookSrc = Join-Path $src ".github/hooks"
         $hookDst = Join-Path $TargetRepo ".github/hooks"
         if (Test-Path $hookSrc) {
@@ -422,6 +453,20 @@ function Install-Adapter {
             [System.IO.File]::WriteAllText($kitConfigPath, $kitConfigContent, (New-Object System.Text.UTF8Encoding($false)))
             Write-Host "  GitHub Copilot kit-config.sh: $kitConfigPath (KIT_ROOT=$kitRootForward)"
         }
+    } elseif ($Name -eq "claude-code") {
+        $claudeAgentDest = Join-Path $TargetRepo ".claude/agents"
+        $vars = Get-WorkflowAdapterTemplateVars -AdapterName "claude-code"
+        Install-RenderedMarkdownDirectory `
+            -SourceDir $SharedSpecialistAgentsRoot `
+            -DestDir   $claudeAgentDest `
+            -Vars      $vars `
+            -Label     "Claude Code" `
+            -AssetKind "specialist agents"
+    } elseif ($Name -eq "opencode") {
+        Install-OpenCodeAgentsFromSource `
+            -SourceDir $SharedSpecialistAgentsRoot `
+            -DestDir   (Join-Path $TargetRepo ".opencode/agents") `
+            -Label     "OpenCode specialist"
     }
 
     Write-Host "  Installed '$Name' adapter into $TargetRepo"
@@ -587,23 +632,13 @@ if ($InstallGlobal) {
         Write-Host "  Rendered skill-memory-index.json with AGENTS_ROOT=$agentsRootAbs"
     }
 
-    # Stage Copilot CLI's MODEL-ROUTING.md under ~/.agents/copilot/ so the
-    # standalone install-copilot-kit.ps1 entry point can find it without a
-    # hardcoded repo path. (Pre-fix the script hardcoded $HOME/Downloads/<maintainer-repo-name>.)
-    $copilotModelRoutingSrc = Join-Path $AdaptersRoot 'copilot-cli/MODEL-ROUTING.md'
-    if (Test-Path $copilotModelRoutingSrc) {
-        $copilotStageDir = Join-Path $AgentsRoot 'copilot'
-        New-Item -ItemType Directory -Path $copilotStageDir -Force | Out-Null
-        Copy-Item -Force $copilotModelRoutingSrc (Join-Path $copilotStageDir 'MODEL-ROUTING.md')
-    }
-
     Write-Host "Installed global assets into $HomeRoot"
 }
 
 # ── Repo template install ─────────────────────────────────────────────────────
 if ($TargetRepo -and $InstallRepoTemplate) {
-    Copy-Tree -Source $BundleRepo -Destination $TargetRepo
-    Write-Host "Installed repo template into $TargetRepo"
+    Copy-TreeIfMissing -Source $BundleRepo -Destination $TargetRepo
+    Write-Host "Installed missing repo template files into $TargetRepo (existing repo context preserved)"
 }
 
 # ── Adapter install ───────────────────────────────────────────────────────────
@@ -646,6 +681,33 @@ function Clean-HostInstallDirs {
         if (Test-Path $p) {
             Remove-Item -Recurse -Force $p
             Write-Host "  $Label clean-reinstall: wiped $p"
+        }
+    }
+}
+
+function Clean-CodexInstallDirs {
+    param(
+        [string]$HomeRoot,
+        [string]$KitSkillsSourceRoot
+    )
+
+    $codexRoot = Join-Path $HomeRoot ".codex"
+    Clean-HostInstallDirs -Label "Codex CLI" -Paths @(
+        (Join-Path $codexRoot "agents"),
+        (Join-Path $codexRoot "global-workflows"),
+        (Join-Path $codexRoot "rules")
+    )
+
+    # Keep Codex-owned/system skills such as .system, but remove kit skill dirs
+    # so deleted or renamed kit skills do not survive a clean reinstall.
+    $codexSkillsRoot = Join-Path $codexRoot "skills"
+    if ((Test-Path $codexSkillsRoot) -and (Test-Path $KitSkillsSourceRoot)) {
+        foreach ($skillDir in (Get-ChildItem -Path $KitSkillsSourceRoot -Directory -ErrorAction SilentlyContinue)) {
+            $target = Join-Path $codexSkillsRoot $skillDir.Name
+            if (Test-Path $target) {
+                Remove-Item -Recurse -Force $target
+                Write-Host "  Codex CLI clean-reinstall: wiped $target"
+            }
         }
     }
 }
@@ -947,7 +1009,7 @@ $endMarker
     # "expected object". OpenCode wants either no `tools:` field or its own
     # mapping format. This function reads each agent file, strips Claude-only
     # frontmatter keys (tools, permissionMode, maxTurns) before writing to the
-    # OpenCode destination. Keeps name, description, mode, model.
+    # OpenCode destination. Keeps name, description, and mode.
     function Install-OpenCodeAgentsFromSource {
         param(
             [string]$SourceDir,
@@ -965,10 +1027,11 @@ $endMarker
             if ($raw -notmatch '(?ms)^---\r?\n(.*?)\r?\n---\r?\n(.*)$') { continue }
             $fm = $matches[1]
             $body = $matches[2]
-            # Drop Claude-only keys that OpenCode rejects (tools list,
-            # permissionMode, maxTurns, disallowedTools).
+            # Drop host-specific keys that OpenCode rejects or should inherit
+            # from the harness/session (tools list, permissionMode, maxTurns,
+            # disallowedTools, model).
             $newFmLines = @()
-            foreach ($line in ($fm -split "\r?\n")) {                if ($line -match '^\s*(tools|permissionMode|maxTurns|disallowedTools)\s*:') { continue }
+            foreach ($line in ($fm -split "\r?\n")) {                if ($line -match '^\s*(tools|permissionMode|maxTurns|disallowedTools|model)\s*:') { continue }
                 $newFmLines += $line
             }
             $newFm = ($newFmLines -join "`r`n").TrimEnd()
@@ -982,7 +1045,7 @@ $endMarker
 
     # Convert Claude/OpenCode-format agent .md files into Copilot's `.agent.md`
     # format with minimal documented frontmatter (name + description). Strips
-    # Claude-only keys (model: sonnet, permissionMode, maxTurns, tools, mode)
+    # Host-specific keys (permissionMode, maxTurns, tools, mode)
     # which are not in Copilot's documented schema.
     #
     # Empirically observed: Copilot CLI's frontmatter parser silently rejects
@@ -1060,6 +1123,156 @@ $endMarker
             $count++
         }
         if ($count -gt 0) { Write-Host "  $Label agents: $count installed at $DestDir (.agent.md format, minimal frontmatter, template vars resolved)" }
+    }
+
+    function ConvertTo-TomlBasicString {
+        param([string]$Value)
+        if ($null -eq $Value) { $Value = "" }
+        $escaped = $Value `
+            -replace '\\', '\\' `
+            -replace '"', '\"' `
+            -replace "`r", '' `
+            -replace "`n", '\n' `
+            -replace "`t", '\t'
+        return '"' + $escaped + '"'
+    }
+
+    # Convert markdown agent definitions into Codex CLI's native TOML format.
+    # Codex discovers ~/.codex/agents/*.toml in both CLI and IDE-backed sessions.
+    function Install-CodexAgentsFromClaudeSource {
+        param(
+            [string]$SourceDir,
+            [string]$DestDir,
+            [string]$Label
+        )
+        if (-not (Test-Path $SourceDir)) { return }
+        New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+
+        $codexTemplateVars = Get-WorkflowAdapterTemplateVars -AdapterName "codex-cli"
+        $count = 0
+        foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
+            $raw = Get-Content $f.FullName -Raw -Encoding UTF8
+            if ($codexTemplateVars) {
+                foreach ($k in $codexTemplateVars.Keys) {
+                    $raw = $raw.Replace($k, $codexTemplateVars[$k])
+                }
+            }
+            if ($raw.Length -gt 0 -and [int][char]$raw[0] -eq 0xFEFF) { $raw = $raw.Substring(1) }
+            if ($raw -notmatch '(?ms)^---\r?\n(.*?)\r?\n---\r?\n(.*)$') { continue }
+            $fm = $matches[1]
+            $body = $matches[2].Trim()
+            $name = ''
+            $desc = ''
+            foreach ($line in ($fm -split "\r?\n")) {
+                if ($line -match '^\s*name\s*:\s*(.+?)\s*$') { $name = $matches[1].Trim('"').Trim("'") }
+                elseif ($line -match '^\s*description\s*:\s*(.+?)\s*$') { $desc = $matches[1].Trim('"').Trim("'") }
+            }
+            if (-not $name) { $name = [System.IO.Path]::GetFileNameWithoutExtension($f.Name) }
+
+            $out = @(
+                "# Auto-generated from $($f.Name) by install.ps1",
+                "# Re-run scripts/install.ps1 -For codex to refresh.",
+                "",
+                "name = $(ConvertTo-TomlBasicString $name)",
+                "description = $(ConvertTo-TomlBasicString $desc)",
+                "",
+                "developer_instructions = $(ConvertTo-TomlBasicString $body)",
+                ""
+            ) -join "`r`n"
+            $dst = Join-Path $DestDir ($name + ".toml")
+            [System.IO.File]::WriteAllText($dst, $out, (New-Object System.Text.UTF8Encoding($false)))
+            $count++
+        }
+        if ($count -gt 0) { Write-Host "  $Label agents: $count installed at $DestDir (Codex TOML format)" }
+    }
+
+    function Set-CodexNoPromptConfig {
+        param([string]$ConfigPath)
+
+        $content = ""
+        if (Test-Path $ConfigPath) {
+            $content = Get-Content $ConfigPath -Raw -Encoding UTF8
+        }
+
+        $startMarker = "# <<< agentic-kit:codex-runtime"
+        $endMarker = "# >>> agentic-kit:codex-runtime"
+        if ($content -match [regex]::Escape($startMarker)) {
+            $stripPattern = [regex]::Escape($startMarker) + '.*?' + [regex]::Escape($endMarker) + '\r?\n?'
+            $content = [regex]::Replace($content, $stripPattern, '', 'Singleline')
+        }
+
+        # Remove stale root-level values from older/manual installs before
+        # writing the managed block. These are kit-owned in Codex installs.
+        $content = [regex]::Replace($content, '(?m)^\s*(approval_policy|sandbox_mode)\s*=.*\r?\n', '')
+        $content = [regex]::Replace($content, '(?m)^\s*(multi_agent|codex_hooks)\s*=.*\r?\n', '')
+
+$runtimeBlock = @"
+$startMarker
+# Kit-managed Codex runtime posture. Caspar wants Codex to run without
+# permission prompts in CLI and IDE sessions.
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+$endMarker
+
+"@
+
+        $featureKeys = "multi_agent = true`r`ncodex_hooks = false"
+        if ($content -match '(?m)^\[features\]\s*$') {
+            $featuresHeader = New-Object regex '(?m)^\[features\]\s*$'
+            $content = $featuresHeader.Replace($content, "[features]`r`n$featureKeys", 1)
+        } else {
+            $content = "[features]`r`n$featureKeys`r`n`r`n" + $content
+        }
+
+        New-Item -ItemType Directory -Path (Split-Path -Parent $ConfigPath) -Force | Out-Null
+        Set-Content -Path $ConfigPath -Value ($runtimeBlock + $content.TrimStart()) -Encoding UTF8
+        Write-Host "  Codex CLI runtime: approval_policy=never, sandbox_mode=danger-full-access, multi_agent=true, codex_hooks=false"
+    }
+
+    function Set-CopilotQuietSettings {
+        param([string]$SettingsPath)
+
+        New-Item -ItemType Directory -Path (Split-Path -Parent $SettingsPath) -Force | Out-Null
+        $settings = [pscustomobject]@{}
+        if (Test-Path $SettingsPath) {
+            $raw = Get-Content $SettingsPath -Raw -Encoding UTF8
+            if ($raw.Trim()) {
+                try {
+                    $json = [regex]::Replace($raw, '(?s)/\*.*?\*/', '')
+                    $json = [regex]::Replace($json, '(?m)^\s*//.*$', '')
+                    $settings = $json | ConvertFrom-Json
+                } catch {
+                    $backup = "$SettingsPath.before-agentic-kit-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+                    Copy-Item -Force $SettingsPath $backup
+                    Write-Host "  GitHub Copilot settings: existing JSONC could not be parsed; backed up to $backup"
+                    $settings = [pscustomobject]@{}
+                }
+            }
+        }
+
+        function Set-JsonProperty {
+            param([object]$Object, [string]$Name, [object]$Value)
+            if ($Object.PSObject.Properties.Name -contains $Name) {
+                $Object.$Name = $Value
+            } else {
+                Add-Member -InputObject $Object -NotePropertyName $Name -NotePropertyValue $Value
+            }
+        }
+
+        Set-JsonProperty $settings "streamerMode" $true
+        Set-JsonProperty $settings "terminalProgress" $false
+
+        if (-not ($settings.PSObject.Properties.Name -contains "footer") -or -not $settings.footer) {
+            Set-JsonProperty $settings "footer" ([pscustomobject]@{})
+        }
+        Set-JsonProperty $settings.footer "showModelEffort" $false
+        Set-JsonProperty $settings.footer "showContextWindow" $false
+        Set-JsonProperty $settings.footer "showQuota" $false
+        Set-JsonProperty $settings.footer "showAgent" $false
+
+        $out = $settings | ConvertTo-Json -Depth 20
+        [System.IO.File]::WriteAllText($SettingsPath, $out + "`n", (New-Object System.Text.UTF8Encoding($false)))
+        Write-Host "  GitHub Copilot settings: quiet display defaults written (streamerMode=true, terminalProgress=false)"
     }
 
     # Copies bundled agent definition files to a CLI's native auto-mount agents dir.
@@ -1291,12 +1504,16 @@ $endMarker
                     -DestRoot   (Join-Path $HomeRoot ".claude/skills") `
                     -Label      "Claude Code"
 
-                # Host-specific reviewer / expert agents. Workflow transport
-                # agents are rendered from shared templates above.
-                Install-DeviceWideAgents `
-                    -SourceDir (Join-Path $AdaptersRoot "claude-code/.claude/agents") `
+                # Shared specialist agents. Workflow transport agents are
+                # rendered from shared templates above; specialists are also
+                # sourced from _shared so every mature harness gets the same set.
+                $claudeVars = Get-WorkflowAdapterTemplateVars -AdapterName "claude-code"
+                Install-RenderedMarkdownDirectory `
+                    -SourceDir $SharedSpecialistAgentsRoot `
                     -DestDir   (Join-Path $HomeRoot ".claude/agents") `
-                    -Label     "Claude Code"
+                    -Vars      $claudeVars `
+                    -Label     "Claude Code" `
+                    -AssetKind "specialist agents"
 
                 # Wire SessionStart/End hooks via the merger (honor HomeRoot)
                 $merger  = Join-Path $AgentsRoot "tools/merge-claude-settings.ps1"
@@ -1309,6 +1526,9 @@ $endMarker
                 }
             }
             "codex" {
+                if ($CleanReinstall) {
+                    Clean-CodexInstallDirs -HomeRoot $HomeRoot -KitSkillsSourceRoot $kitSkillsRoot
+                }
                 # Codex CLI auto-loads ~/.codex/AGENTS.md AND ships
                 # PreToolUse / PostToolUse hooks via ~/.codex/config.toml
                 # (per developers.openai.com/codex/hooks). Same exit-code-2
@@ -1327,10 +1547,30 @@ $endMarker
                     -LongFormPath  (Join-Path $HomeRoot ".codex/agentic-kit.md") `
                     -Label         "Codex CLI"
 
+                Install-DeviceWideSkills `
+                    -SourceRoot $kitSkillsRoot `
+                    -DestRoot   (Join-Path $HomeRoot ".codex/skills") `
+                    -Label      "Codex CLI"
+
+                $codexAgentsRoot = Join-Path $HomeRoot ".codex/agents"
+                Install-CodexAgentsFromClaudeSource `
+                    -SourceDir (Join-Path $AdaptersRoot "_shared/workflow-agents") `
+                    -DestDir   $codexAgentsRoot `
+                    -Label     "Codex CLI workflow"
+                Install-CodexAgentsFromClaudeSource `
+                    -SourceDir (Join-Path $AdaptersRoot "_shared/specialist-agents") `
+                    -DestDir   $codexAgentsRoot `
+                    -Label     "Codex CLI specialist"
+                Install-CodexAgentsFromClaudeSource `
+                    -SourceDir (Join-Path $AdaptersRoot "codex-cli/.codex/agents") `
+                    -DestDir   $codexAgentsRoot `
+                    -Label     "Codex CLI adapter"
+
                 # Wire Codex hooks via the TOML merger
                 $codexMerger = Join-Path $AgentsRoot "tools/merge-codex-config.ps1"
                 $codexSnippet = Join-Path $AdaptersRoot "codex-cli/.codex/hooks.snippet.toml"
                 $codexConfig = Join-Path $HomeRoot ".codex/config.toml"
+                Set-CodexNoPromptConfig -ConfigPath $codexConfig
                 if ((Test-Path $codexMerger) -and (Test-Path $codexSnippet)) {
                     Write-Host "  Codex CLI hooks: wiring..."
                     $shell = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh" } else { "powershell" }
@@ -1402,16 +1642,13 @@ $endMarker
                     -DestDir   (Join-Path $HomeRoot ".config/opencode/agents") `
                     -Label     "OpenCode workflow"
 
-                # Host-specific reviewer / expert agents. Use the OpenCode-specific
-                # sanitizer so Claude-format `tools:` / `permissionMode:` / `maxTurns:`
-                # frontmatter keys (which OpenCode's loader rejects with "expected
-                # object") get stripped before writing.
-                # Install SECOND so adapter-specific files (with hardcoded host name,
-                # no template variables) override the shared workflow-agent versions.
+                # Shared specialist agents. Use the OpenCode-specific sanitizer so
+                # Claude-format `tools:` / `permissionMode:` / `maxTurns:` frontmatter
+                # keys get stripped before writing.
                 Install-OpenCodeAgentsFromSource `
-                    -SourceDir (Join-Path $AdaptersRoot "opencode/.opencode/agents") `
+                    -SourceDir $SharedSpecialistAgentsRoot `
                     -DestDir   (Join-Path $HomeRoot ".config/opencode/agents") `
-                    -Label     "OpenCode"
+                    -Label     "OpenCode specialist"
 
                 # Lifecycle plugin
                 $pluginSrc = Join-Path $AdaptersRoot "opencode/.opencode/plugins/agentic-kit.ts"
@@ -1438,7 +1675,7 @@ $endMarker
                     # 2. Ensure orchestrator agent entry exists in the agent block
                     if ($content -notmatch '"orchestrator"\s*:\s*\{') {
                         # Find the agent block and add orchestrator entry
-                        $content = $content -replace '("agent"\s*:\s*\{)', "$1`n    // Orchestrator (session default - the main agent)`n    `"orchestrator`": {`n      `"model`": `"opencode-go/deepseek-v4-pro`",`n      `"mode`": `"primary`",`n      `"description`": `"Main session orchestrator - routes all requests, spawns subagents and workflows`"`n    },", 1
+                        $content = $content -replace '("agent"\s*:\s*\{)', "$1`n    // Orchestrator (session default - the main agent)`n    `"orchestrator`": {`n      `"mode`": `"primary`",`n      `"description`": `"Main session orchestrator - routes all requests, spawns subagents and workflows`"`n    },", 1
                         $modified = $true
                     }
 
@@ -1481,12 +1718,20 @@ $endMarker
                     -ExistingPath (Join-Path $HomeRoot ".copilot/copilot-instructions.md") `
                     -Label       "GitHub Copilot"
 
+                Set-CopilotQuietSettings -SettingsPath (Join-Path $HomeRoot ".copilot/settings.json")
+
                 # Custom agents at user scope (~/.copilot/agents/<name>.agent.md).
-                # Bundled agents are pre-converted under copilot-cli/.github/agents/.
+                # Render the same shared agent set used by other harnesses into
+                # Copilot's strict `.agent.md` format.
                 Install-CopilotAgentsFromClaudeSource `
-                    -SourceDir (Join-Path $AdaptersRoot "copilot-cli/.github/agents") `
+                    -SourceDir $SharedWorkflowAgentsRoot `
                     -DestDir   (Join-Path $HomeRoot ".copilot/agents") `
-                    -Label     "GitHub Copilot"
+                    -Label     "GitHub Copilot workflow"
+
+                Install-CopilotAgentsFromClaudeSource `
+                    -SourceDir $SharedSpecialistAgentsRoot `
+                    -DestDir   (Join-Path $HomeRoot ".copilot/agents") `
+                    -Label     "GitHub Copilot specialist"
 
                 # Copilot CLI uses the global skills under ~/.agents/skills/
                 # directly. The global skills now reference only leaf agents

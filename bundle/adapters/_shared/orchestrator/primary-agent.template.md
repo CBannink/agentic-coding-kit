@@ -45,7 +45,7 @@ Before routing, check whether the request is clear enough to classify safely.
 
 - Default to direct `router -> worker` handoffs.
 - Use `prompt-synthesizer` only for genuinely noisy handoffs: long multi-source
-  context, retry/re-spawn after failure, or a cross-model handoff that needs a
+  context, retry/re-spawn after failure, or a cross-harness handoff that needs a
   tighter brief.
 - If `prompt-synthesizer` still finds material ambiguity, route that back to the
   router. It is a compression helper, not a clarification owner.
@@ -90,6 +90,8 @@ git diff --name-only HEAD
 | Goal achievement check | `goal-reviewer` |
 | Slop cleanup | `slop-refactorer` |
 | UX / UI review | `ux-driver`, `ui-driver` |
+| Product / marketing / growth / sales | `product-strategist`, `marketing-strategist`, `positioning-messaging-expert`, `growth-experimenter`, `customer-researcher`, `copywriter`, `sales-enablement-expert`, `business-model-analyst`, `cold-email-strategist`, `content-strategist`, `offer-architect`, `landing-page-critic`, `customer-support-analyst` |
+| Heavy-loop learning | `learning-curator` |
 
 __OPTIONAL_WORKFLOW_LOADING__
 

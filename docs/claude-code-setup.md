@@ -80,7 +80,7 @@ If not, use the command files as **prompt templates** and keep `CLAUDE.md` as th
 
 ### New tools available in Claude Code
 
-`model-selector.ps1` and `agent-trust-scorer.ps1` are available via the `goal-orchestrator` agent for dynamic model selection. The orchestrator calls `model-selector.ps1` at task-start to pick the right model for a given scope + role, and `agent-trust-scorer.ps1` to inject calibration prompts when delegating to agents with a noisy track record.
+`agent-trust-scorer.ps1` is available via the `goal-orchestrator` agent to inject calibration prompts when delegating to agents with a noisy track record.
 
 ## Recommended adoption path
 

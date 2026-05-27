@@ -48,7 +48,7 @@ Before routing, check whether the request is clear enough to classify safely.
 
 - Default to direct `router -> worker` handoffs.
 - Use `prompt-synthesizer` only for genuinely noisy handoffs: long multi-source
-  context, retry/re-spawn after failure, or a cross-model handoff that needs a
+  context, retry/re-spawn after failure, or a cross-harness handoff that needs a
   tighter brief.
 - If `prompt-synthesizer` still finds material ambiguity, route that back to the
   router. It is a compression helper, not a clarification owner.
@@ -113,8 +113,3 @@ exact verification command. Not "tests probably pass."
 Emit `[BUILD N/TOTAL] Spawning <agent>...` before every agent spawn so the user
 sees forward motion.
 
-## Model routing (Claude Code)
-
-- **Main session / orchestration**: claude-opus-4-6
-- **Implementation + review**: claude-sonnet-4-6
-- **Cheap exploration**: claude-haiku-4-5

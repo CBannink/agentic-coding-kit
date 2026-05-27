@@ -65,7 +65,6 @@ The kit's workflow commands are your PRIMARY TOOLS. Route by goal type before sp
 | `workflow-evidence.ps1 -SessionId <id> -AddVerification <cmd> -WithExitCode 0 -WithCommand <cmd>` | Record verification evidence for the Iron Law |
 | `state-gate.ps1 -SessionId <id> -Mark verification_evidence` | Mark gates after verification |
 | `verify-writeback.ps1 -SessionId <id>` | Writeback gate for user-visible changes |
-| `model-selector.ps1 -Scope <scope> -Role <role>` | Dynamic model selection: returns recommended model for a subagent based on scope, role, and trust data |
 | `agent-trust-scorer.ps1 -Role <role>` | Trust scoring: reads reflections, returns trust score + calibration prompt block for a subagent |
 | `mode-profiles.ps1 -Mode <mode>` | Resolve mode profile before spawning any leaf agent — embed returned `prompt_block` in agent's prompt to enforce tool/file restrictions per role |
 | `context-bloat-guard.ps1 -RepoRoot . -AutoFix -Json` | Context size check — run at loop start and every 3 iterations; warn user if status is `"critical"` |
@@ -84,38 +83,15 @@ pwsh ~/.agents/tools/mode-profiles.ps1 -Mode <mode>
 Embed the returned `prompt_block` in the subagent's prompt. This enforces tool/file
 restrictions per role (e.g., implementer cannot read unrelated files, reviewer cannot edit).
 
-### Dynamic model selection (MANDATORY before spawning leaf agents)
+### Trust calibration (optional before spawning leaf agents)
 
-Before spawning any leaf subagent, run:
-
-```bash
-pwsh ~/.agents/tools/scope-classifier.ps1
-```
-
-Capture the `scope` field (ISOLATED/SHARED/CRITICAL). Then for each agent you're about to spawn:
-
-```bash
-pwsh ~/.agents/tools/model-selector.ps1 -Scope <scope> -Role <agent-name>
-```
-
-Use the returned `model` field when spawning the subagent. This ensures:
-- ISOLATED tasks use fast models for explorers/reviewers (cheap)
-- CRITICAL tasks upgrade orchestrators to premium
-- Noisy agents get downgraded automatically
-
-To include trust-based adjustments, first get trust data:
+To include trust-based calibration, first get trust data:
 
 ```bash
 pwsh ~/.agents/tools/agent-trust-scorer.ps1 -Role <agent-name> -Json
 ```
 
-Pass the `supersession_rate` from the output into model-selector:
-
-```bash
-pwsh ~/.agents/tools/model-selector.ps1 -Scope <scope> -Role <agent-name> -TrustData '{"supersession_rate": <rate>}'
-```
-
-And inject the trust scorer's `prompt_block` into the subagent's prompt so it self-calibrates.
+Inject the trust scorer's `prompt_block` into the subagent's prompt so it self-calibrates.
 
 ### Skills (read on demand via Read tool)
 

@@ -161,6 +161,36 @@ foreach ($spec in @(
     }
 }
 
+# 7b. Codex native runtime + agents
+$codexConfig = Join-Path $HOME ".codex/config.toml"
+if (Test-Path $codexConfig) {
+    $codexConfigContent = Get-Content $codexConfig -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
+    $codexRuntimeOk = ($codexConfigContent -match 'approval_policy\s*=\s*"never"') -and
+                      ($codexConfigContent -match 'sandbox_mode\s*=\s*"danger-full-access"') -and
+                      ($codexConfigContent -match 'multi_agent\s*=\s*true')
+    if ($codexRuntimeOk) {
+        $hooksState = if ($codexConfigContent -match 'codex_hooks\s*=\s*true') { "hooks enabled" } else { "hooks disabled" }
+        Add-Check "Codex no-prompt runtime" "PASS" "approval_policy=never, sandbox_mode=danger-full-access, $hooksState"
+    } else {
+        Add-Check "Codex no-prompt runtime" "WARN" "Missing no-prompt config -- rerun install.ps1 -For codex"
+    }
+} else {
+    Add-Check "Codex no-prompt runtime" "WARN" "~/.codex/config.toml not found"
+}
+
+$codexAgentsDir = Join-Path $HOME ".codex/agents"
+$requiredCodexAgents = @("goal-orchestrator.toml", "workflow-implementer.toml", "workflow-explorer.toml", "code-quality-reviewer.toml", "final-verifier.toml")
+if (Test-Path $codexAgentsDir) {
+    $missingCodexAgents = @($requiredCodexAgents | Where-Object { -not (Test-Path (Join-Path $codexAgentsDir $_)) })
+    if ($missingCodexAgents.Count -eq 0) {
+        Add-Check "Codex native agents" "PASS" "$((Get-ChildItem -Path $codexAgentsDir -Filter '*.toml' -File).Count) TOML agents installed"
+    } else {
+        Add-Check "Codex native agents" "WARN" "Missing: $($missingCodexAgents -join ', ')"
+    }
+} else {
+    Add-Check "Codex native agents" "WARN" "Not installed; run install.ps1 -For codex"
+}
+
 # 8. Copilot workflow wrappers
 $copilotWrapperDir = Join-Path $agentsRoot "bin/copilot"
 $requiredCopilotWrappers = @("kit-build.sh", "kit-build.ps1", "kit-goal.sh", "kit-bootstrap.sh")
@@ -175,33 +205,37 @@ if (Test-Path $copilotWrapperDir) {
     Add-Check "Copilot workflow wrappers" "WARN" "Not installed; run install.ps1 -For copilot"
 }
 
-# 9. Copilot inherited inline skills
-$copilotInlineSkillChecks = @(
-    @{ Name = "goal"; Pattern = 'Do NOT spawn `goal-orchestrator`\.' },
-    @{ Name = "build"; Pattern = 'Do NOT spawn `build-orchestrator`\.' },
-    @{ Name = "plan"; Pattern = 'Do NOT spawn `plan-orchestrator`\.' },
-    @{ Name = "review"; Pattern = 'Do NOT spawn `review-orchestrator`\.' },
-    @{ Name = "investigate"; Pattern = 'Do NOT spawn `investigate-orchestrator`\.' },
-    @{ Name = "refactor"; Pattern = 'Do NOT spawn `refactor-orchestrator`\.' },
-    @{ Name = "redesign"; Pattern = 'Do NOT spawn `redesign-orchestrator`\.' },
-    @{ Name = "security-review"; Pattern = 'Do NOT spawn `security-review-orchestrator`\.' }
+# 9. Copilot orchestration surfaces
+$copilotAgentsDir = Join-Path $HOME ".copilot/agents"
+$requiredCopilotAgents = @(
+    "goal-orchestrator.agent.md",
+    "workflow-implementer.agent.md",
+    "workflow-explorer.agent.md",
+    "workflow-reviewer.agent.md",
+    "prompt-synthesizer.agent.md",
+    "code-quality-reviewer.agent.md",
+    "final-verifier.agent.md"
 )
-$copilotInlineMissing = @()
-foreach ($skill in $copilotInlineSkillChecks) {
-    $skillPath = Join-Path $agentsRoot "skills/$($skill.Name)/SKILL.md"
-    if (-not (Test-Path $skillPath)) {
-        $copilotInlineMissing += "$($skill.Name) (missing)"
-        continue
-    }
-    $content = Get-Content $skillPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
-    if ($content -notmatch $skill.Pattern) {
-        $copilotInlineMissing += "$($skill.Name) (not inline override)"
+$missingCopilotAgents = @()
+foreach ($agentFile in $requiredCopilotAgents) {
+    if (-not (Test-Path (Join-Path $copilotAgentsDir $agentFile))) {
+        $missingCopilotAgents += $agentFile
     }
 }
-if ($copilotInlineMissing.Count -eq 0) {
-    Add-Check "Copilot inherited inline skills" "PASS" "goal/build/plan/review/investigate/refactor/redesign/security-review overrides present"
+$copilotInstructionsPath = Join-Path $HOME ".copilot/copilot-instructions.md"
+$copilotInstructionsOk = $false
+if (Test-Path $copilotInstructionsPath) {
+    $copilotInstructions = Get-Content $copilotInstructionsPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
+    $copilotInstructionsOk = ($copilotInstructions -match 'YOU are the orchestrator') -and
+                           ($copilotInstructions -match 'Never spawn goal-orchestrator')
+}
+if ($missingCopilotAgents.Count -eq 0 -and $copilotInstructionsOk) {
+    Add-Check "Copilot orchestration surfaces" "PASS" "orchestrator instructions + required leaf agents installed"
 } else {
-    Add-Check "Copilot inherited inline skills" "WARN" "Missing or stale: $($copilotInlineMissing -join ', ') -- rerun install.ps1 -For copilot"
+    $detail = @()
+    if ($missingCopilotAgents.Count -gt 0) { $detail += "missing agents: $($missingCopilotAgents -join ', ')" }
+    if (-not $copilotInstructionsOk) { $detail += "orchestrator instructions missing/stale" }
+    Add-Check "Copilot orchestration surfaces" "WARN" "$($detail -join '; ') -- rerun install.ps1 -For copilot"
 }
 
 # 10. Include markers in host-CLI config files
@@ -216,7 +250,7 @@ foreach ($spec in @(
         # Accept either current `:begin/:end` markers (canonical) or legacy `:include`
         # markers (older installs that have not been refreshed yet).
         $isInstalled = ($content -match "agentic-kit:begin") -or ($content -match "agentic-kit:include")
-        if ($spec.Label -eq "Copilot instructions" -and $content -match "^# GitHub Copilot Instructions -- Caspar Bannink Agentic Coding Kit") {
+        if ($spec.Label -eq "Copilot instructions" -and $content -match "(?m)^# GitHub Copilot Instructions (-|--) Caspar Bannink Agentic Coding Kit") {
             $isInstalled = $true
         }
         # Detect the marker-schism duplication bug: more than one kit block present.

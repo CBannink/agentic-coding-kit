@@ -51,7 +51,6 @@ Operational scripts:
 - `run-packet.ps1`
 - lifecycle helper scripts
 - `specialist-memory-resolver.ps1`
-- `model-selector.ps1`
 - `agent-trust-scorer.ps1`
 - `scope-classifier.ps1`
 - `reflection-emitter-stats.ps1`

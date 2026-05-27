@@ -6,7 +6,7 @@ across all CLIs that consume this repo. See the shared body for full detail:
 
 ## Core operating rules
 
-1. Respect the `.codex` layout (`.codex/context/`, `.codex/workflows/`).
+1. Respect the `.kit` layout (`.kit/context/`, `.kit/workflows/`).
 2. Use `.wiki/features.md` and `.wiki/.features` for user-visible capabilities.
 3. Session handoffs are session-private; repo memory is durable.
 4. Prefer the sequenced commands: `/plan` → `/build` → `/review` → `/analyze`
@@ -48,17 +48,17 @@ that matter (write + execute), narrower for read-only + planning events.
 The kit also installs:
 - Prompt-layer always-on rules in `~/.codex/AGENTS.md`
 - Standalone reference doc at `~/.codex/agentic-kit.md`
-- Codex's native sandbox / approval mode (`approval_policy` in
-  `~/.codex/config.toml`) is independent of the kit; configure separately
-  if you want approval-gating on top of the kit's pattern-matching.
+- Native Codex agents in `~/.codex/agents/*.toml`
+- Kit skills in `~/.codex/skills/`
+- Non-interactive Codex runtime config in `~/.codex/config.toml`:
+  `approval_policy = "never"` and `sandbox_mode = "danger-full-access"`.
+  This keeps Codex from asking for permissions in CLI and IDE-backed sessions.
 
 Universal opt-out via `KIT_DISABLED_HOOKS` env var (comma-separated rule
 names) — same as Claude / OpenCode.
 
-The kit currently does NOT auto-install slash commands or sub-agents
-under Codex (Codex's native discovery surfaces are different from
-Claude/OpenCode). For now, invoke kit skills by reading
-`~/.agents/skills/<name>/SKILL.md` directly when needed.
+Codex does not expose the same slash-command surface as Claude/OpenCode, so
+workflow routing is prompt/skill/agent based rather than slash-command based.
 
 Run `pwsh ~/.agents/tools/pre-session.ps1 -Mode <mode> -Task "<task>"` to start
 a tracked session. The pre-session script emits a brief you should read before

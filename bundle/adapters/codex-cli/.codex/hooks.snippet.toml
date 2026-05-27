@@ -1,5 +1,10 @@
 # <<< agentic-kit:codex-hooks (auto-merged into ~/.codex/config.toml by install.ps1; do not hand-edit between markers)
-# Hooks for the Caspar Bannink Agentic Coding Kit. Same contract as the
+# Hooks for the Caspar Bannink Agentic Coding Kit. Disabled by default for
+# Codex because visible/stuck Windows hook terminals are worse than prompt-layer
+# enforcement. To re-enable, change the matchers below back to "^Bash$" and
+# "^apply_patch$" after verifying hooks run hidden and close cleanly.
+#
+# Same contract as the
 # Claude Code PreToolUse / PostToolUse hooks: scripts read JSON from stdin,
 # exit code 2 to block (stderr becomes the reason shown to the agent).
 #
@@ -11,11 +16,8 @@
 # Universal opt-out: KIT_DISABLED_HOOKS env var (comma-separated rule
 # names). Same as Claude / OpenCode.
 
-[features]
-codex_hooks = true
-
 [[hooks.PreToolUse]]
-matcher = "^Bash$"
+matcher = "^__agentic_kit_hooks_disabled__$"
 
 [[hooks.PreToolUse.hooks]]
 type = "command"
@@ -23,7 +25,7 @@ command = "~/.agents/tools/_run-ps.sh ~/.agents/tools/hooks/pretool-bash-dispatc
 timeout = 30
 
 [[hooks.PreToolUse]]
-matcher = "^apply_patch$"
+matcher = "^__agentic_kit_hooks_disabled__$"
 
 [[hooks.PreToolUse.hooks]]
 type = "command"
@@ -31,7 +33,7 @@ command = "~/.agents/tools/_run-ps.sh ~/.agents/tools/hooks/pretool-write-gategu
 timeout = 30
 
 [[hooks.PostToolUse]]
-matcher = "^Bash$"
+matcher = "^__agentic_kit_hooks_disabled__$"
 
 [[hooks.PostToolUse.hooks]]
 type = "command"

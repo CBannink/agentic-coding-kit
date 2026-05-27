@@ -10,7 +10,7 @@ Greenfield UI work and multi-component visual redesign. Swarm-eligible. You ARE 
 
 ## Phase 1 — Aesthetic direction lock
 
-If `DESIGN.md` exists, read it. Otherwise spawn `aesthetic-director` to lock typography, palette, density, motion. Without a locked direction, every component drifts toward the model's default (Inter + purple gradient + rounded cards).
+If `DESIGN.md` exists, read it. Otherwise spawn `aesthetic-director` to lock typography, palette, density, motion. Without a locked direction, every component drifts toward generic defaults (Inter + purple gradient + rounded cards).
 
 ## Phase 2 — Current-state capture
 

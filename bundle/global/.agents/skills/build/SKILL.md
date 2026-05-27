@@ -1,6 +1,6 @@
 ---
 name: build
-description: Use when the user asks to implement, fix, refactor, change, add, or modify code. Runs a phased pipeline: scope classify, explore, implement, review, verify, handoff.
+description: "Use when the user asks to implement, fix, refactor, change, add, or modify code. Runs a phased pipeline: scope classify, explore, implement, review, verify, handoff."
 ---
 
 # /build
@@ -98,5 +98,13 @@ Run writeback: `pwsh ~/.agents/tools/verify-writeback.ps1 -SessionId "<id>"`. If
 Mark gates: `pwsh ~/.agents/tools/state-gate.ps1 -SessionId "<id>" -Mark "verification_evidence"` and `... -Mark "handoff_written"`.
 
 ## Phase 6 — Handoff
+
+For FULL tier, >5 changed files, 2+ implementer/reviewer iterations, or any
+loop that surfaced a repeated agent mistake, spawn `learning-curator` before
+post-session. Give it the session id, changed files, reviewer summaries,
+verification result, and any repeated false-positive or missed-finding pattern.
+It may append at most 5 high-confidence cross-repo lessons to global specialist
+memory via `specialist-memory-append.ps1`; otherwise it writes reflection
+candidates for later consolidation.
 
 Write a one-paragraph summary: files changed, behavior, verification status, any open risks. Run `pwsh ~/.agents/tools/post-session.ps1 -SessionId "<id>" -NonInteractive -AutoApprove`.

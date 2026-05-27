@@ -53,13 +53,7 @@ When a workflow is selected, read the matching skill under
 `~/.agents/skills/<name>/SKILL.md`.
 "@
 
-$claudeTrailer = @"
-## Model routing (Claude Code)
-
-- **Main session / orchestration**: `claude-opus-4-6`
-- **Implementation + review**: `claude-sonnet-4-6`
-- **Cheap exploration**: `claude-haiku-4-5`
-"@
+$claudeTrailer = ""
 
 $openCodeAgentFrontmatter = @"
 ---

@@ -105,7 +105,6 @@ Typical roles depend on the failure, but the logic is hypothesis-driven rather t
 The goal-orchestrator classifies the goal type and delegates to the right workflow. It spawns:
 
 - Scope classification via `scope-classifier.ps1`
-- Dynamic model selection via `model-selector.ps1` (picks haiku/sonnet/opus per agent)
 - Trust scoring via `agent-trust-scorer.ps1` (calibrates noisy agents)
 - Then routes to `/build`, `/investigate`, `/analyze`, `/review`, `/redesign`, or `/bootstrap-harness`
 

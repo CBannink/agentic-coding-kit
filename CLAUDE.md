@@ -80,16 +80,8 @@ and push actual exploration/coding/review into the installed workflow agents.
   matching review passes instead of keeping review entirely inline.
 - After exploration synthesis, the main session should stop reading source
   files. Downstream reads belong in the delegated subagents.
-- If the main session is running on Opus, direct repo-code editing should be
+- If the main session is using an expensive/reasoning-heavy runtime, direct repo-code editing should be
   treated as the exception, not the default.
-
-## Claude model routing
-
-Preferred Claude routing for this kit:
-
-- **Main session / orchestration**: `claude-opus-4-6`
-- **Implementation + serious review**: `claude-sonnet-4-6`
-- **Cheap exploration / navigation**: `claude-haiku-4-5`
 
 ## File layout to respect
 

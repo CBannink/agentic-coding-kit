@@ -69,6 +69,20 @@ prefer installed wrapper fallbacks before dropping to leaf agents:
 | `playwright-navigator` | Discover Playwright route + auth + selectors for a screen |
 | `ux-driver` | UI structural critique (IA, hierarchy, density, a11y) |
 | `ui-driver` | Visual polish (typography, color, spacing, AI-slop) |
+| `product-strategist` | Product strategy, prioritization, roadmap, ICP, activation, retention |
+| `marketing-strategist` | GTM, campaigns, channels, offers, funnel strategy |
+| `positioning-messaging-expert` | Positioning, value props, category, homepage narrative |
+| `growth-experimenter` | Growth experiments, conversion, activation, retention, analytics |
+| `customer-researcher` | Discovery interviews, surveys, review mining, JTBD evidence |
+| `copywriter` | Landing pages, emails, ads, CTAs, onboarding and product copy |
+| `sales-enablement-expert` | Outreach, discovery, demos, objection handling, proposals |
+| `business-model-analyst` | Pricing, packaging, monetization, unit economics, commercial risk |
+| `cold-email-strategist` | Cold outbound strategy, prospecting, sequences, personalization |
+| `content-strategist` | SEO/content strategy, editorial angles, repurposing |
+| `offer-architect` | Packages, lead magnets, guarantees, conversion offers |
+| `landing-page-critic` | Landing/homepage conversion critique and proof gaps |
+| `customer-support-analyst` | Support themes, FAQ gaps, churn signals, docs/macros |
+| `learning-curator` | Post-heavy-loop self-improvement memory curation |
 
 ### PowerShell tools (call via Bash with `pwsh ~/.agents/tools/<name>.ps1 ...`)
 
@@ -85,7 +99,6 @@ prefer installed wrapper fallbacks before dropping to leaf agents:
 | `workflow-evidence.ps1 -SessionId <id> -AddVerification <cmd> -WithExitCode 0 -WithCommand <cmd>` | Record verification evidence for the Iron Law |
 | `state-gate.ps1 -SessionId <id> -Mark verification_evidence` | Mark gates after verification |
 | `verify-writeback.ps1 -SessionId <id>` | Writeback gate for user-visible changes |
-| `model-selector.ps1 -Scope <scope> -Role <role>` | Dynamic model selection: returns recommended model for a subagent based on scope, role, and trust data |
 | `agent-trust-scorer.ps1 -Role <role>` | Trust scoring: reads reflections, returns trust score + calibration prompt block for a subagent |
 | `mode-profiles.ps1 -Mode <mode>` | Resolve mode profile before spawning any leaf agent — embed returned `prompt_block` in agent's prompt to enforce tool/file restrictions per role |
 | `context-bloat-guard.ps1 -RepoRoot . -AutoFix -Json` | Context size check — run at loop start and every 3 iterations; warn user if status is `"critical"` |
@@ -104,38 +117,15 @@ pwsh ~/.agents/tools/mode-profiles.ps1 -Mode <mode>
 Embed the returned `prompt_block` in the subagent's prompt. This enforces tool/file
 restrictions per role (e.g., implementer cannot read unrelated files, reviewer cannot edit).
 
-### Dynamic model selection (MANDATORY before spawning leaf agents)
+### Trust calibration (optional before spawning leaf agents)
 
-Before spawning any leaf subagent, run:
-
-```bash
-pwsh ~/.agents/tools/scope-classifier.ps1
-```
-
-Capture the `scope` field (ISOLATED/SHARED/CRITICAL). Then for each agent you're about to spawn:
-
-```bash
-pwsh ~/.agents/tools/model-selector.ps1 -Scope <scope> -Role <agent-name>
-```
-
-Use the returned `model` field when spawning the subagent via Task. This ensures:
-- ISOLATED tasks use haiku for explorers/reviewers (fast, cheap)
-- CRITICAL tasks upgrade orchestrators to opus
-- Noisy agents get downgraded automatically
-
-To include trust-based adjustments, first get trust data:
+To include trust-based calibration, first get trust data:
 
 ```bash
 pwsh ~/.agents/tools/agent-trust-scorer.ps1 -Role <agent-name> -Json
 ```
 
-Pass the `supersession_rate` from the output into model-selector:
-
-```bash
-pwsh ~/.agents/tools/model-selector.ps1 -Scope <scope> -Role <agent-name> -TrustData '{"supersession_rate": <rate>}'
-```
-
-And inject the trust scorer's `prompt_block` into the subagent's prompt so it self-calibrates.
+Inject the trust scorer's `prompt_block` into the subagent's prompt so it self-calibrates.
 
 ### Skills (read on demand via Read tool)
 

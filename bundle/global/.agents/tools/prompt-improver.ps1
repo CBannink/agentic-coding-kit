@@ -205,10 +205,12 @@ Apply by editing the target file above and removing this proposal file when done
 "@
         if (-not $DryRun) {
             [System.IO.File]::WriteAllText($proposalFile, $proposalContent, [System.Text.UTF8Encoding]::new($false))
-            Log-Improvement $class ($targetPath ? $targetPath : $targetRaw) "proposed" $pattern $proposalId
+            $effectiveTarget = if ($targetPath) { $targetPath } else { $targetRaw }
+            Log-Improvement $class $effectiveTarget "proposed" $pattern $proposalId
         }
         $result.proposed++
-        [void]$result.improvements.Add([ordered]@{type=$class; target=($targetPath ? $targetPath : $targetRaw); action="proposed"; proposal_id=$proposalId; pattern=$pattern})
+        $effectiveTarget = if ($targetPath) { $targetPath } else { $targetRaw }
+        [void]$result.improvements.Add([ordered]@{type=$class; target=$effectiveTarget; action="proposed"; proposal_id=$proposalId; pattern=$pattern})
         continue
     }
 
@@ -253,7 +255,8 @@ Apply by editing the target file above and removing this proposal file when done
 
     # Did not meet any threshold
     $result.skipped++
-    [void]$result.improvements.Add([ordered]@{type=$class; target=($targetPath ? $targetPath : $targetRaw); action="skipped-below-threshold"; pattern=$pattern; count=$totalCount})
+    $effectiveTarget = if ($targetPath) { $targetPath } else { $targetRaw }
+    [void]$result.improvements.Add([ordered]@{type=$class; target=$effectiveTarget; action="skipped-below-threshold"; pattern=$pattern; count=$totalCount})
 }
 
 if ($Json) {

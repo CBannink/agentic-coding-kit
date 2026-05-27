@@ -41,3 +41,13 @@ One consolidated review with sections:
 - **Overall verdict**: one paragraph
 
 Tag BLOCKING / NON-BLOCKING / NIT for every finding.
+
+## Phase 5 -- Heavy-review learning
+
+If this was SHARED or CRITICAL scope, touched >5 files, spawned 2+ reviewers, or
+surfaced a repeated reviewer false-positive / missed-finding pattern, spawn
+`learning-curator` after the consolidated report. Give it the diff summary,
+reviewer outputs, false-positive checks, and any session id. It may append at
+most 5 high-confidence cross-repo lessons to global specialist memory via
+`specialist-memory-append.ps1`; otherwise it writes reflection candidates for
+later consolidation.

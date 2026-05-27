@@ -69,7 +69,6 @@ These scripts are **hook-ready**, meaning they can be called:
 | `session-end-hook.ps1` | session close snapshot |
 | `run-packet.ps1` | maintain compact execution packet |
 | `specialist-memory-resolver.ps1` | resolve repo-local role memory into injectable prompt text |
-| `model-selector.ps1` | dynamic model selection based on scope + role + trust data |
 | `agent-trust-scorer.ps1` | trust scoring and calibration prompt injection for noisy agents |
 
 ## What makes it strong

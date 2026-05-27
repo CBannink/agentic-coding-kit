@@ -38,7 +38,7 @@ Write-Host "================================================================="
 Write-Host ""
 
 # --- Check 1: every .ps1 parses ----------------------------------------------
-Write-Host "[1/5] PowerShell parse check"
+Write-Host "[1/7] PowerShell parse check"
 $psFiles = @(
     Get-ChildItem -Path $Bundle -Recurse -Filter "*.ps1"
     Get-ChildItem -Path $ScriptRoot -Recurse -Filter "*.ps1"
@@ -65,7 +65,7 @@ if ($parseFailures -eq 0) { Add-Pass "$($psFiles.Count) .ps1 files parse cleanly
 # Most code-comment em-dashes are fine, but heuristic: flag any .ps1 that has them
 # inside double-quoted strings on the same line.
 Write-Host ""
-Write-Host "[2/5] Em-dash encoding bomb check"
+Write-Host "[2/7] Em-dash encoding bomb check"
 $emDash = [char]0x2014
 $emDashHits = 0
 foreach ($f in $psFiles) {
@@ -84,7 +84,7 @@ if ($emDashHits -eq 0) { Add-Pass "no em-dashes in PowerShell string literals" }
 
 # --- Check 3: hardcoded user paths -------------------------------------------
 Write-Host ""
-Write-Host "[3/5] Hardcoded user path check"
+Write-Host "[3/7] Hardcoded user path check"
 $pathHits = 0
 $badPatterns = @(
     'C:\\Users\\Caspar\.Bannink',
@@ -120,7 +120,7 @@ if ($pathHits -eq 0) { Add-Pass "no hardcoded user paths in bundle/" }
 
 # --- Check 4: load-bearing tools exist on disk -------------------------------
 Write-Host ""
-Write-Host "[4/5] Load-bearing tool presence check"
+Write-Host "[4/7] Load-bearing tool presence check"
 $requiredTools = @(
     "_paths.ps1", "scope-classifier.ps1", "swarm-classifier.ps1",
     "state-init.ps1", "state-gate.ps1", "specialist-memory-resolver.ps1",
@@ -135,6 +135,7 @@ $requiredTools = @(
     "merge-codex-config.ps1",
     "auto-apply-reflect.ps1",
     "reflection-emitter-stats.ps1",
+    "specialist-memory-append.ps1",
     "kit-health-digest.ps1",
     "hooks/pretool-bash-dispatcher.ps1",
     "hooks/pretool-read-delegation-gate.ps1",
@@ -152,9 +153,62 @@ foreach ($t in $requiredTools) {
 }
 if ($missingTools -eq 0) { Add-Pass "all $($requiredTools.Count) load-bearing tools present" }
 
-# --- Check 5: every adapter dir has at least one instruction file ------------
+# --- Check 5: skill frontmatter is safe for strict YAML loaders ---------------
 Write-Host ""
-Write-Host "[5/5] Adapter completeness check"
+Write-Host "[5/7] Skill frontmatter YAML safety check"
+$skillFiles = Get-ChildItem -Path $Bundle -Recurse -Filter "SKILL.md" -ErrorAction SilentlyContinue
+$skillFrontmatterIssues = 0
+foreach ($f in $skillFiles) {
+    $content = Get-Content $f.FullName -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
+    if (-not $content) { continue }
+    if ($content -notmatch '(?s)^---\r?\n(.*?)\r?\n---') { continue }
+    $frontmatter = $Matches[1]
+    foreach ($line in ($frontmatter -split "`r?`n")) {
+        if ($line -match '^\s*description:\s+(.+)$') {
+            $value = $Matches[1].Trim()
+            $isQuoted = ($value.StartsWith('"') -and $value.EndsWith('"')) -or
+                        ($value.StartsWith("'") -and $value.EndsWith("'")) -or
+                        ($value -match '^[>|]')
+            if (-not $isQuoted -and $value -match ':\s') {
+                $skillFrontmatterIssues++
+                Add-Error "Unquoted description contains YAML colon: $($f.FullName.Replace($RepoRoot, '.'))"
+            }
+        }
+    }
+}
+if ($skillFrontmatterIssues -eq 0) { Add-Pass "$($skillFiles.Count) SKILL.md frontmatter blocks are YAML-safe" }
+
+# --- Check 6: repo-template workflow brief placeholders are explicit ---------
+Write-Host ""
+Write-Host "[6/7] Workflow brief placeholder check"
+$briefDir = Join-Path $Bundle "repo-template/.kit/context/workflow-briefs"
+$requiredBriefs = @(
+    "workflow-explorer.md",
+    "workflow-implementer.md",
+    "workflow-reviewer.md",
+    "workflow-skeptic.md",
+    "workflow-ui-qa.md",
+    "prompt-synthesizer.md"
+)
+$briefIssues = 0
+foreach ($brief in $requiredBriefs) {
+    $path = Join-Path $briefDir $brief
+    if (-not (Test-Path $path)) {
+        $briefIssues++
+        Add-Error "Workflow brief template missing: $brief"
+        continue
+    }
+    $raw = Get-Content -Path $path -Raw -Encoding UTF8
+    if ($raw -notmatch 'PLACEHOLDER' -or $raw -notmatch '_not yet detected_') {
+        $briefIssues++
+        Add-Error "Workflow brief template must be explicit placeholder: $brief"
+    }
+}
+if ($briefIssues -eq 0) { Add-Pass "$($requiredBriefs.Count) workflow brief templates present and placeholder-marked" }
+
+# --- Check 7: every adapter dir has at least one instruction file ------------
+Write-Host ""
+Write-Host "[7/7] Adapter completeness check"
 $adapterRoots = Get-ChildItem -Path (Join-Path $Bundle "adapters") -Directory | Where-Object { $_.Name -ne "_shared" }
 $adapterIssues = 0
 foreach ($a in $adapterRoots) {

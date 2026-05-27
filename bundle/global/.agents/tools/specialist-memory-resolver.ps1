@@ -42,9 +42,12 @@ $resolvedDir = Join-Path $sessionDir "resolved-specialist-memory"
 New-Item -ItemType Directory -Path $resolvedDir -Force | Out-Null
 
 $memoryDir = Join-Path $RepoRoot ".kit\context\agent-memory"
+$globalMemoryDir = Join-Path $script:AgentsRoot "context\specialist-memory"
 $reusablesPath = Join-Path $RepoRoot ".kit\context\reusables.md"
 $sharedPath = Join-Path $memoryDir "shared.md"
 $rolePath = Join-Path $memoryDir "$Role.md"
+$globalSharedPath = Join-Path $globalMemoryDir "shared.md"
+$globalRolePath = Join-Path $globalMemoryDir "$Role.md"
 
 $sections = [System.Collections.ArrayList]::new()
 $usedFiles = [System.Collections.ArrayList]::new()
@@ -55,6 +58,22 @@ if (Test-Path $reusablesPath) {
         [void]$usedFiles.Add($reusablesPath)
         # Cap reusables at ~4500 chars (approx 1500 tokens) to ensure it never blows up context.
         [void]$sections.Add("## reusables.md (Available Code/Components)`n" + (Normalize-Excerpt -Text $reusablesText -MaxChars 4500 -MaxLines 150))
+    }
+}
+
+if (Test-Path $globalSharedPath) {
+    $globalSharedText = Get-Content $globalSharedPath -Raw
+    if ($globalSharedText.Trim()) {
+        [void]$usedFiles.Add($globalSharedPath)
+        [void]$sections.Add("## global shared specialist memory`n" + (Normalize-Excerpt -Text $globalSharedText -MaxChars $MaxCharsPerFile -MaxLines $MaxLinesPerFile))
+    }
+}
+
+if (Test-Path $globalRolePath) {
+    $globalRoleText = Get-Content $globalRolePath -Raw
+    if ($globalRoleText.Trim()) {
+        [void]$usedFiles.Add($globalRolePath)
+        [void]$sections.Add("## global $Role specialist memory`n" + (Normalize-Excerpt -Text $globalRoleText -MaxChars $MaxCharsPerFile -MaxLines $MaxLinesPerFile))
     }
 }
 

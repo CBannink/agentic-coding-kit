@@ -103,7 +103,7 @@ route safely.
 
 - Default to direct `router -> worker` handoffs.
 - Use `prompt-synthesizer` only when the handoff is genuinely noisy: long
-  multi-source context, retry/re-spawn after failure, or a cross-model handoff
+  multi-source context, retry/re-spawn after failure, or a cross-harness handoff
   that needs a tighter brief.
 - If `prompt-synthesizer` still finds material ambiguity, route that back to the
   top-level router. It is a compression helper, not a clarification owner or
