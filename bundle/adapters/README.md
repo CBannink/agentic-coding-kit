@@ -10,17 +10,18 @@ file holds the canonical kit block between
 `<!-- agentic-kit:begin --> ... <!-- agentic-kit:end -->` markers, plus
 optional host-specific preamble outside the markers.
 
-`bundle/global/.agents/tools/sync-all-hosts.ps1` orchestrates installation
-across all primary hosts in one command.
+The recommended install path is one dedicated script per primary host. The
+shared `scripts/install.ps1` backend remains available for intentional
+multi-host installs.
 
 ## Primary hosts (kit targets these first-class)
 
 | Adapter | Status | Instruction file (user-global) | Installer |
 |---|---|---|---|
-| `claude-code/` | Primary | `~/.claude/CLAUDE.md` | `install-claude-kit.ps1` (shim over `scripts/install.ps1 -For claude`) |
-| `codex-cli/` | Primary | `~/.codex/AGENTS.md` | `install-codex-kit.ps1` (agents as TOML, multi_agent flag) |
-| `opencode/` | Primary | `~/.config/opencode/AGENTS.md` | `install-opencode-kit.ps1` (shim over `scripts/install.ps1 -For opencode`) |
-| `copilot-cli/` | Primary | `~/.copilot/copilot-instructions.md` | `install-copilot-kit.ps1` (shim over `scripts/install.ps1 -For copilot`) |
+| `claude-code/` | Primary | `~/.claude/CLAUDE.md` | `scripts/install-claude.ps1` |
+| `codex-cli/` | Primary | `~/.codex/AGENTS.md` | `scripts/install-codex.ps1` |
+| `opencode/` | Primary | `~/.config/opencode/AGENTS.md` | `scripts/install-opencode.ps1` |
+| `copilot-cli/` | Primary | `~/.copilot/copilot-instructions.md` | `scripts/install-copilot.ps1` |
 
 ## Experimental hosts
 
@@ -33,17 +34,16 @@ across all primary hosts in one command.
 From a clean machine:
 
 ```powershell
-pwsh ~/.agents/tools/sync-all-hosts.ps1 -Force
+pwsh .\scripts\install-codex.ps1
+pwsh .\scripts\install-copilot.ps1
+pwsh .\scripts\install-claude.ps1
+pwsh .\scripts\install-opencode.ps1
 ```
 
-This:
-1. Reads `~/.agents/global-instructions.md` (canonical block).
-2. For each primary host, runs the host installer to:
-   - Sync the canonical block into the host's instruction file via marker
-     replacement (preserves any host preamble outside markers).
-   - Copy or symlink agent definitions in the host's expected format.
-   - Wire host-level hooks where supported (Claude / Gemini / OpenCode /
-     Codex).
+Each dedicated script pins one host and delegates to `scripts/install.ps1` with
+the matching `-For` value. Use the shared backend only when you intentionally
+want a multi-host install, for example
+`pwsh .\scripts\install.ps1 -For "codex,copilot"`.
 
 ## Adapter conventions
 
@@ -59,6 +59,10 @@ This:
   host at install time.
 - **Host-specific agent files** stay in adapter dirs only when they are truly
   single-host surfaces (for example OpenCode's primary `orchestrator.md`).
+- **Primary orchestrator agent** is rendered once from
+  `_shared/orchestrator/primary-agent.template.md` into each host's native agent
+  location: Claude `.md`, OpenCode primary `.md`, Copilot `.agent.md`, and
+  Codex `.toml`.
 - Per-host installers translate to host-specific format on install:
   - Claude Code: copy shared specialist agents as-is and render shared workflow
     markdown into `~/.claude/...`.

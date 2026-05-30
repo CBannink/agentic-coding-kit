@@ -23,6 +23,13 @@ specialized workflow or specialist agents. It avoids the common failure mode
 where the main chat keeps every file, every diff, every reviewer thought, and
 every implementation detail in one bloated context.
 
+The root prompts bias toward cost-aware delegation: the orchestrator may read
+the directly relevant files needed to route well, but real exploration goes to
+`workflow-explorer`; obvious mechanical edits across at most 3 files may stay
+inline; coding likely to touch more than 3 files, add files, cross modules, or
+need unfamiliar conventions goes to `workflow-implementer` or the hard
+implementer variant.
+
 Core behavior:
 
 - Plan/build/review/investigate/refactor/security/redesign workflows.
@@ -48,13 +55,13 @@ Core behavior:
 Run from the kit checkout:
 
 ```powershell
-# Install for one harness
-pwsh .\scripts\install.ps1 -For codex
-pwsh .\scripts\install.ps1 -For copilot
-pwsh .\scripts\install.ps1 -For claude
-pwsh .\scripts\install.ps1 -For opencode
+# Recommended: install one harness with its dedicated script
+pwsh .\scripts\install-codex.ps1
+pwsh .\scripts\install-copilot.ps1
+pwsh .\scripts\install-claude.ps1
+pwsh .\scripts\install-opencode.ps1
 
-# Install for multiple
+# Advanced shared backend: install for multiple harnesses
 pwsh .\scripts\install.ps1 -For "codex,copilot"
 
 # Install for all supported device-wide targets
@@ -68,10 +75,10 @@ Which command to use:
 
 | Situation | Command |
 |---|---|
-| Fresh machine, one host | `pwsh .\scripts\install.ps1 -For <codex|copilot|claude|opencode>` |
-| Fresh machine, several hosts | `pwsh .\scripts\install.ps1 -For "codex,copilot"` |
+| Fresh machine, one host | `pwsh .\scripts\install-<codex|copilot|claude|opencode>.ps1` |
+| Fresh machine, several hosts | Run the dedicated scripts you want, or use `pwsh .\scripts\install.ps1 -For "codex,copilot"` |
 | Fresh machine, install every mature target | `pwsh .\scripts\install.ps1 -For all` |
-| Existing repo that needs `.kit` and `.wiki` | `pwsh .\scripts\install.ps1 -BootstrapHarness -TargetRepo C:\path\to\repo` |
+| Existing repo that needs `.kit` and `.wiki` | `pwsh .\scripts\install-<host>.ps1 -BootstrapHarness -TargetRepo C:\path\to\repo` |
 | Existing Codex setup with hand-tuned `~/.codex/agents/*.toml` models | Do a manual Codex port and preserve `model = ...` lines |
 
 Verify:
@@ -89,7 +96,7 @@ warnings are non-blocking unless you are specifically working on those areas.
 ### Codex
 
 ```powershell
-pwsh .\scripts\install.ps1 -For codex
+pwsh .\scripts\install-codex.ps1
 ```
 
 Installs:
@@ -98,6 +105,8 @@ Installs:
 - `~/.codex/agentic-kit.md` long-form reference.
 - `~/.codex/skills/*/SKILL.md`.
 - `~/.codex/agents/*.toml`.
+- `~/.codex/agents/orchestrator.toml` from the single shared primary
+  orchestrator template.
 - `~/.codex/config.toml` runtime posture:
   - `approval_policy = "never"`
   - `sandbox_mode = "danger-full-access"`
@@ -121,7 +130,7 @@ Manually merge the new agent bodies and preserve each `model = ...` line.
 ### GitHub Copilot CLI
 
 ```powershell
-pwsh .\scripts\install.ps1 -For copilot
+pwsh .\scripts\install-copilot.ps1
 ```
 
 Installs:
@@ -129,6 +138,8 @@ Installs:
 - `~/.copilot/copilot-instructions.md`.
 - `~/.copilot/agentic-kit.md`.
 - `~/.copilot/agents/*.agent.md`.
+- `~/.copilot/agents/orchestrator.agent.md` from the single shared primary
+  orchestrator template.
 - `~/.copilot/settings.json` display-noise settings:
   - `streamerMode = true`
   - `terminalProgress = false`
@@ -148,7 +159,7 @@ Copilot install also writes `.github/agents`, `.github/copilot-bin`, and
 ### Claude Code
 
 ```powershell
-pwsh .\scripts\install.ps1 -For claude
+pwsh .\scripts\install-claude.ps1
 ```
 
 Installs:
@@ -158,6 +169,8 @@ Installs:
 - `~/.claude/skills/*/SKILL.md`.
 - `~/.claude/commands/*.md`.
 - `~/.claude/agents/*.md`.
+- `~/.claude/agents/orchestrator.md` from the single shared primary
+  orchestrator template.
 - Claude settings hook wiring via the merger.
 
 Claude receives the same shared workflow and specialist agent set, rendered as
@@ -166,7 +179,7 @@ Claude-compatible markdown.
 ### OpenCode
 
 ```powershell
-pwsh .\scripts\install.ps1 -For opencode
+pwsh .\scripts\install-opencode.ps1
 ```
 
 Installs:
@@ -176,6 +189,10 @@ Installs:
 - `~/.config/opencode/skills/*/SKILL.md`.
 - `~/.config/opencode/commands/*.md`.
 - `~/.config/opencode/agents/*.md`.
+- `~/.config/opencode/agents/orchestrator.md` from the single shared primary
+  orchestrator template.
+- `~/.config/opencode/opencode.jsonc` with `default_agent` set to
+  `orchestrator`.
 - `~/.config/opencode/plugins/agentic-kit.ts`.
 
 OpenCode receives the same shared workflow and specialist agent set, sanitized
@@ -187,10 +204,11 @@ In a new repo, run bootstrap before expecting high-quality repo-aware coding.
 The installer command plants the scaffold and repo adapters:
 
 ```powershell
-pwsh .\scripts\install.ps1 -BootstrapHarness -TargetRepo C:\path\to\repo
+pwsh .\scripts\install-copilot.ps1 -BootstrapHarness -TargetRepo C:\path\to\repo
 ```
 
-Then complete the AI bootstrap phases. In an agent session, ask:
+Use the dedicated script for the harness you want in that repo. Then complete
+the AI bootstrap phases. In an agent session, ask:
 
 ```text
 bootstrap this repo

@@ -22,7 +22,7 @@ Say:
 Run:
 
 ```powershell
-pwsh ./scripts/install.ps1 -For copilot
+pwsh ./scripts/install-copilot.ps1
 pwsh ./scripts/doctor.ps1
 ```
 
@@ -36,7 +36,7 @@ Explain:
 Run:
 
 ```powershell
-pwsh ./scripts/install.ps1 -BootstrapHarness -TargetRepo .\goal-e2e-smoke
+pwsh ./scripts/install-copilot.ps1 -BootstrapHarness -TargetRepo .\goal-e2e-smoke
 ```
 
 Then explain what appears:

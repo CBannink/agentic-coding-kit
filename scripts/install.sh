@@ -4,7 +4,7 @@
 # Keeps the old short-flag UX for shells that launch bash first, but PowerShell
 # is now the canonical installer implementation and source of truth.
 # Use install.ps1 directly when possible:
-#   pwsh ./install.ps1 -For claude
+#   pwsh ./install-claude.ps1
 #   pwsh ./install.ps1 -For all
 #   pwsh ./install.ps1 -Auto
 #

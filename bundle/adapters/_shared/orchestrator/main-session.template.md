@@ -33,6 +33,24 @@ If the user typed `/build`, `/review`, `/goal`, etc. directly, the workflow is
 already selected. Decide the mode only if it is not already obvious from the
 request or prior context.
 
+### Cost-aware delegation threshold
+
+The orchestrator may read the directly relevant files needed to classify,
+route, and write a precise handoff. Do not turn that into broad exploration.
+
+- **Any real exploration** (searching for patterns, mapping unfamiliar code,
+  reading several candidate files, or tracing ownership) goes to
+  `workflow-explorer`, preferably on the cheap explorer model where the host
+  supports model routing.
+- **Inline coding** is for direct answers, commands, and obvious mechanical
+  edits across at most 3 files.
+- **Coding likely to touch more than 3 files**, add new files, cross module
+  boundaries, or require unfamiliar conventions goes to `workflow-implementer`
+  or the host's hard implementer variant for risky work.
+- Do not keep a long-running task inline just because the orchestrator can do
+  it. Use the orchestrator for judgment; use leaf agents for sustained search,
+  implementation, review, and verification.
+
 ### Clarification gate
 
 Before routing, check whether the request is clear enough to classify safely.

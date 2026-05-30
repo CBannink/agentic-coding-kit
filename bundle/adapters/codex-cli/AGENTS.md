@@ -60,6 +60,24 @@ names) — same as Claude / OpenCode.
 Codex does not expose the same slash-command surface as Claude/OpenCode, so
 workflow routing is prompt/skill/agent based rather than slash-command based.
 
+## Codex cost-aware orchestration
+
+Codex main session is the orchestrator. It may read the directly relevant files
+needed to route well, but sustained work should move to leaf agents:
+
+- Any real exploration, pattern search, or unfamiliar code mapping should use
+  `workflow-explorer`.
+- Inline coding is for direct answers, commands, and obvious mechanical edits
+  across at most 3 files.
+- Coding likely to touch more than 3 files, add new files, cross module
+  boundaries, or require unfamiliar conventions should use
+  `workflow-implementer`.
+- Use `workflow-implementer-hard` for risky multi-file work, architecture-
+  sensitive changes, difficult bug fixes, or when the default implementer
+  stalls.
+- Use reviewer/verifier agents for serious review and fresh validation instead
+  of letting the orchestrator grade its own long-running work.
+
 When the user asks to use a workflow by name, including "build workflow",
 "builder workflow", "review workflow", or "goal workflow", that is explicit
 permission to use the workflow's normal leaf agents. Do not reinterpret it as

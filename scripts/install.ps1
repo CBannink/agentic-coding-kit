@@ -2,11 +2,14 @@
 # install.ps1 -- Caspar Bannink Agentic Coding Kit installer.
 #
 # Quick start (most users):
-#   pwsh ./install.ps1 -For claude               # one CLI, device-wide
-#   pwsh ./install.ps1 -For "claude,opencode"    # multiple
+#   pwsh ./install-claude.ps1                    # one CLI, device-wide
+#   pwsh ./install-codex.ps1                     # one CLI, device-wide
+#   pwsh ./install-copilot.ps1                   # one CLI, device-wide
+#   pwsh ./install-opencode.ps1                  # one CLI, device-wide
+#   pwsh ./install.ps1 -For "claude,opencode"    # advanced: multiple
 #   pwsh ./install.ps1 -For all                  # everything
 #   pwsh ./install.ps1 -Auto                     # detect CLIs on PATH and install for those
-#   pwsh ./install.ps1 -BootstrapHarness -TargetRepo C:\path\to\repo   # one-shot repo bootstrap
+#   pwsh ./install-codex.ps1 -BootstrapHarness -TargetRepo C:\path\to\repo   # one-host repo bootstrap
 #
 # Per-repo (advanced):
 #   pwsh ./install.ps1 -TargetRepo C:\path\to\repo -InstallRepoTemplate -InstallAdapter claude
@@ -133,6 +136,213 @@ function Render-Template {
         $content = $content.Substring(1)
     }
     [System.IO.File]::WriteAllText($Destination, $content, (New-Object System.Text.UTF8Encoding($false)))
+}
+
+function ConvertTo-TomlBasicString {
+    param([string]$Value)
+    if ($null -eq $Value) { $Value = "" }
+    $escaped = $Value `
+        -replace '\\', '\\' `
+        -replace '"', '\"' `
+        -replace "`r", '' `
+        -replace "`n", '\n' `
+        -replace "`t", '\t'
+    return '"' + $escaped + '"'
+}
+
+function New-PrimaryOrchestratorMarkdown {
+    param([string]$AdapterName)
+
+    $template = Join-Path $AdaptersRoot "_shared/orchestrator/primary-agent.template.md"
+    if (-not (Test-Path $template)) { return "" }
+
+    $frontmatter = switch ($AdapterName) {
+        "opencode" {
+@"
+---
+name: orchestrator
+description: "Primary session orchestrator - classifies requests, reads only enough context to route, and delegates sustained work to leaf agents."
+mode: primary
+task: true
+---
+"@
+        }
+        default {
+@"
+---
+name: orchestrator
+description: "Primary session orchestrator - classifies requests, reads only enough context to route, and delegates sustained work to leaf agents."
+---
+"@
+        }
+    }
+
+    $intro = switch ($AdapterName) {
+        "claude-code" { "You are the primary orchestrator for Claude Code. Classify every request, choose inline vs workflow, and delegate sustained work to leaf agents." }
+        "codex-cli" { "You are the primary orchestrator for Codex. Classify every request, choose inline vs workflow, and delegate sustained work to leaf agents." }
+        "copilot-cli" { "You are the primary orchestrator for GitHub Copilot CLI. Classify every request, choose inline vs workflow, and delegate sustained work to leaf agents." }
+        "opencode" { "You are the primary orchestrator for OpenCode. Classify every request, choose inline vs workflow, and delegate sustained work to leaf agents." }
+        default { "You are the primary orchestrator. Classify every request, choose inline vs workflow, and delegate sustained work to leaf agents." }
+    }
+
+    $content = Get-Content $template -Raw -Encoding UTF8
+    $content = $content.Replace("__FRONTMATTER__", $frontmatter.TrimEnd())
+    $content = $content.Replace("__INTRO_BLOCK__", $intro)
+    $content = $content.Replace("__OPTIONAL_WORKFLOW_LOADING__", "")
+    $content = $content.Replace("__OPTIONAL_TRAILER__", "")
+    return $content.Trim() + "`r`n"
+}
+
+function Install-PrimaryOrchestratorAgent {
+    param(
+        [string]$AdapterName,
+        [string]$Root,
+        [switch]$DeviceWideScope
+    )
+
+    $markdown = New-PrimaryOrchestratorMarkdown -AdapterName $AdapterName
+    if (-not $markdown) { return }
+
+    switch ($AdapterName) {
+        "claude-code" {
+            $dst = Join-Path $Root ".claude/agents/orchestrator.md"
+            New-Item -ItemType Directory -Path (Split-Path -Parent $dst) -Force | Out-Null
+            [System.IO.File]::WriteAllText($dst, $markdown, (New-Object System.Text.UTF8Encoding($false)))
+            Write-Host "  Claude Code primary orchestrator agent: $dst"
+        }
+        "codex-cli" {
+            $body = $markdown
+            if ($body -match '(?ms)^---\r?\n(.*?)\r?\n---\r?\n(.*)$') { $body = $matches[2].Trim() }
+            $out = @(
+                "# Auto-generated from primary-agent.template.md by install.ps1",
+                "# Re-run scripts/install-codex.ps1 to refresh.",
+                "",
+                "name = ""orchestrator""",
+                "description = ""Primary session orchestrator - classifies requests, reads only enough context to route, and delegates sustained work to leaf agents.""",
+                "",
+                "developer_instructions = $(ConvertTo-TomlBasicString $body)",
+                ""
+            ) -join "`r`n"
+            $dst = Join-Path $Root ".codex/agents/orchestrator.toml"
+            New-Item -ItemType Directory -Path (Split-Path -Parent $dst) -Force | Out-Null
+            [System.IO.File]::WriteAllText($dst, $out, (New-Object System.Text.UTF8Encoding($false)))
+            Write-Host "  Codex CLI primary orchestrator agent: $dst"
+        }
+        "copilot-cli" {
+            $copilot = $markdown -replace '(?ms)^---\r?\n(.*?)\r?\n---', "---`r`nname: orchestrator`r`ndescription: ""Primary session orchestrator - classifies requests, routes work, and delegates sustained tasks to leaf agents.""`r`n---"
+            $dstRoot = if ($DeviceWideScope) { Join-Path $Root ".copilot/agents" } else { Join-Path $Root ".github/agents" }
+            $dst = Join-Path $dstRoot "orchestrator.agent.md"
+            New-Item -ItemType Directory -Path $dstRoot -Force | Out-Null
+            [System.IO.File]::WriteAllText($dst, $copilot, (New-Object System.Text.UTF8Encoding($false)))
+            Write-Host "  GitHub Copilot primary orchestrator agent: $dst"
+        }
+        "opencode" {
+            $dstRoot = if ($DeviceWideScope) { Join-Path $Root ".config/opencode/agents" } else { Join-Path $Root ".opencode/agents" }
+            $dst = Join-Path $dstRoot "orchestrator.md"
+            New-Item -ItemType Directory -Path $dstRoot -Force | Out-Null
+            [System.IO.File]::WriteAllText($dst, $markdown, (New-Object System.Text.UTF8Encoding($false)))
+            Write-Host "  OpenCode primary orchestrator agent: $dst"
+        }
+    }
+}
+
+function Set-OpenCodeOrchestratorConfig {
+    param([string]$ConfigPath)
+
+    function Find-MatchingBraceIndex {
+        param([string]$Text, [int]$OpenIndex)
+
+        $depth = 0
+        $inString = $false
+        $escaped = $false
+        for ($i = $OpenIndex; $i -lt $Text.Length; $i++) {
+            $ch = $Text[$i]
+            if ($inString) {
+                if ($escaped) {
+                    $escaped = $false
+                } elseif ($ch -eq '\') {
+                    $escaped = $true
+                } elseif ($ch -eq '"') {
+                    $inString = $false
+                }
+                continue
+            }
+
+            if ($ch -eq '"') {
+                $inString = $true
+            } elseif ($ch -eq '{') {
+                $depth++
+            } elseif ($ch -eq '}') {
+                $depth--
+                if ($depth -eq 0) { return $i }
+            }
+        }
+        return -1
+    }
+
+    New-Item -ItemType Directory -Path (Split-Path -Parent $ConfigPath) -Force | Out-Null
+    if (Test-Path $ConfigPath) {
+        $content = [System.IO.File]::ReadAllText($ConfigPath)
+    } else {
+        $content = "{`r`n}"
+    }
+
+    $modified = $false
+
+    if ($content -match '"default_agent"\s*:\s*"[^"]*"') {
+        $updated = [regex]::Replace($content, '"default_agent"\s*:\s*"[^"]*"', '"default_agent": "orchestrator"', 1)
+        if ($updated -ne $content) {
+            $content = $updated
+            $modified = $true
+        }
+    } else {
+        $content = [regex]::Replace($content, '^\s*\{', "{`r`n  `"default_agent`": `"orchestrator`",", 1)
+        $modified = $true
+    }
+
+    $orchestratorBlock = @"
+    "orchestrator": {
+      "mode": "primary",
+      "description": "Main session orchestrator - routes all requests, spawns subagents and workflows"
+    }
+"@
+
+    if ($content -notmatch '"agent"\s*:\s*\{') {
+        $rootOpen = $content.IndexOf('{')
+        $idx = if ($rootOpen -ge 0) { Find-MatchingBraceIndex -Text $content -OpenIndex $rootOpen } else { -1 }
+        if ($idx -ge 0) {
+            $before = $content.Substring(0, $idx).TrimEnd()
+            $after = $content.Substring($idx)
+            $comma = if ($before.EndsWith('{') -or $before.EndsWith(',')) { "" } else { "," }
+            $agentBlock = "  `"agent`": {`r`n$orchestratorBlock`r`n  }"
+            $content = $before + $comma + "`r`n" + $agentBlock + "`r`n" + $after.TrimStart()
+            $modified = $true
+        }
+    } elseif ($content -notmatch '"orchestrator"\s*:\s*\{') {
+        $agentMatch = [regex]::Match($content, '"agent"\s*:\s*\{')
+        if ($agentMatch.Success) {
+            $agentOpen = $content.IndexOf('{', $agentMatch.Index)
+            $agentClose = Find-MatchingBraceIndex -Text $content -OpenIndex $agentOpen
+            if ($agentClose -gt $agentOpen) {
+                $inside = $content.Substring($agentOpen + 1, $agentClose - $agentOpen - 1)
+                $needsComma = $inside.Trim().Length -gt 0
+                $insert = if ($needsComma) {
+                    ",`r`n$orchestratorBlock"
+                } else {
+                    "`r`n$orchestratorBlock`r`n  "
+                }
+                $content = $content.Substring(0, $agentClose) + $insert + $content.Substring($agentClose)
+                $modified = $true
+            }
+        }
+    }
+
+    if ($modified -or -not (Test-Path $ConfigPath)) {
+        [System.IO.File]::WriteAllText($ConfigPath, $content, (New-Object System.Text.UTF8Encoding($false)))
+        Write-Host "  OpenCode config: default_agent=orchestrator and agent entry set at $ConfigPath"
+    } else {
+        Write-Host "  OpenCode config: orchestrator already configured"
+    }
 }
 
 function Get-WorkflowAdapterTemplateVars {
@@ -458,6 +668,7 @@ function Install-Adapter {
     }
     Copy-Tree -Source $src -Destination $TargetRepo
     Install-WorkflowAdapterAssets -AdapterName $Name -Root $TargetRepo -PruneStale:$PruneStaleAssets -DryRunPrune:$DryRunPrune
+    Install-PrimaryOrchestratorAgent -AdapterName $Name -Root $TargetRepo
 
     # Copilot CLI per-repo: install repo-scope hooks (.github/hooks/*.json).
     # Hooks are repo-scope only on Copilot per the official hooks reference;
@@ -734,14 +945,19 @@ if (-not $TargetRepo -and -not $DeviceWide -and -not $For -and -not $Auto -and -
     Write-Host ""
     Write-Host "Global assets installed at $AgentsRoot."
     Write-Host ""
-    Write-Host "To wire the kit into a CLI on this device, re-run with -For or -Auto:"
-    Write-Host "  pwsh ./install.ps1 -For claude                     # one CLI"
-    Write-Host "  pwsh ./install.ps1 -For 'claude,opencode'           # multiple"
-    Write-Host "  pwsh ./install.ps1 -For all                        # all five"
+    Write-Host "To wire the kit into a CLI on this device, use a dedicated host installer:"
+    Write-Host "  pwsh ./install-codex.ps1"
+    Write-Host "  pwsh ./install-copilot.ps1"
+    Write-Host "  pwsh ./install-claude.ps1"
+    Write-Host "  pwsh ./install-opencode.ps1"
+    Write-Host ""
+    Write-Host "Advanced multi-host backend:"
+    Write-Host "  pwsh ./install.ps1 -For 'claude,opencode'"
+    Write-Host "  pwsh ./install.ps1 -For all"
     Write-Host "  pwsh ./install.ps1 -Auto                            # detect CLIs on PATH"
     Write-Host ""
     Write-Host "Or bootstrap a repo end-to-end:"
-    Write-Host "  pwsh ./install.ps1 -BootstrapHarness -TargetRepo <path>"
+    Write-Host "  pwsh ./install-codex.ps1 -BootstrapHarness -TargetRepo <path>"
 }
 
 if ($CleanReinstall) { $PruneStaleAssets = $true }
@@ -1085,18 +1301,6 @@ $endMarker
         if ($count -gt 0) { Write-Host "  $Label hooks: $count installed at $DestDir" }
     }
 
-    function ConvertTo-TomlBasicString {
-        param([string]$Value)
-        if ($null -eq $Value) { $Value = "" }
-        $escaped = $Value `
-            -replace '\\', '\\' `
-            -replace '"', '\"' `
-            -replace "`r", '' `
-            -replace "`n", '\n' `
-            -replace "`t", '\t'
-        return '"' + $escaped + '"'
-    }
-
     # Convert markdown agent definitions into Codex CLI's native TOML format.
     # Codex discovers ~/.codex/agents/*.toml in both CLI and IDE-backed sessions.
     function Install-CodexAgentsFromClaudeSource {
@@ -1131,7 +1335,7 @@ $endMarker
 
             $out = @(
                 "# Auto-generated from $($f.Name) by install.ps1",
-                "# Re-run scripts/install.ps1 -For codex to refresh.",
+                "# Re-run scripts/install-codex.ps1 to refresh.",
                 "",
                 "name = $(ConvertTo-TomlBasicString $name)",
                 "description = $(ConvertTo-TomlBasicString $desc)",
@@ -1475,6 +1679,11 @@ $endMarker
                     -Label     "Claude Code" `
                     -AssetKind "specialist agents"
 
+                Install-PrimaryOrchestratorAgent `
+                    -AdapterName "claude-code" `
+                    -Root $HomeRoot `
+                    -DeviceWideScope
+
                 # Wire SessionStart/End hooks via the merger (honor HomeRoot)
                 $merger  = Join-Path $AgentsRoot "tools/merge-claude-settings.ps1"
                 $snippet = Join-Path $AdaptersRoot "claude-code/.claude/settings.snippet.json"
@@ -1525,6 +1734,11 @@ $endMarker
                     -SourceDir (Join-Path $AdaptersRoot "codex-cli/.codex/agents") `
                     -DestDir   $codexAgentsRoot `
                     -Label     "Codex CLI adapter"
+
+                Install-PrimaryOrchestratorAgent `
+                    -AdapterName "codex-cli" `
+                    -Root $HomeRoot `
+                    -DeviceWideScope
 
                 # Wire Codex hooks via the TOML merger
                 $codexMerger = Join-Path $AgentsRoot "tools/merge-codex-config.ps1"
@@ -1610,6 +1824,11 @@ $endMarker
                     -DestDir   (Join-Path $HomeRoot ".config/opencode/agents") `
                     -Label     "OpenCode specialist"
 
+                Install-PrimaryOrchestratorAgent `
+                    -AdapterName "opencode" `
+                    -Root $HomeRoot `
+                    -DeviceWideScope
+
                 # Lifecycle plugin
                 $pluginSrc = Join-Path $AdaptersRoot "opencode/.opencode/plugins/agentic-kit.ts"
                 $pluginDst = Join-Path $HomeRoot ".config/opencode/plugins/agentic-kit.ts"
@@ -1619,35 +1838,11 @@ $endMarker
                     Write-Host "  OpenCode plugin: $pluginDst"
                 }
 
-                # Ensure default_agent is set to orchestrator in opencode.jsonc
-                # Only modifies if default_agent is not already set (leaves user's config untouched)
+                # Ensure default_agent is set to orchestrator in opencode.jsonc.
+                # Create the config on fresh installs so the primary agent is
+                # actually selected by default.
                 $configPath = Join-Path $HomeRoot ".config\opencode\opencode.jsonc"
-                if (Test-Path $configPath) {
-                    $content = [System.IO.File]::ReadAllText($configPath)
-                    $modified = $false
-
-                    # 1. Insert default_agent at the start if not already set
-                    if ($content -notmatch '"default_agent"\s*:\s*"') {
-                        $content = $content -replace '(-ms)^\s*\{', '{"default_agent": "orchestrator",', 1
-                        $modified = $true
-                    }
-
-                    # 2. Ensure orchestrator agent entry exists in the agent block
-                    if ($content -notmatch '"orchestrator"\s*:\s*\{') {
-                        # Find the agent block and add orchestrator entry
-                        $content = $content -replace '("agent"\s*:\s*\{)', "$1`n    // Orchestrator (session default - the main agent)`n    `"orchestrator`": {`n      `"mode`": `"primary`",`n      `"description`": `"Main session orchestrator - routes all requests, spawns subagents and workflows`"`n    },", 1
-                        $modified = $true
-                    }
-
-                    if ($modified) {
-                        [System.IO.File]::WriteAllText($configPath, $content, [System.Text.Encoding]::UTF8)
-                        Write-Host "  Updated opencode.jsonc with default_agent + orchestrator entry"
-                    } else {
-                        Write-Host "  opencode.jsonc already has orchestrator configured - not modifying"
-                    }
-                } else {
-                    Write-Host "  opencode.jsonc not found at $configPath - skipping config update (add default_agent + orchestrator entry manually)"
-                }
+                Set-OpenCodeOrchestratorConfig -ConfigPath $configPath
             }
             "generic" {
                 # No standard auto-discovery for generic CLIs (Aider, Cline,
@@ -1692,6 +1887,11 @@ $endMarker
                     -SourceDir $SharedSpecialistAgentsRoot `
                     -DestDir   (Join-Path $HomeRoot ".copilot/agents") `
                     -Label     "GitHub Copilot specialist"
+
+                Install-PrimaryOrchestratorAgent `
+                    -AdapterName "copilot-cli" `
+                    -Root $HomeRoot `
+                    -DeviceWideScope
 
                 # Copilot CLI uses the global skills under ~/.agents/skills/
                 # directly. The global skills now reference only leaf agents
@@ -1756,32 +1956,42 @@ $endMarker
 }
 
 if ($BootstrapHarness) {
+    $repoAdapters = if ($InstallAdapter) { Resolve-AdapterTargets -Spec $InstallAdapter } else { @() }
+    $deviceTargets = if ($resolvedFor) { Resolve-AdapterTargets -Spec $resolvedFor } else { @() }
+    $repoAdapterText = if ($repoAdapters.Count -gt 0) { $repoAdapters -join ", " } else { "none" }
+    $deviceTargetText = if ($deviceTargets.Count -gt 0) { $deviceTargets -join ", " } else { "none" }
+    $hasCopilot = $repoAdapters -contains "copilot-cli"
+
     Write-Host ""
     Write-Host "Harness scaffold complete for $TargetRepo"
     Write-Host "Installed:"
     Write-Host "  - global ~/.agents assets"
-    Write-Host "  - device-wide rules for claude, copilot, generic"
+    Write-Host "  - device-wide target(s): $deviceTargetText"
     Write-Host "  - repo scaffold (.kit/, .wiki/)"
-    Write-Host "  - repo adapters (CLAUDE.md, AGENTS.md, .github/copilot-instructions.md)"
+    Write-Host "  - repo adapter(s): $repoAdapterText"
     Write-Host ""
     Write-Host "AI phases run automatically from an agent session."
     Write-Host ""
-    Write-Host "  From Copilot CLI (recommended -- self-driving, no manual steps):"
-    Write-Host "    POSIX:   bash ~/.agents/bin/copilot/kit-bootstrap.sh `"$TargetRepo`""
-    Write-Host "    Windows: pwsh ~/.agents/bin/copilot/kit-bootstrap.ps1 `"$TargetRepo`""
-    Write-Host "    This script does everything: scaffold (already done) -> git-archaeology"
-    Write-Host "    -> kit-init -> wiki-init -> conventions.md with real detected content."
-    Write-Host ""
-    Write-Host "  From goal-orchestrator (autonomous iteration with review gates):"
-    Write-Host "    copilot --agent goal-orchestrator -p `"Bootstrap the harness for $TargetRepo`""
-    Write-Host ""
-    Write-Host "  From any AI agent (Claude Code, Copilot, Codex, etc.):"
+    if ($hasCopilot) {
+        Write-Host "  From Copilot CLI (self-driving wrapper):"
+        Write-Host "    POSIX:   bash ~/.agents/bin/copilot/kit-bootstrap.sh `"$TargetRepo`""
+        Write-Host "    Windows: pwsh ~/.agents/bin/copilot/kit-bootstrap.ps1 `"$TargetRepo`""
+        Write-Host "    This script does everything: scaffold (already done) -> git-archaeology"
+        Write-Host "    -> kit-init -> wiki-init -> conventions.md with real detected content."
+        Write-Host ""
+        Write-Host "  From Copilot goal-orchestrator:"
+        Write-Host "    copilot --agent goal-orchestrator -p `"Bootstrap the harness for $TargetRepo`""
+        Write-Host ""
+    }
+    Write-Host "  From the installed host agent:"
     Write-Host "    Say 'bootstrap this repo' or 'set up the harness for this repo'."
     Write-Host "    The agent reads ~/.agents/skills/bootstrap-harness/SKILL.md and"
     Write-Host "    executes every phase automatically (Phase 1-6, no manual steps)."
-    Write-Host ""
-    Write-Host "  The kit-bootstrap.sh script is also self-driving when run standalone:"
-    Write-Host "    it detects whether the scaffold already exists and skips Phase 0 if so."
+    if ($hasCopilot) {
+        Write-Host ""
+        Write-Host "  The kit-bootstrap.sh script is also self-driving when run standalone:"
+        Write-Host "    it detects whether the scaffold already exists and skips Phase 0 if so."
+    }
     Write-Host ""
     Write-Host "After the AI phases complete, .kit/context/conventions.md will contain"
     Write-Host "detected repo conventions (branch naming, commit style, layering, etc.)"

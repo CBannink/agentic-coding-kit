@@ -23,6 +23,22 @@ Aider, Cline, Cursor, Continue, etc.) gets the right behavior from this file.
    parallel-safe verb (audit / explore / port / redesign / pentest), fan-out-able
    scope, explicit user opt-in.
 
+## Cost-aware orchestration
+
+The main session is the orchestrator. It may read directly relevant files to
+classify scope, pick a workflow, and write a precise handoff, but it should not
+absorb sustained worker context.
+
+- Any real exploration, pattern search, unfamiliar code mapping, or ownership
+  tracing should go to `workflow-explorer`.
+- Inline coding is for direct answers, commands, and obvious mechanical edits
+  across at most 3 files.
+- Coding likely to touch more than 3 files, add new files, cross module
+  boundaries, or require unfamiliar conventions should use
+  `workflow-implementer` or the host's hard implementer variant.
+- Long-running implementation, review, and verification should be delegated to
+  leaf agents when the harness supports them.
+
 ## Memory write routing
 
 | Bucket | Target |
@@ -45,7 +61,7 @@ At session start, check whether the repo has the expected kit scaffold:
 If `.kit` is missing, tell the user the repo is not bootstrapped for the kit yet and suggest:
 
 - `/bootstrap-harness` (preferred when the repo command is available)
-- or `pwsh <path-to-agentic-coding-kit>\scripts\install.ps1 -BootstrapHarness -TargetRepo "<repo>"`
+- or `pwsh <path-to-agentic-coding-kit>\scripts\install-<host>.ps1 -BootstrapHarness -TargetRepo "<repo>"`
 
 If `.wiki/index.md`, `.wiki/architecture.md`, `.wiki/codebase.md`, `.wiki/features.md`, or `.wiki/.features` is missing, suggest:
 

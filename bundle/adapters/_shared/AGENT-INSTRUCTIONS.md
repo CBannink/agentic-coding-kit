@@ -200,7 +200,7 @@ At session start, check whether the repo has the expected kit scaffold:
 If `.kit` is missing, tell the user the repo is not bootstrapped for the kit yet and suggest:
 
 - `/bootstrap-harness` (preferred when the repo command is available)
-- or `pwsh <path-to-agentic-coding-kit>\scripts\install.ps1 -BootstrapHarness -TargetRepo "<repo>"`
+- or `pwsh <path-to-agentic-coding-kit>\scripts\install-<host>.ps1 -BootstrapHarness -TargetRepo "<repo>"`
 
 If `.wiki/index.md`, `.wiki/architecture.md`, `.wiki/codebase.md`, `.wiki/features.md`, or `.wiki/.features` is missing, suggest:
 

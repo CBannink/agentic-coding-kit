@@ -9,13 +9,16 @@ From the kit repo, install for your preferred CLI:
 
 ```powershell
 # Claude Code (recommended — fullest hook integration)
-pwsh ./scripts/install.ps1 -For claude
+pwsh ./scripts/install-claude.ps1
 
 # GitHub Copilot CLI
-pwsh ./scripts/install.ps1 -For copilot
+pwsh ./scripts/install-copilot.ps1
 
 # OpenCode
-pwsh ./scripts/install.ps1 -For opencode
+pwsh ./scripts/install-opencode.ps1
+
+# Codex
+pwsh ./scripts/install-codex.ps1
 
 # Multiple CLIs at once
 pwsh ./scripts/install.ps1 -For "claude,copilot"
@@ -32,7 +35,7 @@ pwsh ./scripts/doctor.ps1
 If you want a clean refresh after updating this repo:
 
 ```powershell
-pwsh ./scripts/install.ps1 -For copilot -Force
+pwsh ./scripts/install-copilot.ps1 -Force
 pwsh ./scripts/doctor.ps1
 ```
 
@@ -61,7 +64,7 @@ That one command handles:
 2. Install the repo-local Copilot surface:
 
 ```powershell
-pwsh ./scripts/install.ps1 -TargetRepo C:\path\to\repo -InstallAdapter copilot
+pwsh ./scripts/install-copilot.ps1 -TargetRepo C:\path\to\repo -InstallRepoTemplate
 ```
 
 3. Open the repo in your preferred host.

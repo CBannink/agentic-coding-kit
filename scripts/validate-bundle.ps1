@@ -211,6 +211,18 @@ Write-Host ""
 Write-Host "[7/7] Adapter completeness check"
 $adapterRoots = Get-ChildItem -Path (Join-Path $Bundle "adapters") -Directory | Where-Object { $_.Name -ne "_shared" }
 $adapterIssues = 0
+$requiredDedicatedInstallers = @(
+    "install-claude.ps1",
+    "install-codex.ps1",
+    "install-copilot.ps1",
+    "install-opencode.ps1"
+)
+foreach ($installer in $requiredDedicatedInstallers) {
+    if (-not (Test-Path (Join-Path $ScriptRoot $installer))) {
+        $adapterIssues++
+        Add-Error "Dedicated installer missing: scripts/$installer"
+    }
+}
 foreach ($a in $adapterRoots) {
     $hasInstruction = (Get-ChildItem -Path $a.FullName -Recurse -Filter "*.md" -ErrorAction SilentlyContinue).Count -gt 0
     if (-not $hasInstruction) {
@@ -237,6 +249,7 @@ $requiredSharedTemplates = @(
     "workflow-agents/workflow-reviewer.md",
     "workflow-agents/workflow-skeptic.md",
     "workflow-agents/workflow-ui-qa.md",
+    "orchestrator/primary-agent.template.md",
     "specialist-agents/adversarial-reviewer.md",
     "specialist-agents/goal-orchestrator.md",
     "specialist-agents/pr-reviewer.md"

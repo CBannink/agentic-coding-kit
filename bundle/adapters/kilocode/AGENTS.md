@@ -15,6 +15,22 @@ Same operating rules as the rest of the kit. See
 5. Default sequential. Swarms require parallel-safe verb + fan-out-able scope
    + explicit opt-in.
 
+## Cost-aware orchestration
+
+The main session is the orchestrator. It may read directly relevant files to
+classify scope, pick a workflow, and write a precise handoff, but it should not
+absorb sustained worker context.
+
+- Any real exploration, pattern search, unfamiliar code mapping, or ownership
+  tracing should go to `workflow-explorer` where available.
+- Inline coding is for direct answers, commands, and obvious mechanical edits
+  across at most 3 files.
+- Coding likely to touch more than 3 files, add new files, cross module
+  boundaries, or require unfamiliar conventions should use
+  `workflow-implementer` or the host's hard implementer variant.
+- Long-running implementation, review, and verification should be delegated to
+  leaf agents when the harness supports them.
+
 ## Kilo Code-specific notes
 
 - Custom modes live in `.kilocode/rules/` — one .md file per mode. The

@@ -10,7 +10,7 @@ Shared rules: `bundle/adapters/_shared/AGENT-INSTRUCTIONS.md`
 
 1. **Delegate, don't pile code inline.** The main session is a coordinator.
    Push exploration, implementation, and review into spawned agents.
-   Inline edits are for one-file mechanical fixes only.
+   Inline edits are for obvious mechanical fixes only.
 2. **Emit progress lines** before every agent spawn so the user sees motion:
    `[BUILD N/TOTAL] Spawning <agent>...`
 3. **Classify scope first** (tier table below).
@@ -18,6 +18,21 @@ Shared rules: `bundle/adapters/_shared/AGENT-INSTRUCTIONS.md`
    routing path to what the task actually needs (see Adaptive Routing).
 5. **Call your lifecycle.** `pre-session.ps1` at start, `state-gate.ps1`
    at checkpoints, `post-session.ps1` at end.
+
+## Cost-aware delegation threshold
+
+The orchestrator may read the directly relevant files needed to classify and
+write a precise handoff. Do not turn that into broad exploration.
+
+- Any real exploration, pattern search, unfamiliar code mapping, or ownership
+  tracing goes to `workflow-explorer`.
+- Inline coding is for direct answers, commands, and obvious mechanical edits
+  across at most 3 files.
+- Coding likely to touch more than 3 files, add new files, cross module
+  boundaries, or require unfamiliar conventions goes to `workflow-implementer`
+  or the hard implementer variant.
+- Long-running implementation, review, and verification should be delegated to
+  cheaper/specialized leaf agents instead of staying in the main session.
 
 ## Scope tiers
 

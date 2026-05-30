@@ -172,14 +172,14 @@ if (Test-Path $codexConfig) {
         $hooksState = if ($codexConfigContent -match '(?m)^\s*hooks\s*=\s*true') { "hooks enabled" } else { "hooks disabled" }
         Add-Check "Codex no-prompt runtime" "PASS" "approval_policy=never, sandbox_mode=danger-full-access, $hooksState"
     } else {
-        Add-Check "Codex no-prompt runtime" "WARN" "Missing no-prompt config -- rerun install.ps1 -For codex"
+        Add-Check "Codex no-prompt runtime" "WARN" "Missing no-prompt config -- rerun scripts/install-codex.ps1"
     }
 } else {
     Add-Check "Codex no-prompt runtime" "WARN" "~/.codex/config.toml not found"
 }
 
 $codexAgentsDir = Join-Path $HOME ".codex/agents"
-$requiredCodexAgents = @("goal-orchestrator.toml", "workflow-implementer.toml", "workflow-explorer.toml", "code-quality-reviewer.toml", "final-verifier.toml")
+$requiredCodexAgents = @("orchestrator.toml", "goal-orchestrator.toml", "workflow-implementer.toml", "workflow-explorer.toml", "code-quality-reviewer.toml", "final-verifier.toml")
 if (Test-Path $codexAgentsDir) {
     $missingCodexAgents = @($requiredCodexAgents | Where-Object { -not (Test-Path (Join-Path $codexAgentsDir $_)) })
     if ($missingCodexAgents.Count -eq 0) {
@@ -188,7 +188,7 @@ if (Test-Path $codexAgentsDir) {
         Add-Check "Codex native agents" "WARN" "Missing: $($missingCodexAgents -join ', ')"
     }
 } else {
-    Add-Check "Codex native agents" "WARN" "Not installed; run install.ps1 -For codex"
+    Add-Check "Codex native agents" "WARN" "Not installed; run scripts/install-codex.ps1"
 }
 
 # 8. Copilot workflow wrappers
@@ -202,12 +202,13 @@ if (Test-Path $copilotWrapperDir) {
         Add-Check "Copilot workflow wrappers" "WARN" "Missing: $($missingCopilotWrappers -join ', ')"
     }
 } else {
-    Add-Check "Copilot workflow wrappers" "WARN" "Not installed; run install.ps1 -For copilot"
+    Add-Check "Copilot workflow wrappers" "WARN" "Not installed; run scripts/install-copilot.ps1"
 }
 
 # 9. Copilot orchestration surfaces
 $copilotAgentsDir = Join-Path $HOME ".copilot/agents"
 $requiredCopilotAgents = @(
+    "orchestrator.agent.md",
     "goal-orchestrator.agent.md",
     "workflow-implementer.agent.md",
     "workflow-explorer.agent.md",
@@ -235,10 +236,29 @@ if ($missingCopilotAgents.Count -eq 0 -and $copilotInstructionsOk) {
     $detail = @()
     if ($missingCopilotAgents.Count -gt 0) { $detail += "missing agents: $($missingCopilotAgents -join ', ')" }
     if (-not $copilotInstructionsOk) { $detail += "orchestrator instructions missing/stale" }
-    Add-Check "Copilot orchestration surfaces" "WARN" "$($detail -join '; ') -- rerun install.ps1 -For copilot"
+    Add-Check "Copilot orchestration surfaces" "WARN" "$($detail -join '; ') -- rerun scripts/install-copilot.ps1"
 }
 
-# 10. Include markers in host-CLI config files
+# 10. OpenCode primary orchestrator config
+$openCodeAgentsDir = Join-Path $HOME ".config/opencode/agents"
+$openCodeConfigPath = Join-Path $HOME ".config/opencode/opencode.jsonc"
+$openCodeOrchestratorPath = Join-Path $openCodeAgentsDir "orchestrator.md"
+$openCodeConfigOk = $false
+if (Test-Path $openCodeConfigPath) {
+    $openCodeConfig = Get-Content $openCodeConfigPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
+    $openCodeConfigOk = ($openCodeConfig -match '"default_agent"\s*:\s*"orchestrator"') -and
+                        ($openCodeConfig -match '"orchestrator"\s*:\s*\{')
+}
+if ((Test-Path $openCodeOrchestratorPath) -and $openCodeConfigOk) {
+    Add-Check "OpenCode primary orchestrator" "PASS" "default_agent=orchestrator"
+} else {
+    $detail = @()
+    if (-not (Test-Path $openCodeOrchestratorPath)) { $detail += "missing agents/orchestrator.md" }
+    if (-not $openCodeConfigOk) { $detail += "missing default_agent/agent entry in opencode.jsonc" }
+    Add-Check "OpenCode primary orchestrator" "WARN" "$($detail -join '; ') -- rerun scripts/install-opencode.ps1"
+}
+
+# 11. Include markers in host-CLI config files
 foreach ($spec in @(
     @{ Path = Join-Path $HOME ".claude/CLAUDE.md"; Label = "Claude CLAUDE.md" },
     @{ Path = Join-Path $HOME ".codex/AGENTS.md"; Label = "Codex AGENTS.md" },
@@ -257,7 +277,7 @@ foreach ($spec in @(
         $blockHits = ([regex]::Matches($content, 'agentic-kit:(begin|include)')).Count
         if ($isInstalled) {
             if ($blockHits -gt 1) {
-                Add-Check "$($spec.Label) marker block" "WARN" "DUPLICATED ($blockHits open markers found) -- run install.ps1 -RepairKitBlock or rerun install.ps1 normally to dedupe"
+                Add-Check "$($spec.Label) marker block" "WARN" "DUPLICATED ($blockHits open markers found) -- run the matching scripts/install-<host>.ps1 -RepairKitBlock or rerun that installer normally to dedupe"
             } else {
                 Add-Check "$($spec.Label) marker block" "PASS" ""
             }
