@@ -12,9 +12,9 @@
 #   ./install.sh                                    # global install only
 #   ./install.sh -t /path/to/repo -r                # + repo template
 #   ./install.sh -t /path/to/repo -r -a claude      # + Claude Code adapter
-#   ./install.sh -t /path/to/repo -r -a all         # + all adapters
+#   ./install.sh -t /path/to/repo -r -a all         # + all supported adapters
 #
-# Adapters: claude | codex | copilot | opencode | kilocode | generic | all
+# Adapters: claude | codex | copilot | opencode | generic | all
 # Requires a PowerShell host because the wrapper delegates to install.ps1.
 
 set -euo pipefail
@@ -36,10 +36,10 @@ done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# ── Pre-flight: PowerShell host detection ────────────────────────────────────
+# Pre-flight: PowerShell host detection
 # The kit's runtime scripts require pwsh (or fall back to powershell.exe on
 # Windows). Without one of them, lifecycle scripts silently no-op and the
-# self-improvement loop breaks. Detect early and walk the user through install.
+# lifecycle helpers degrade. Detect early and walk the user through install.
 detect_powershell() {
     if command -v pwsh >/dev/null 2>&1; then
         echo "pwsh"
@@ -62,9 +62,9 @@ if ! PS_HOST=$(detect_powershell); then
     echo "# Pre-flight FAIL: no PowerShell host detected                       #"
     echo "######################################################################"
     echo "# The kit's lifecycle scripts (state-init, workflow-evidence,        #"
-    echo "# post-session, verify-writeback, hooks) all require pwsh.           #"
+    echo "# post-session and verification helpers require pwsh.                #"
     echo "# Installing the kit without pwsh produces a silently-degraded      #"
-    echo "# setup where the self-improvement loop is broken.                   #"
+    echo "# setup where lifecycle helpers are unavailable.                     #"
     echo "#                                                                     #"
     echo "# Install PowerShell 7+ first, then re-run this installer:           #"
     echo "#                                                                     #"
@@ -94,7 +94,6 @@ resolve_adapter() {
         codex)    echo "codex-cli" ;;
         copilot)  echo "copilot-cli" ;;
         opencode) echo "opencode" ;;
-        kilocode|kilo) echo "kilocode" ;;
         *)        echo "$1" ;;
     esac
 }

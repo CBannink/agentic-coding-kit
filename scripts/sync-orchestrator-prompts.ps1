@@ -42,8 +42,8 @@ $copilotConstraints = @"
 - Subagent output is NOT streamed (issue #2265) - user sees nothing until the
   agent completes. Shell stdout is buffered (issue #1127).
 - Per-command timeout is ~5-6 minutes. Each leaf agent must complete in <5 min.
-- **YOU are the orchestrator.** Never spawn goal-orchestrator or
-  build-orchestrator - they run silently. Only delegate to leaf agents.
+- **YOU are the orchestrator.** Never spawn another orchestrator subagent; it
+  runs silently. Only delegate to leaf agents.
 "@
 
 $copilotWorkflowLoading = @"
@@ -119,7 +119,7 @@ $mainTargets = @(
             "__OPTIONAL_PREAMBLE__" = "The global workflow skills under `~/.agents/skills/` are the canonical phase content - this file handles host constraints only."
             "__OPTIONAL_HOST_CONSTRAINTS__" = $copilotConstraints
             "__OPTIONAL_WORKFLOW_LOADING__" = $copilotWorkflowLoading
-            "__OPTIONAL_TRAILER__" = "## Core rules`r`n`r`n1. Respect `.kit/` layout - memory in `.kit/context/`, handoffs in session-state.`r`n2. `.wiki/features.md` + `.wiki/.features` carry user-visible capabilities.`r`n3. Self-improvement runs automatically in post-session. Only call `/reflect` manually when reflections.md has 5+ unaddressed entries needing judgment."
+            "__OPTIONAL_TRAILER__" = "## Core rules`r`n`r`n1. Start from the current request and current code.`r`n2. Do not preload `.kit`, `.wiki`, handoffs, history, or memory files.`r`n3. Use `.wiki/index.md` only as an on-demand index when architecture, feature, or principle context is needed.`r`n4. Self-improvement tools are manual maintenance only."
         }
     }
 )

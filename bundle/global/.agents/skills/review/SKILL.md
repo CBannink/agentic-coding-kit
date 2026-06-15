@@ -1,53 +1,29 @@
 ---
 name: review
-description: Use when the user asks to review, audit, check quality, or find bugs in code. Runs single-reviewer scope classify, targeted review pass, false-positive check, consolidated report.
+description: "Use when the user asks to review, audit, check quality, or find bugs in code. Runs one unified reviewer by default plus conditional security review."
 ---
 
 # /review
 
-Review only. Do NOT edit code — point the user at /build with findings.
+Review the requested diff or code with one default reviewer:
 
-## Phase 1 — Scope
+- `code-quality-reviewer` for normal code review and audit.
+- `security-reviewer` only when trust-boundary risk is present.
 
-Read the diff: `git diff HEAD` (or the user-named range). Classify:
-- **ISOLATED**: 1 module, <=5 files changed. Single reviewer.
-- **SHARED**: 2+ modules or shared interfaces. Reviewer + possible second.
-- **CRITICAL**: Auth, schema, breaking change. Full pass.
+Trust-boundary triggers: auth/authz, secrets, crypto, permissions, untrusted
+input, external HTTP, DB writes, filesystem paths, command execution, payments,
+or sensitive data exposure.
 
-## Phase 2 — Reviewer pass
+The unified reviewer covers correctness bugs, architecture mismatch,
+over-abstraction, misplaced files, duplicate logic, AI slop, weak tests, and
+maintainability regressions.
 
-Spawn exactly ONE reviewer by default. Pick based on what the diff changes:
+Load `silent-failure-hunter` on demand when the diff adds or changes async
+work, try/catch, fallbacks, CLI exit handling, logging, filesystem/network, or
+subprocess paths. Treat it as a focused review lens, not a default reviewer.
 
-| Diff touches | Reviewer |
-|---|---|
-| New/moved files, shared types, DI wiring | `modularity-expert` |
-| Auth, HTTP, DB writes, user input, paths | `security-reviewer` |
-| Everything else | `code-quality-reviewer` |
+False-positive-check every BLOCKING finding by reading the cited file and nearby
+code before presenting it.
 
-Spawn a SECOND reviewer only if the first surfaces a finding outside its lane. Do NOT default to two reviewers.
-
-Each reviewer returns findings with file:line, severity, and recommended fix.
-
-## Phase 3 — False-positive check
-
-For every BLOCKING finding: read the file:line yourself. Confirm the finding applies. Downgrade verified-false to NIT.
-
-## Phase 4 — Consolidated report
-
-One consolidated review with sections:
-- **BLOCKING**: file:line + concrete fix suggestion
-- **NON-BLOCKING**: file:line
-- **NITS**: bullets, no file:line needed
-- **Overall verdict**: one paragraph
-
-Tag BLOCKING / NON-BLOCKING / NIT for every finding.
-
-## Phase 5 -- Heavy-review learning
-
-If this was SHARED or CRITICAL scope, touched >5 files, spawned 2+ reviewers, or
-surfaced a repeated reviewer false-positive / missed-finding pattern, spawn
-`learning-curator` after the consolidated report. Give it the diff summary,
-reviewer outputs, false-positive checks, and any session id. It may append at
-most 5 high-confidence cross-repo lessons to global specialist memory via
-`specialist-memory-append.ps1`; otherwise it writes reflection candidates for
-later consolidation.
+Do not run multi-pass review, legacy verifier agents, writeback gates,
+reflection gates, or memory maintenance by default.

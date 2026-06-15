@@ -15,11 +15,11 @@ Read available evidence:
 - `.kit/context/reflections.md` and `~/.agents/context/reflections.md`
 - changed files and reviewer/implementer summaries when supplied
 - existing global memory in `~/.agents/context/specialist-memory/`
-- repo-local memory in `.kit/context/agent-memory/`
+- repo-local patterns in `.kit/context/patterns.md`
 
 Promotion rules:
 - Global specialist memory is for cross-repo lessons only.
-- Repo-specific facts belong in `.kit/context/agent-memory/<role>.md` or `.kit/context/workflow-briefs/<agent>.md`.
+- Repo-specific facts belong in `.kit/context/memory.md`; repo-specific agent guidance belongs in `.kit/context/patterns.md` or workflow briefs.
 - One-off workflow/prompt improvement ideas go to reflections, not direct memory.
 - Do not write secrets, credentials, customer data, task progress, or vague advice.
 - At most 5 global memory appends per run.

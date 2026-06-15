@@ -97,9 +97,9 @@ function Classify([string]$path) {
         '^\.wiki/.*\.md$',
         '^\.wiki/\.features$',
         '^\.kit/context/memory\.md$',
+        '^\.kit/context/patterns\.md$',
         '^\.kit/context/handoffs\.md$',
         '^\.kit/context/reflections\.md$',
-        '^\.kit/context/agent-memory/.+\.md$',
         '^README\.md$',
         '^CHANGELOG\.md$',
         '^docs/.+\.md$'
@@ -158,7 +158,7 @@ if ($visibleFiles.Count -eq 0) {
     $result.warning = "user-visible changes without docs update"
     $sample = ($visibleFiles | Select-Object -First 3) -join ', '
     if ($visibleFiles.Count -gt 3) { $sample += " (+$($visibleFiles.Count - 3) more)" }
-    $result.summary = "WARN NO WRITEBACK -- $($visibleFiles.Count) user-visible file(s) changed [$sample] without touching .wiki/features.md, .kit/context/memory.md, or .kit/context/handoffs.md"
+    $result.summary = "WARN NO WRITEBACK -- $($visibleFiles.Count) user-visible file(s) changed [$sample] without touching .wiki/features.md, .kit/context/memory.md, .kit/context/patterns.md, or .kit/context/handoffs.md"
 }
 
 # ---------- emit + exit ----------

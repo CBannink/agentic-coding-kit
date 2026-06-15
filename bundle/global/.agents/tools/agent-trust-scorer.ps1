@@ -134,7 +134,7 @@ Your findings in this repo have been consistently actionable (trust score: $scor
 ## Trust context
 Your recent findings have a $($supersessionPct)% supersession rate ($Superseded/$Total findings were downgraded or marked false-positive). Before flagging an issue:
 1. Verify the finding is backed by a concrete code path, not a theoretical possibility
-2. Check if the pattern is intentional in this repo (see .kit/context/agent-memory/$AgentRole.md)
+2. Check if the pattern is intentional in this repo (see .kit/context/patterns.md)
 3. Prefer silence over a speculative finding
 "@
         }

@@ -29,14 +29,10 @@ param(
 . (Join-Path $PSScriptRoot "_paths.ps1")
 
 # --- Filesystem-truth enforcement for protected gates -----------------
-# The Iron Law applies to memory writebacks, not just code. When the model
-# tries to mark a gate that REPRESENTS a writeback, this script verifies the
-# writeback actually happened on disk. A model self-marking the gate without
-# producing a fresh artifact is rejected.
+# The Iron Law applies to verification evidence. Memory, wiki, reflection, and
+# handoff writebacks are no longer normal completion gates.
 #
 # Protected gates and their required artifacts:
-#   handoff_written        -> ~/.agents/session-state/<id>/handoffs.md mtime > session_start
-#   implementation_done    -> .kit/context/memory.md OR shared.md mtime > session_start
 #   verification_evidence  -> workflow-evidence.json has non-empty verification_commands
 #
 # Bypass with -Waiver "<reason>"; the waiver is logged.
@@ -50,7 +46,7 @@ function Test-GateFilesystemTruth {
 
     if ($env:AGENTS_ENFORCEMENT -eq 'off') { return $true }
 
-    $protected = @('handoff_written', 'implementation_done', 'verification_evidence')
+    $protected = @('verification_evidence')
     if ($protected -notcontains $GateName) { return $true }
 
     if ($WaiverReason) {
@@ -86,54 +82,6 @@ function Test-GateFilesystemTruth {
     }
 
     switch ($GateName) {
-        'handoff_written' {
-            $hf = Join-Path $SessionDir 'handoffs.md'
-            if (-not (Test-Path $hf)) {
-                Write-Error "GATE BLOCKED: 'handoff_written' requires $hf to exist. None found. Pass -Waiver '<reason>' if intentionally skipping."
-                return $false
-            }
-            $mtime = (Get-Item $hf).LastWriteTime
-            if ($mtime -le $sessionStart) {
-                Write-Error "GATE BLOCKED: 'handoff_written' requires $hf to be modified during this session. mtime=$mtime, session_start=$sessionStart. Write the handoff or pass -Waiver '<reason>'."
-                return $false
-            }
-            $size = (Get-Item $hf).Length
-            if ($size -lt 32) {
-                Write-Error "GATE BLOCKED: '$hf' is suspiciously small ($size bytes). Empty/placeholder handoffs are rejected."
-                return $false
-            }
-            if (-not (Test-VerificationFreshness -SessionDir $SessionDir -RepoRoot $repoRoot)) {
-                return $false
-            }
-            return $true
-        }
-        'implementation_done' {
-            if (-not $repoRoot -or -not (Test-Path $repoRoot)) {
-                Write-Error "GATE BLOCKED: 'implementation_done' needs repo_root in baseline.json to verify .kit/context writes. Run session-start-hook with -RepoRoot, or pass -Waiver '<reason>' for non-repo work."
-                return $false
-            }
-            $kitDir = Join-Path $repoRoot '.kit\context'
-            if (-not (Test-Path $kitDir)) {
-                Write-Error "GATE BLOCKED: 'implementation_done' requires .kit/context/ in '$repoRoot'. Run /kit-init or pass -Waiver 'no-kit'."
-                return $false
-            }
-            $candidates = @(
-                (Join-Path $kitDir 'memory.md'),
-                (Join-Path $kitDir 'agent-memory\shared.md')
-            )
-            $touched = $false
-            foreach ($c in $candidates) {
-                if ((Test-Path $c) -and ((Get-Item $c).LastWriteTime -gt $sessionStart)) {
-                    $touched = $true
-                    break
-                }
-            }
-            if (-not $touched) {
-                Write-Error "GATE BLOCKED: 'implementation_done' requires at least one of $($candidates -join ' OR ') to be modified during this session. None were. Update durable memory with the architectural facts you learned, or pass -Waiver '<reason>' for trivial changes."
-                return $false
-            }
-            return $true
-        }
         'verification_evidence' {
             $evPath = Join-Path $SessionDir 'workflow-evidence.json'
             if (-not (Test-Path $evPath)) {

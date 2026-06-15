@@ -11,17 +11,23 @@
 # These are smoke tests — happy paths and obvious failure modes only.
 # Deeper behavior tests live with each tool's documented contract.
 
-BeforeAll {
-    $script:RepoRoot   = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
-    $script:ToolsDir   = Join-Path $script:RepoRoot "bundle/global/.agents/tools"
-    # Use a temp AGENTS_HOME so tests don't pollute the real user dir
-    $script:TestAgents = Join-Path ([System.IO.Path]::GetTempPath()) "agents-pester-$([guid]::NewGuid().ToString('N').Substring(0,8))"
-    $env:AGENTS_HOME           = $script:TestAgents
-    $env:AGENTS_SESSION_ROOT   = Join-Path $script:TestAgents "session-state"
-    New-Item -ItemType Directory -Path $env:AGENTS_SESSION_ROOT -Force | Out-Null
+$pesterModule = Get-Module Pester | Sort-Object Version -Descending | Select-Object -First 1
+if (-not $pesterModule) {
+    $pesterModule = Get-Module -ListAvailable Pester | Sort-Object Version -Descending | Select-Object -First 1
+}
+if (-not $pesterModule -or $pesterModule.Version -lt [version]"5.0.0") {
+    throw "Pester 5.0+ is required for this suite. Install with: Install-Module Pester -MinimumVersion 5.0.0 -Scope CurrentUser -Force"
 }
 
-AfterAll {
+$script:RepoRoot   = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
+$script:ToolsDir   = Join-Path $script:RepoRoot "bundle/global/.agents/tools"
+# Use a temp AGENTS_HOME so tests don't pollute the real user dir
+$script:TestAgents = Join-Path ([System.IO.Path]::GetTempPath()) "agents-pester-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+$env:AGENTS_HOME           = $script:TestAgents
+$env:AGENTS_SESSION_ROOT   = Join-Path $script:TestAgents "session-state"
+New-Item -ItemType Directory -Path $env:AGENTS_SESSION_ROOT -Force | Out-Null
+
+function Cleanup-TestHarness {
     if (Test-Path $script:TestAgents) {
         Remove-Item -Recurse -Force $script:TestAgents -ErrorAction SilentlyContinue
     }
@@ -134,31 +140,515 @@ Describe "state-init + state-gate" {
         & (Join-Path $script:ToolsDir "state-gate.ps1") -SessionId $script:Sid -Gate "verification_evidence" 2>&1 | Out-Null
         $LASTEXITCODE | Should -Be 1
     }
+    It "state-gate marks implementation_done without requiring repo memory or wiki writes" {
+        & (Join-Path $script:ToolsDir "state-gate.ps1") -SessionId $script:Sid -Mark "implementation_done" 2>&1 | Out-Null
+        $LASTEXITCODE | Should -Be 0
+        $statePath = Join-Path $env:AGENTS_SESSION_ROOT "$($script:Sid)/state.json"
+        $state = Get-Content $statePath -Raw | ConvertFrom-Json
+        $state.gates.implementation_done | Should -Be $true
+    }
+}
+
+Describe "lean loop workflow defaults" {
+    BeforeAll {
+        $script:DefaultWorkflowFiles = @(
+            "bundle/adapters/_shared/workflow-commands/build.md",
+            "bundle/adapters/_shared/workflow-commands/review.md",
+            "bundle/adapters/_shared/workflow-commands/goal.md",
+            "bundle/adapters/_shared/workflow-commands/refactor.md",
+            "bundle/adapters/_shared/workflow-commands/redesign.md",
+            "bundle/adapters/_shared/workflow-commands/security-review.md",
+            "bundle/global/.agents/skills/build/SKILL.md",
+            "bundle/global/.agents/skills/review/SKILL.md",
+            "bundle/global/.agents/skills/goal/SKILL.md",
+            "bundle/global/.agents/skills/refactor/SKILL.md",
+            "bundle/global/.agents/skills/redesign/SKILL.md",
+            "bundle/adapters/_shared/orchestrator/main-session.template.md",
+            "bundle/adapters/_shared/orchestrator/primary-agent.template.md",
+            "bundle/adapters/claude-code/CLAUDE.md",
+            "bundle/adapters/opencode/AGENTS.md",
+            "AGENTS.md",
+            "CLAUDE.md"
+        ) | ForEach-Object { Join-Path $script:RepoRoot $_ }
+        $script:DefaultWorkflowText = ($script:DefaultWorkflowFiles | ForEach-Object { Get-Content $_ -Raw }) -join "`n"
+        $script:LeanLoopDocFiles = @(
+            "README.md",
+            "docs/workflow-matrix.md",
+            ".wiki/features.md",
+            ".wiki/codebase.md",
+            "bundle/adapters/_shared/AGENT-INSTRUCTIONS.md",
+            "bundle/adapters/gemini-cli/GEMINI.md",
+            "bundle/adapters/generic/AGENTS.md"
+        ) | ForEach-Object { Join-Path $script:RepoRoot $_ }
+        $script:LeanLoopDocText = ($script:LeanLoopDocFiles | ForEach-Object { Get-Content $_ -Raw }) -join "`n"
+        $script:TestLoopSurfaceFiles = @(
+            "bundle/adapters/_shared/workflow-commands/build.md",
+            "bundle/global/.agents/skills/build/SKILL.md",
+            "bundle/adapters/_shared/workflow-commands/goal.md",
+            "bundle/global/.agents/skills/goal/SKILL.md",
+            "bundle/adapters/_shared/specialist-agents/code-quality-reviewer.md",
+            "bundle/adapters/_shared/workflow-agents/workflow-implementer.md",
+            "bundle/adapters/_shared/AGENT-INSTRUCTIONS.md",
+            "README.md",
+            "docs/workflow-matrix.md",
+            ".wiki/features.md",
+            "bundle/global/.agents/tools/pre-session.ps1"
+        ) | ForEach-Object { Join-Path $script:RepoRoot $_ }
+        $script:TestLoopSurfaceText = ($script:TestLoopSurfaceFiles | ForEach-Object { Get-Content $_ -Raw }) -join "`n"
+        $script:PreSessionText = Get-Content (Join-Path $script:RepoRoot "bundle/global/.agents/tools/pre-session.ps1") -Raw
+        $script:LazyLoopSkills = @(
+            "test-strategy",
+            "silent-failure-hunter",
+            "verification-before-completion",
+            "skill-import"
+        )
+    }
+
+    It "routes normal review through code-quality-reviewer plus conditional security-reviewer" {
+        $script:DefaultWorkflowText | Should -Match "code-quality-reviewer"
+        $script:DefaultWorkflowText | Should -Match "security-reviewer"
+    }
+
+    It "does not route default workflows to legacy reviewer or verifier agents" {
+        $script:DefaultWorkflowText | Should -Not -Match "workflow-reviewer|workflow-skeptic|adversarial-reviewer|qa-reviewer|spec-reviewer|pr-reviewer|goal-reviewer|final-verifier|slop-refactorer|modularity-expert"
+    }
+
+    It "keeps self-improvement and writeback tools out of default lifecycle scripts" {
+        $lifecycleText = @(
+            (Get-Content (Join-Path $script:ToolsDir "pre-session.ps1") -Raw),
+            (Get-Content (Join-Path $script:ToolsDir "post-session.ps1") -Raw),
+            (Get-Content (Join-Path $script:ToolsDir "session-start-hook.ps1") -Raw),
+            (Get-Content (Join-Path $script:ToolsDir "session-end-hook.ps1") -Raw),
+            (Get-Content (Join-Path $script:ToolsDir "subagent-stop-hook.ps1") -Raw)
+        ) -join "`n"
+
+        $lifecycleText | Should -Not -Match "auto-consolidate|compress-memory|harness-propose|auto-apply-reflect|prompt-improver|reflect-trigger|memory-inbox|verify-writeback"
+    }
+
+    It "documents the lean loop instead of old default fanout behavior" {
+        $script:LeanLoopDocText | Should -Match "code-quality-reviewer"
+        $script:LeanLoopDocText | Should -Match "security-reviewer"
+        $script:LeanLoopDocText | Should -Match "manual maintenance"
+        $script:LeanLoopDocText | Should -Not -Match 'review uses `workflow-reviewer`|specialist reviewers|final-verifier.*default|writeback gate|auto.*post-session'
+    }
+
+    It "makes test-set-first engineering part of the default build and goal loop" {
+        $script:TestLoopSurfaceText | Should -Match "expected test set|test-set-first"
+        $script:TestLoopSurfaceText | Should -Match "E2E"
+        $script:TestLoopSurfaceText | Should -Match "mock data|fixtures"
+        $script:TestLoopSurfaceText | Should -Match "integration|contract"
+        $script:TestLoopSurfaceText | Should -Match "E2E is infeasible|E2E feasibility"
+    }
+
+    It "ships lazy global loop skills without turning them into default agents" {
+        foreach ($skill in $script:LazyLoopSkills) {
+            Test-Path (Join-Path $script:RepoRoot "bundle/global/.agents/skills/$skill/SKILL.md") | Should -Be $true
+        }
+
+        $testStrategy = Get-Content (Join-Path $script:RepoRoot "bundle/global/.agents/skills/test-strategy/SKILL.md") -Raw
+        $testStrategy | Should -Match "expected test set|smallest test set"
+        $testStrategy | Should -Match "E2E"
+        $testStrategy | Should -Match "mock data|fixtures"
+        $testStrategy | Should -Match "integration/contract"
+
+        $silentFailure = Get-Content (Join-Path $script:RepoRoot "bundle/global/.agents/skills/silent-failure-hunter/SKILL.md") -Raw
+        $silentFailure | Should -Match "swallowed|swallow"
+        $silentFailure | Should -Match "catch"
+        $silentFailure | Should -Match "fallbacks"
+        $silentFailure | Should -Match "logging|exit"
+
+        $verification = Get-Content (Join-Path $script:RepoRoot "bundle/global/.agents/skills/verification-before-completion/SKILL.md") -Raw
+        $verification | Should -Match "fresh"
+        $verification | Should -Match "Exit codes|exit codes"
+        $verification | Should -Match "stale"
+        $verification | Should -Match "orchestrator owns"
+        $verification | Should -Match "final-verifier agent"
+
+        $skillImport = Get-Content (Join-Path $script:RepoRoot "bundle/global/.agents/skills/skill-import/SKILL.md") -Raw
+        $skillImport | Should -Match "temporary directory"
+        $skillImport | Should -Match "Normalize|normalize"
+        $skillImport | Should -Match "host-specific"
+        $skillImport | Should -Match "lazy"
+        $skillImport | Should -Match "validate-bundle"
+
+        foreach ($rel in @(
+            "bundle/adapters/codex-cli/agents/test-strategy.toml",
+            "bundle/adapters/copilot-cli/agents/test-strategy.agent.md",
+            "bundle/adapters/opencode/agents/test-strategy.md",
+            "bundle/adapters/_shared/specialist-agents/test-strategy.md"
+        )) {
+            Test-Path (Join-Path $script:RepoRoot $rel) | Should -Be $false
+        }
+    }
+
+    It "keeps default context retrieval minimal and index-led" {
+        $script:TestLoopSurfaceText | Should -Match "\.wiki/index\.md"
+        $script:TestLoopSurfaceText | Should -Match "on-demand"
+        $script:TestLoopSurfaceText | Should -Match "current request and current code|minimal indexed context"
+        $script:DefaultWorkflowText | Should -Not -Match "specialist-memory-resolver|prompt-synthesizer|product-strategist|marketing-strategist|business-model-analyst"
+        $script:DefaultWorkflowText | Should -Not -Match "read .*agent-memory|load .*agent-memory|agent-memory.*default"
+    }
+
+    It "pins build criteria in each authoritative build surface" {
+        foreach ($rel in @(
+            "bundle/adapters/_shared/workflow-commands/build.md",
+            "bundle/global/.agents/skills/build/SKILL.md"
+        )) {
+            $content = Get-Content (Join-Path $script:RepoRoot $rel) -Raw
+            $content | Should -Match "expected test set"
+            $content | Should -Match "E2E"
+            $content | Should -Match "mock data|fixtures"
+            $content | Should -Match "code-quality-reviewer"
+            $content | Should -Match "security-reviewer"
+            $content | Should -Match "max 3 repair cycles"
+            $content | Should -Match "Completion means"
+        }
+    }
+
+    It "pins goal convergence in both command and global skill" {
+        foreach ($rel in @(
+            "bundle/adapters/_shared/workflow-commands/goal.md",
+            "bundle/global/.agents/skills/goal/SKILL.md"
+        )) {
+            $content = Get-Content (Join-Path $script:RepoRoot $rel) -Raw
+            $content | Should -Match "expected test set"
+            $content | Should -Match "E2E feasibility"
+            $content | Should -Match "Run fresh verification when files changed"
+            $content | Should -Match "max 3 repair cycles"
+            $content | Should -Match "GOAL_STATUS"
+            $content | Should -Match "Do not run legacy reviewer/verifier agents"
+        }
+    }
+
+    It "pins Codex, Copilot, and OpenCode prompts to lean default routing" {
+        foreach ($rel in @(
+            "bundle/adapters/codex-cli/AGENTS.md",
+            "bundle/adapters/copilot-cli/.github/copilot-instructions.md",
+            "bundle/adapters/opencode/AGENTS.md"
+        )) {
+            $content = Get-Content (Join-Path $script:RepoRoot $rel) -Raw
+            $content | Should -Match "code-quality-reviewer"
+            $content | Should -Match "security-reviewer"
+            $content | Should -Not -Match "final-verifier|slop-refactorer|goal-reviewer|Self-improvement runs automatically"
+            $content | Should -Not -Match "product-strategist|marketing-strategist|business-model-analyst|prompt-synthesizer|specialist-memory-resolver|agent-memory"
+        }
+    }
+
+    It "keeps generated Copilot and OpenCode prompts off memory-maintenance gates" {
+        foreach ($rel in @(
+            "bundle/adapters/copilot-cli/.github/copilot-instructions.md",
+            "bundle/adapters/opencode/AGENTS.md"
+        )) {
+            $content = Get-Content (Join-Path $script:RepoRoot $rel) -Raw
+            $content | Should -Match "manual maintenance"
+        }
+    }
+
+    It "does not expose Kilo Code as a supported adapter" {
+        Test-Path (Join-Path $script:RepoRoot "bundle/adapters/kilocode") | Should -Be $false
+        (Get-Content (Join-Path $script:RepoRoot "scripts/install.ps1") -Raw) | Should -Not -Match "kilocode|Kilo Code"
+        (Get-Content (Join-Path $script:RepoRoot "scripts/install.sh") -Raw) | Should -Not -Match "kilocode|Kilo Code"
+    }
+
+    It "doctor validates both Claude Bash lifecycle hooks" {
+        $doctor = Get-Content (Join-Path $script:RepoRoot "scripts/doctor.ps1") -Raw
+        $doctor | Should -Match "pretool-bash-dispatcher\.ps1"
+        $doctor | Should -Match "posttool-bash-verify-mark\.ps1"
+        $doctor | Should -Match "Missing PostToolUse Bash verify hook"
+    }
+
+    It "repo template ships only the lean context scaffold by default" {
+        $required = @(
+            "bundle/repo-template/.kit/context/patterns.md",
+            "bundle/repo-template/.kit/context/conventions.md",
+            "bundle/repo-template/.kit/context/workflow-briefs/workflow-explorer.md",
+            "bundle/repo-template/.kit/context/workflow-briefs/workflow-implementer.md",
+            "bundle/repo-template/.kit/context/workflow-briefs/workflow-ui-qa.md"
+        )
+        foreach ($rel in $required) {
+            Test-Path (Join-Path $script:RepoRoot $rel) | Should -Be $true
+        }
+
+        $forbidden = @(
+            "bundle/repo-template/.kit/context/memory.md",
+            "bundle/repo-template/.kit/context/handoffs.md",
+            "bundle/repo-template/.kit/context/history.md",
+            "bundle/repo-template/.kit/context/reflections.md",
+            "bundle/repo-template/.kit/context/agent-memory/shared.md",
+            "bundle/repo-template/.kit/context/workflow-briefs/workflow-reviewer.md",
+            "bundle/repo-template/.kit/context/workflow-briefs/workflow-skeptic.md",
+            "bundle/repo-template/.kit/context/workflow-briefs/prompt-synthesizer.md"
+        )
+        foreach ($rel in $forbidden) {
+            Test-Path (Join-Path $script:RepoRoot $rel) | Should -Be $false
+        }
+    }
+
+    It "keeps the pre-session startup brief from forcing handoff or history reads" {
+        $script:PreSessionText | Should -Match 'read \.wiki/\$wikiIndexName FIRST'
+        $script:PreSessionText | Should -Match "Do not load by default"
+        $script:PreSessionText | Should -Match "load only when the task explicitly resumes"
+        $script:PreSessionText | Should -Not -Match "read \\.kit/context/memory\\.md \\+ handoffs\\.md \\+ patterns\\.md first"
+        $script:PreSessionText | Should -Not -Match "read its handoff path before planning"
+        $script:PreSessionText | Should -Not -Match "read the history entries above before planning"
+        $script:PreSessionText | Should -Not -Match "Scan this BEFORE planning"
+        $script:PreSessionText | Should -Not -Match "read the handoff at .*BEFORE planning"
+        $script:PreSessionText | Should -Not -Match "Scanning session handoff index|Scanning device-wide cross-repo INDEX|Reading recent history|Reading recent git log|brief-resolver"
+        $script:PreSessionText | Should -Not -Match 'Get-Content\s+"\.kit/context/handoffs\.md"'
+    }
+
+    It "pre-session emits an index-led brief even when handoff and history files exist" {
+        $tmpRoot = Join-Path ([System.IO.Path]::GetTempPath()) "pre-session-minimal-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+        $agentsHome = Join-Path $tmpRoot "agents-home"
+        $repo = Join-Path $tmpRoot "repo"
+        $oldHome = $env:AGENTS_HOME
+        $oldSession = $env:AGENTS_SESSION_ROOT
+        New-Item -ItemType Directory -Path (Join-Path $repo ".kit/context") -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $repo ".wiki") -Force | Out-Null
+        Set-Content -Path (Join-Path $repo ".wiki/index.md") -Value "# Index"
+        Set-Content -Path (Join-Path $repo ".wiki/features.md") -Value "# Features"
+        Set-Content -Path (Join-Path $repo ".wiki/.features") -Value "{}"
+        Set-Content -Path (Join-Path $repo ".kit/context/patterns.md") -Value "# Patterns"
+        Set-Content -Path (Join-Path $repo ".kit/context/memory.md") -Value "# Memory"
+        Set-Content -Path (Join-Path $repo ".kit/context/handoffs.md") -Value @"
+- [2026-06-01] test-task: prior work summary
+  -> .kit/session-state/test/handoff.md
+"@
+        Set-Content -Path (Join-Path $repo ".kit/context/history.md") -Value @"
+## 2026-06-01
+Changed something important.
+"@
+
+        try {
+            $env:AGENTS_HOME = $agentsHome
+            $env:AGENTS_SESSION_ROOT = Join-Path $agentsHome "session-state"
+            Push-Location $repo
+            $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $script:ToolsDir "pre-session.ps1") -Mode analyze -Task "continue prior work" -SessionId "minimal-context-test" 2>&1 | Out-String
+            Pop-Location
+
+            $LASTEXITCODE | Should -Be 0
+            $out | Should -Match "read \.wiki/index\.md FIRST"
+            $out | Should -Match "Do not load by default"
+            $out | Should -Match "available on demand"
+            $out | Should -Not -Match "read \.kit/context/memory\.md \+ handoffs\.md \+ patterns\.md first"
+            $out | Should -Not -Match "read its handoff path before planning|read the history entries above before planning|Scan this BEFORE planning|read the handoff at .*BEFORE planning"
+            $out | Should -Not -Match "Scanning session handoff index|Scanning device-wide cross-repo INDEX|Reading recent history|Reading recent git log"
+            $script:PreSessionText | Should -Not -Match 'Get-Content\s+"\.kit/context/handoffs\.md"'
+        } finally {
+            if ((Get-Location).Path -eq $repo) { Pop-Location }
+            if ($null -ne $oldHome) { $env:AGENTS_HOME = $oldHome } else { Remove-Item env:AGENTS_HOME -ErrorAction SilentlyContinue }
+            if ($null -ne $oldSession) { $env:AGENTS_SESSION_ROOT = $oldSession } else { Remove-Item env:AGENTS_SESSION_ROOT -ErrorAction SilentlyContinue }
+            Remove-Item -Recurse -Force $tmpRoot -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 Describe "specialist-memory-resolver.ps1" {
     BeforeAll {
         $script:Sid2     = "pester-spec-$([guid]::NewGuid().ToString('N').Substring(0,8))"
         $script:RepoTmp  = Join-Path ([System.IO.Path]::GetTempPath()) "agents-pester-repo-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+        New-Item -ItemType Directory -Path (Join-Path $script:RepoTmp ".kit/context") -Force | Out-Null
         $memDir = Join-Path $script:RepoTmp ".kit/context/agent-memory"
         New-Item -ItemType Directory -Path $memDir -Force | Out-Null
+        Set-Content -Path (Join-Path $script:RepoTmp ".kit/context/patterns.md") -Value "pattern rule: prefer repo templates"
         Set-Content -Path (Join-Path $memDir "shared.md")     -Value "shared rule: always X"
         Set-Content -Path (Join-Path $memDir "implementer.md") -Value "implementer rule: always Y"
     }
     AfterAll {
         if (Test-Path $script:RepoTmp) { Remove-Item -Recurse -Force $script:RepoTmp -ErrorAction SilentlyContinue }
     }
-    It "returns found=true with both shared + role file" {
+    It "returns repo context patterns by default without loading legacy role memory" {
         $out = & (Join-Path $script:ToolsDir "specialist-memory-resolver.ps1") -SessionId $script:Sid2 -Role "implementer" -RepoRoot $script:RepoTmp 2>$null | ConvertFrom-Json
         $out.found | Should -Be $true
-        $out.files.Count | Should -BeGreaterOrEqual 2
+        $out.files.Count | Should -Be 1
+        $out.files[0] | Should -Match "patterns\.md"
+        $out.prompt_block | Should -Match "Repo context patterns"
+        $out.prompt_block | Should -Match "pattern rule"
+        $out.prompt_block | Should -Not -Match "shared rule"
+        $out.prompt_block | Should -Not -Match "implementer rule"
+    }
+    It "loads legacy shared + role files only when explicitly requested" {
+        $out = & (Join-Path $script:ToolsDir "specialist-memory-resolver.ps1") -SessionId $script:Sid2 -Role "implementer" -RepoRoot $script:RepoTmp -IncludeLegacyRoleMemory 2>$null | ConvertFrom-Json
+        $out.found | Should -Be $true
+        $out.include_legacy_role_memory | Should -Be $true
+        $out.files.Count | Should -Be 3
+        $out.prompt_block | Should -Match "pattern rule"
         $out.prompt_block | Should -Match "shared rule"
         $out.prompt_block | Should -Match "implementer rule"
     }
-    It "returns found=false when role memory is missing" {
+    It "returns found=false when repo context is missing" {
         # Use a brand new role with no file
         $out = & (Join-Path $script:ToolsDir "specialist-memory-resolver.ps1") -SessionId $script:Sid2 -Role "no-such-role" -RepoRoot (Join-Path ([System.IO.Path]::GetTempPath()) "empty-$([guid]::NewGuid())") 2>$null | ConvertFrom-Json
         $out.found | Should -Be $false
+    }
+}
+
+Describe "focused harness installer smoke" {
+    BeforeAll {
+        $script:InstallSmokeRoot = Join-Path ([System.IO.Path]::GetTempPath()) "agents-install-smoke-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+        New-Item -ItemType Directory -Path $script:InstallSmokeRoot -Force | Out-Null
+    }
+    AfterAll {
+        Remove-Item -Recurse -Force $script:InstallSmokeRoot -ErrorAction SilentlyContinue
+    }
+
+    It "installs Codex, Copilot CLI, and OpenCode into temp homes with lean-loop content" {
+        $targets = @(
+            @{
+                Name = "codex"
+                Script = "install-codex.ps1"
+                Required = @(
+                    ".codex/AGENTS.md",
+                    ".codex/skills/build/SKILL.md",
+                    ".codex/skills/test-strategy/SKILL.md",
+                    ".codex/skills/silent-failure-hunter/SKILL.md",
+                    ".codex/skills/verification-before-completion/SKILL.md",
+                    ".codex/skills/skill-import/SKILL.md",
+                    ".codex/agents/workflow-explorer.toml",
+                    ".codex/agents/workflow-implementer.toml",
+                    ".codex/agents/workflow-ui-qa.toml",
+                    ".codex/agents/code-quality-reviewer.toml",
+                    ".codex/agents/security-reviewer.toml",
+                    ".codex/agents/playwright-navigator.toml",
+                    ".codex/agents/ux-driver.toml",
+                    ".codex/agents/ui-driver.toml",
+                    ".agents/tools/pre-session.ps1"
+                )
+                LeanFiles = @(".codex/AGENTS.md", ".codex/skills/build/SKILL.md")
+                StaleSeeds = @(
+                    ".codex/agents/final-verifier.toml",
+                    ".codex/agents/goal-orchestrator.toml",
+                    ".codex/agents/workflow-reviewer.toml"
+                )
+                Forbidden = @(
+                    ".codex/agents/final-verifier.toml",
+                    ".codex/agents/goal-orchestrator.toml",
+                    ".codex/agents/workflow-reviewer.toml",
+                    ".codex/agents/workflow-skeptic.toml",
+                    ".codex/agents/modularity-expert.toml",
+                    ".codex/agents/pr-reviewer.toml",
+                    ".codex/agents/prompt-synthesizer.toml",
+                    ".codex/agents/test-strategy.toml",
+                    ".codex/agents/silent-failure-hunter.toml",
+                    ".codex/agents/verification-before-completion.toml",
+                    ".codex/agents/skill-import.toml"
+                )
+            },
+            @{
+                Name = "copilot"
+                Script = "install-copilot.ps1"
+                Required = @(
+                    ".copilot/copilot-instructions.md",
+                    ".agents/skills/build/SKILL.md",
+                    ".agents/skills/test-strategy/SKILL.md",
+                    ".agents/skills/silent-failure-hunter/SKILL.md",
+                    ".agents/skills/verification-before-completion/SKILL.md",
+                    ".agents/skills/skill-import/SKILL.md",
+                    ".copilot/agents/workflow-explorer.agent.md",
+                    ".copilot/agents/workflow-implementer.agent.md",
+                    ".copilot/agents/workflow-ui-qa.agent.md",
+                    ".copilot/agents/code-quality-reviewer.agent.md",
+                    ".copilot/agents/security-reviewer.agent.md",
+                    ".copilot/agents/playwright-navigator.agent.md",
+                    ".copilot/agents/ux-driver.agent.md",
+                    ".copilot/agents/ui-driver.agent.md",
+                    ".agents/bin/copilot/kit-build.ps1"
+                )
+                LeanFiles = @(".copilot/copilot-instructions.md", ".agents/skills/build/SKILL.md")
+                StaleSeeds = @(
+                    ".copilot/agents/final-verifier.agent.md",
+                    ".copilot/agents/goal-orchestrator.agent.md",
+                    ".copilot/agents/workflow-reviewer.agent.md"
+                )
+                Forbidden = @(
+                    ".copilot/agents/final-verifier.agent.md",
+                    ".copilot/agents/goal-orchestrator.agent.md",
+                    ".copilot/agents/workflow-reviewer.agent.md",
+                    ".copilot/agents/workflow-skeptic.agent.md",
+                    ".copilot/agents/modularity-expert.agent.md",
+                    ".copilot/agents/pr-reviewer.agent.md",
+                    ".copilot/agents/prompt-synthesizer.agent.md",
+                    ".copilot/agents/test-strategy.agent.md",
+                    ".copilot/agents/silent-failure-hunter.agent.md",
+                    ".copilot/agents/verification-before-completion.agent.md",
+                    ".copilot/agents/skill-import.agent.md"
+                )
+            },
+            @{
+                Name = "opencode"
+                Script = "install-opencode.ps1"
+                Required = @(
+                    ".config/opencode/AGENTS.md",
+                    ".config/opencode/skills/build/SKILL.md",
+                    ".config/opencode/skills/test-strategy/SKILL.md",
+                    ".config/opencode/skills/silent-failure-hunter/SKILL.md",
+                    ".config/opencode/skills/verification-before-completion/SKILL.md",
+                    ".config/opencode/skills/skill-import/SKILL.md",
+                    ".config/opencode/agents/workflow-explorer.md",
+                    ".config/opencode/agents/workflow-implementer.md",
+                    ".config/opencode/agents/workflow-ui-qa.md",
+                    ".config/opencode/agents/code-quality-reviewer.md",
+                    ".config/opencode/agents/security-reviewer.md",
+                    ".config/opencode/agents/playwright-navigator.md",
+                    ".config/opencode/agents/ux-driver.md",
+                    ".config/opencode/agents/ui-driver.md"
+                )
+                LeanFiles = @(".config/opencode/AGENTS.md", ".config/opencode/skills/build/SKILL.md")
+                StaleSeeds = @(
+                    ".config/opencode/agents/final-verifier.md",
+                    ".config/opencode/agents/goal-orchestrator.md",
+                    ".config/opencode/agents/workflow-reviewer.md"
+                )
+                Forbidden = @(
+                    ".config/opencode/agents/final-verifier.md",
+                    ".config/opencode/agents/goal-orchestrator.md",
+                    ".config/opencode/agents/workflow-reviewer.md",
+                    ".config/opencode/agents/workflow-skeptic.md",
+                    ".config/opencode/agents/modularity-expert.md",
+                    ".config/opencode/agents/pr-reviewer.md",
+                    ".config/opencode/agents/prompt-synthesizer.md",
+                    ".config/opencode/agents/test-strategy.md",
+                    ".config/opencode/agents/silent-failure-hunter.md",
+                    ".config/opencode/agents/verification-before-completion.md",
+                    ".config/opencode/agents/skill-import.md"
+                )
+            }
+        )
+
+        foreach ($target in $targets) {
+            $targetHome = Join-Path $script:InstallSmokeRoot $target.Name
+            New-Item -ItemType Directory -Path $targetHome -Force | Out-Null
+            foreach ($rel in $target.StaleSeeds) {
+                $stalePath = Join-Path $targetHome $rel
+                New-Item -ItemType Directory -Path (Split-Path -Parent $stalePath) -Force | Out-Null
+                Set-Content -Path $stalePath -Value "stale default-off kit agent"
+            }
+
+            $pwshExe = (Get-Process -Id $PID).Path
+            $pwshArgs = @("-NoProfile")
+            if ($PSVersionTable.PSEdition -eq "Desktop" -or $IsWindows) {
+                $pwshArgs += @("-ExecutionPolicy", "Bypass")
+            }
+            $pwshArgs += @("-File", (Join-Path $script:RepoRoot "scripts/$($target.Script)"), "-HomeRoot", $targetHome, "-Force")
+            & $pwshExe @pwshArgs 2>&1 | Out-Null
+            $LASTEXITCODE | Should -Be 0
+
+            foreach ($rel in $target.Required) {
+                Test-Path (Join-Path $targetHome $rel) | Should -Be $true
+            }
+            foreach ($rel in $target.Forbidden) {
+                Test-Path (Join-Path $targetHome $rel) | Should -Be $false
+            }
+
+            $lean = (($target.LeanFiles + $target.LeanFile) | Where-Object { $_ } | ForEach-Object {
+                Get-Content (Join-Path $targetHome $_) -Raw
+            }) -join "`n"
+            $lean | Should -Match "code-quality-reviewer"
+            $lean | Should -Match "security-reviewer"
+            $lean | Should -Match "expected test set"
+            $lean | Should -Match "manual maintenance"
+            $lean | Should -Not -Match "final-verifier|slop-refactorer|Self-improvement runs automatically"
+        }
     }
 }
 
@@ -535,35 +1025,22 @@ Describe "kit-goal.sh routes through kit workflow wrappers" {
         $content | Should -Match "/bootstrap-harness"
     }
 
-    It "shared goal-orchestrator agent references kit-build.sh" {
+    It "shared goal-orchestrator agent routes through workflow commands, not shell wrappers" {
         $agentPath = Join-Path $script:RepoRoot "bundle/adapters/_shared/specialist-agents/goal-orchestrator.md"
         $content = Get-Content $agentPath -Raw -ErrorAction SilentlyContinue
-        $content | Should -Match "kit-build\.sh"
+        $content | Should -Match "/build"
+        $content | Should -Match "/investigate"
+        $content | Should -Match "/analyze"
+        $content | Should -Match "/redesign"
+        $content | Should -Not -Match "kit-build\.sh|kit-investigate\.sh|kit-analyze\.sh|kit-redesign\.sh"
     }
 
-    It "shared goal-orchestrator agent references kit-investigate.sh" {
+    It "shared goal-orchestrator agent does not own lifecycle shell mode plumbing" {
         $agentPath = Join-Path $script:RepoRoot "bundle/adapters/_shared/specialist-agents/goal-orchestrator.md"
         $content = Get-Content $agentPath -Raw -ErrorAction SilentlyContinue
-        $content | Should -Match "kit-investigate\.sh"
-    }
-
-    It "shared goal-orchestrator agent references kit-analyze.sh" {
-        $agentPath = Join-Path $script:RepoRoot "bundle/adapters/_shared/specialist-agents/goal-orchestrator.md"
-        $content = Get-Content $agentPath -Raw -ErrorAction SilentlyContinue
-        $content | Should -Match "kit-analyze\.sh"
-    }
-
-    It "shared goal-orchestrator agent references lifecycle pre-session" {
-        $agentPath = Join-Path $script:RepoRoot "bundle/adapters/_shared/specialist-agents/goal-orchestrator.md"
-        $content = Get-Content $agentPath -Raw -ErrorAction SilentlyContinue
-        $content | Should -Match "pre-session\.ps1"
-    }
-
-    It "shared goal-orchestrator agent uses a valid pre-session mode" {
-        $agentPath = Join-Path $script:RepoRoot "bundle/adapters/_shared/specialist-agents/goal-orchestrator.md"
-        $content = Get-Content $agentPath -Raw -ErrorAction SilentlyContinue
+        $content | Should -Not -Match "pre-session\.ps1"
         $content | Should -Not -Match "-Mode goal"
-        $content | Should -Match "-Mode analyze"
+        $content | Should -Not -Match "-Mode analyze"
     }
 
     It "shared goal-orchestrator agent routes CODE to /build" {
@@ -803,12 +1280,9 @@ Describe "kit-goal.sh routing determinism" {
         $script:AgentContent | Should -Not -Match "Single-edit task with obvious scope"
     }
 
-    It "goal-orchestrator agent routes DESIGN through kit-redesign.sh" {
-        $script:AgentContent | Should -Match "kit-redesign\.sh"
-    }
-
-    It "goal-orchestrator agent lists kit-redesign wrapper in shell wrappers table" {
-        $script:AgentContent | Should -Match "kit-redesign\.\(ps1\\\|sh\)"
+    It "goal-orchestrator agent routes DESIGN through /redesign" {
+        $script:AgentContent | Should -Match "/redesign"
+        $script:AgentContent | Should -Not -Match "kit-redesign\.sh"
     }
 
     It "goal-orchestrator agent description does not mention triaging simple tasks" {
@@ -827,22 +1301,7 @@ Describe "kit-goal.sh routing determinism" {
         }
     }
 
-    It "goal-e2e-smoke fixture kit-goal mirrors stay synced with bundled adapter" {
-        $bundleGoal = Get-Content (Join-Path $script:RepoRoot "bundle/adapters/copilot-cli/bin/kit-goal.sh") -Raw
-        foreach ($mirror in @("goal-e2e-smoke/bin/kit-goal.sh", "goal-e2e-smoke/.github/copilot-bin/kit-goal.sh")) {
-            (Get-Content (Join-Path $script:RepoRoot $mirror) -Raw) | Should -Be $bundleGoal
-        }
-    }
-
-    It "goal-e2e-smoke fixture has multiple Python test files for substantive coverage" {
-        $smokeTestDir = Join-Path $script:RepoRoot "goal-e2e-smoke/tests"
-        $testFiles = @(Get-ChildItem -Path $smokeTestDir -Filter "test_*.py" -File -ErrorAction SilentlyContinue)
-        $testFiles.Count | Should -BeGreaterThan 1
-    }
-
-    It "goal-e2e-smoke fixture has src modules beyond the trivial calculator" {
-        $smokeSrcDir = Join-Path $script:RepoRoot "goal-e2e-smoke/src"
-        $srcFiles = @(Get-ChildItem -Path $smokeSrcDir -Filter "*.py" -File -ErrorAction SilentlyContinue)
-        $srcFiles.Count | Should -BeGreaterOrEqual 2
+    AfterAll {
+        Cleanup-TestHarness
     }
 }

@@ -22,8 +22,9 @@ hook surface (`SessionStart`, `SessionEnd`, `AfterAgent`, `PreCompress`,
    - `/refactor` for principle-driven restructuring
    - `/redesign` for greenfield UI / multi-component visual work (swarm-eligible)
    - `/security-review` for adversarial audits (swarm-eligible)
-5. Use role-specific repo memory only through the mechanical resolver path:
+5. Use repo-specific agent guidance only through the mechanical resolver path:
    `pwsh ~/.agents/tools/specialist-memory-resolver.ps1 -SessionId {id} -Role {role}`
+   Add `-IncludeLegacyRoleMemory` only when old read-only `agent-memory/` files are explicitly needed.
 6. Default execution is **sequential**. Swarms only fire when verb is
    parallel-safe, scope is fan-out-able, and the user opts in.
 
@@ -88,7 +89,7 @@ turn-budget pressure and tendency to defer record-keeping.
 ## File layout to respect
 
 ```text
-.kit/context/         # repo memory + role memory + handoffs index
+.kit/context/         # repo memory + repo context patterns + handoffs index
 .kit/workflows/       # repo-specific workflow overrides
 .wiki/                # user-visible feature docs
 ```

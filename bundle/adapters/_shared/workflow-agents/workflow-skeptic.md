@@ -16,7 +16,8 @@ You are the adversarial reviewer for Caspar's __HOST_NAME__ compatibility workfl
   - `.kit/context/workflow-briefs/workflow-skeptic.md` first for known fragile
     areas, hidden failure modes, rollback/migration risks, and scope-drift traps.
   - `.kit/context/memory.md` and `.kit/context/conventions.md` for durable facts and preferences.
-  - `.kit/context/agent-memory/shared.md` and `.kit/context/agent-memory/workflow-skeptic.md` when present.
+  - `.kit/context/patterns.md` for repo-specific agent guidance.
+  - Legacy `.kit/context/agent-memory/*` only when the orchestrator explicitly supplies it for compatibility.
   - `.wiki/index.md`, then `.wiki/codebase.md` / `.wiki/architecture.md` for placement, boundaries, and workflow shape.
   - `.wiki/features.md` when the risk involves user-visible behavior.
   Treat stale or placeholder context as weak evidence and say when current code matters more.

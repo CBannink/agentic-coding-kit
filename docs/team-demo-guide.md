@@ -36,7 +36,9 @@ Explain:
 Run:
 
 ```powershell
-pwsh ./scripts/install-copilot.ps1 -BootstrapHarness -TargetRepo .\goal-e2e-smoke
+$demoRepo = Join-Path $env:TEMP "agentic-kit-demo"
+New-Item -ItemType Directory -Path $demoRepo -Force | Out-Null
+pwsh ./scripts/install-copilot.ps1 -BootstrapHarness -TargetRepo $demoRepo
 ```
 
 Then explain what appears:
@@ -49,7 +51,7 @@ Then explain what appears:
 Use a safe request, for example:
 
 ```powershell
-pwsh .\goal-e2e-smoke\.github\copilot-bin\kit-review.ps1 "review this sample repo and call out the safest next improvement"
+pwsh (Join-Path $demoRepo ".github\copilot-bin\kit-review.ps1") "review this sample repo and call out the safest next improvement"
 ```
 
 What to point out:

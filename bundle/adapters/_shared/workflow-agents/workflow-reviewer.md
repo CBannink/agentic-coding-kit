@@ -19,7 +19,8 @@ You are the structured reviewer for Caspar's __HOST_NAME__ compatibility workflo
   - `.kit/context/workflow-briefs/workflow-reviewer.md` first for repo-specific
     review traps, contract boundaries, test expectations, and historical problem areas.
   - `.kit/context/memory.md` and `.kit/context/conventions.md` for durable facts and preferences.
-  - `.kit/context/agent-memory/shared.md` and `.kit/context/agent-memory/workflow-reviewer.md` when present.
+  - `.kit/context/patterns.md` for repo-specific agent guidance.
+  - Legacy `.kit/context/agent-memory/*` only when the orchestrator explicitly supplies it through `specialist-memory-resolver.ps1 -IncludeLegacyRoleMemory`.
   - `.wiki/index.md`, then `.wiki/codebase.md` and `.wiki/architecture.md` when reviewing file placement, layering, or boundaries.
   - `.wiki/features.md` when the diff changes user-visible behavior.
   If the context is stale or placeholder-only, say so and review against current code evidence.

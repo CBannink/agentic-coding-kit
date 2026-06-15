@@ -124,117 +124,41 @@ if ($Mode -eq "build" -or $Mode -eq "refactor") {
     }
 }
 
-# ── Step 3: Scan Session Handoff Index ───────────────────────────────────────
-Write-Host "${DIM}Scanning session handoff index...${RESET}"
-$relevantHandoffs = @()
-
-if (Test-Path $MemoryPath) {
-    $memLines = Get-Content $MemoryPath
-    $inIndex = $false
-    $inTable = $false
-
-    foreach ($line in $memLines) {
-        if ($line -match "^## Session Handoff Index") { $inIndex = $true; continue }
-        if ($inIndex -and $line -match "^## ") { break }
-        if ($inIndex -and $line -match "^\| Date") { $inTable = $true; continue }
-        if ($inIndex -and $line -match "^\|[-| ]+\|") { continue }
-        if ($inTable -and $line -match "^\| \d{4}-\d{2}-\d{2}") {
-            $parts = $line -split '\|' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
-            if ($parts.Count -ge 4) {
-                $relevantHandoffs += [PSCustomObject]@{
-                    Date    = $parts[0]
-                    Task    = $parts[1]
-                    Summary = $parts[2]
-                    Path    = $parts[3]
-                }
-            }
-        }
-    }
-
-    if ($relevantHandoffs.Count -eq 0) {
-        Write-Host "  No prior sessions found in index"
-    } else {
-        Write-Host "  Found $($relevantHandoffs.Count) prior session(s) in index"
-    }
-} else {
-    Write-Host "  ${YELLOW}⚠ memory.md not found at $MemoryPath -- handoff index unavailable${RESET}"
+# ── Step 3: Optional context availability ─────────────────────────────────────
+$contextDir = if ($MemoryPath) { Split-Path $MemoryPath } else { ".kit/context" }
+$repoHandoffsPath = Join-Path $contextDir "handoffs.md"
+$historyPath = Join-Path $contextDir "history.md"
+$repoHandoffsAvailable = Test-Path $repoHandoffsPath
+$historyAvailable = Test-Path $historyPath
+Write-Host "${DIM}Checking optional context availability...${RESET}"
+if ($repoHandoffsAvailable) {
+    Write-Host "  Repo handoffs available on demand"
+}
+if ($historyAvailable) {
+    Write-Host "  Repo history available on demand"
+}
+if (-not $repoHandoffsAvailable -and -not $historyAvailable) {
+    Write-Host "  No repo handoff/history files found"
 }
 
 # ── Step 3.4: Cross-repo handoff scan (device-wide INDEX.md) ─────────────────
-# Surface up to 5 most recent rows from the device-wide INDEX.md, optionally
-# filtered by keyword overlap with the current task. This is the agent's
-# trigger to pull in similar work done in other repos.
 $globalIndex = Get-CrossRepoIndexPath
-$globalMatches = @()
-if (Test-Path $globalIndex) {
-    Write-Host "${DIM}Scanning device-wide cross-repo INDEX.md...${RESET}"
-    $taskWords = @($Task -split '\s+' | Where-Object { $_.Length -ge 4 } | ForEach-Object { $_.ToLower() })
-    $rows = Get-Content $globalIndex | Where-Object { $_ -match "^\| \d{4}-\d{2}-\d{2} \|" }
-    foreach ($r in $rows) {
-        $score = 0
-        foreach ($w in $taskWords) {
-            if ($r.ToLower() -like "*$w*") { $score++ }
-        }
-        if ($score -gt 0 -or $taskWords.Count -eq 0) {
-            $globalMatches += [PSCustomObject]@{ Score = $score; Row = $r }
-        }
-    }
-    $globalMatches = @($globalMatches | Sort-Object Score -Descending | Select-Object -First 5)
-    if ($globalMatches.Count -gt 0) {
-        Write-Host "  Found $($globalMatches.Count) cross-repo match(es) in global index"
-    }
+$globalIndexAvailable = Test-Path $globalIndex
+if ($globalIndexAvailable) {
+    Write-Host "  Cross-repo index available on demand"
 }
 
 # ── Step 3.5: Recent History ─────────────────────────────────────────────────
-$historyPath = if ($MemoryPath) { Join-Path (Split-Path $MemoryPath) "history.md" } else { ".kit/context/history.md" }
-$recentHistoryEntries = @()
-
-if (Test-Path $historyPath) {
-    Write-Host "${DIM}Reading recent history.md...${RESET}"
-    $histLines = Get-Content $historyPath
-    $currentEntry = @()
-    $entryCount = 0
-    $maxEntries = 5   # Show last 5 history entries in the brief
-
-    foreach ($line in $histLines) {
-        if ($line -match "^## \d{4}-\d{2}-\d{2}") {
-            if ($currentEntry.Count -gt 0) {
-                $recentHistoryEntries = @([PSCustomObject]@{ Text = ($currentEntry -join "`n").Trim() }) + $recentHistoryEntries
-                $currentEntry = @()
-                $entryCount++
-                if ($entryCount -ge $maxEntries) { break }
-            }
-            $currentEntry = @($line)
-        } elseif ($currentEntry.Count -gt 0) {
-            $currentEntry += $line
-        }
-    }
-    if ($currentEntry.Count -gt 0 -and $entryCount -lt $maxEntries) {
-        $recentHistoryEntries = @([PSCustomObject]@{ Text = ($currentEntry -join "`n").Trim() }) + $recentHistoryEntries
-    }
-
-    if ($recentHistoryEntries.Count -gt 0) {
-        Write-Host "  Found $($recentHistoryEntries.Count) recent history entry/entries"
-    } else {
-        Write-Host "  history.md exists but no dated entries found"
-    }
-} else {
-    Write-Host "  ${DIM}history.md not found -- no prior history context${RESET}"
-}
+# History content is on-demand only; do not read it during startup.
 
 # ── Step 3.6: Recent Git Log ──────────────────────────────────────────────────
-$gitLog = @()
-$gitLogStr = ""
 $gitInRepo = $false
 
 try {
     $gitCheck = git rev-parse --is-inside-work-tree 2>$null
     if ($LASTEXITCODE -eq 0) {
         $gitInRepo = $true
-        Write-Host "${DIM}Reading recent git log...${RESET}"
-        $gitLog = git log --oneline -20 2>$null
-        $gitLogStr = if ($gitLog) { $gitLog -join "`n" } else { "(no commits yet)" }
-        Write-Host "  Got $($gitLog.Count) recent commit(s)"
+        Write-Host "  Git history available on demand"
     }
 } catch {
     Write-Host "  ${DIM}Not in a git repo or git unavailable${RESET}"
@@ -243,9 +167,9 @@ try {
 
 Write-Host ""
 
-# ── Step 3.7: Reflections Gate ─────────────────────────────────────────────────
-# Scans BOTH repo-local and global reflections. 5+ unaddressed = mandatory /reflect
-# before this session can ship. This is the self-improvement loop hard gate.
+# ── Step 3.7: Reflection Backlog Notice ────────────────────────────────────────
+# Reflection maintenance is manual-only. Surface the count for awareness, but do
+# not gate normal build/review/refactor/redesign work on it.
 $repoReflectionsPath   = ".kit/context/reflections.md"
 $globalReflectionsPath = Join-Path $script:AgentsRoot "context/reflections.md"
 $reflectCountRepo = 0
@@ -259,14 +183,9 @@ function Count-Unaddressed-Reflections([string]$path) {
 $reflectCountRepo   = Count-Unaddressed-Reflections $repoReflectionsPath
 $reflectCountGlobal = Count-Unaddressed-Reflections $globalReflectionsPath
 $reflectCount = $reflectCountRepo + $reflectCountGlobal
-$reflectNeeded = $reflectCount -ge 5
-$reflectSoft   = ($reflectCount -ge 3) -and -not $reflectNeeded
-
-if ($reflectCount -gt 0 -or $reflectNeeded) {
-    $rSuffix = if ($reflectNeeded) { " -- REFLECT NEEDED (>=5 unaddressed)" }
-               elseif ($reflectSoft) { " -- soft warning (>=3 unaddressed)" }
-               else { "" }
-    Write-Host "  Reflections: $reflectCount unaddressed (repo=$reflectCountRepo, global=$reflectCountGlobal)$rSuffix"
+$reflectNeeded = $false
+if ($reflectCount -gt 0) {
+    Write-Host "  Reflections: $reflectCount unaddressed (repo=$reflectCountRepo, global=$reflectCountGlobal) -- manual maintenance only"
 }
 
 # ── Step 3.8: Wiki + Build Brief Detection ───────────────────────────────────────
@@ -280,20 +199,7 @@ if (Test-Path $wikiDir -PathType Container) {
 $wikiFeaturesExists = Test-Path ".wiki/features.md"
 $wikiExists = [bool]$wikiIndexPath -and $wikiFeaturesExists
 $wikiIndexName = if ($wikiIndexPath) { Split-Path $wikiIndexPath -Leaf } else { "index.md" }
-$buildBriefPath = ""
-$buildBriefSource = ""
-if ($Mode -eq "build") {
-    $briefJson = & $script:AgentsShell -NoProfile -File "$TOOLS/brief-resolver.ps1" -Date (Get-Date -Format "yyyy-MM-dd") -SharedHandoffsPath ".kit/context/handoffs.md" 2>$null
-    if ($briefJson) {
-        try {
-            $brief = $briefJson | ConvertFrom-Json
-            if ($brief.found) {
-                $buildBriefPath = $brief.handoff_path
-                $buildBriefSource = $brief.source
-            }
-        } catch {}
-    }
-}
+$buildBriefAvailable = ($Mode -eq "build" -and (Test-Path ".kit/context/handoffs.md"))
 if ($wikiExists) {
     Write-Host "  Wiki: .wiki/$wikiIndexName + features.md exist"
 } else {
@@ -306,33 +212,24 @@ if ($wikiExists) {
 # Codex tree detection -- the kit's runtime memory artifacts. Skills assume
 # .kit/context/memory.md and friends exist; without them they no-op.
 $codexExists = Test-Path ".kit/context/memory.md"
+$patternsExists = Test-Path ".kit/context/patterns.md"
 if ($codexExists) {
-    Write-Host "  KIT: .kit/context/memory.md exists"
+    if ($patternsExists) {
+        Write-Host "  KIT: .kit/context/memory.md + patterns.md exist"
+    } else {
+        Write-Host "${YELLOW}  KIT: .kit/context/memory.md exists, but patterns.md is missing (legacy repo guidance surface).${RESET}"
+    }
 } else {
     Write-Host "${YELLOW}  KIT: MISSING -- .kit/ runtime memory tree not initialized in this repo.${RESET}"
     Write-Host "${YELLOW}         Skills (/build, /plan, /review) will silently skip context-load steps.${RESET}"
-    Write-Host "${YELLOW}         Run /kit-init to bootstrap memory.md + handoffs.md + agent-memory/.${RESET}"
+    Write-Host "${YELLOW}         Run /kit-init to bootstrap memory.md + handoffs.md + patterns.md (agent-memory/ stays legacy read-only).${RESET}"
 }
-if ($buildBriefPath)    { Write-Host "  Prior build brief from today ($buildBriefSource): $buildBriefPath" }
+if ($buildBriefAvailable) { Write-Host "  Prior build briefs may be available on demand in .kit/context/handoffs.md" }
 
 # ── Step 3.9: Parallel Instance Check ───────────────────────────────────────────
 $parallelWarning = ""
-if (Test-Path ".kit/context/handoffs.md") {
-    $nowPt = Get-Date
-    foreach ($hLine in (Get-Content ".kit/context/handoffs.md")) {
-        if ($hLine -match "SESSION: (\d{4}-\d{2}-\d{2}--\d{6}).*Task: ([^|]+)\|") {
-            try {
-                $sDt = [datetime]::ParseExact($Matches[1].Trim(), "yyyy-MM-dd--HHmmss", $null)
-                $oTask = $Matches[2].Trim()
-                $minsAgo = [int](($nowPt - $sDt).TotalMinutes)
-                if ($minsAgo -le 60 -and $oTask -ne $taskSlug) {
-                    $parallelWarning = "PARALLEL: task=$oTask was active ${minsAgo}min ago -- append-only mode"
-                    Write-Host "  WARNING: $parallelWarning"
-                }
-            } catch {}
-        }
-    }
-}
+# Keep startup cheap and context-light. Do not parse handoffs.md here; handoffs
+# are on-demand context, not a default lifecycle input.
 
 Write-Host "${BOLD}${GREEN}╔══════════════════════════════════════════════════════════╗${RESET}"
 Write-Host "${BOLD}${GREEN}║  PASTE THIS AS YOUR FIRST MESSAGE IN COPILOT CLI         ║${RESET}"
@@ -346,45 +243,32 @@ $brief = @"
 - TASK: $Task
 - SCOPE: $scope ($scopeReason)
 - TIER_REC: $tierRec ($tierReason -- orchestrator may override UPWARD only)
-- REFLECT_NEEDED: $(if ($reflectNeeded) { "YES ($reflectCount unaddressed entries -- run /reflect first)" } else { "no ($reflectCount entries)" })
-- WIKI: $(if ($wikiExists) { "yes -- read .wiki/$wikiIndexName FIRST (TOC, ~100 lines), then use wiki-resolver.ps1 for on-demand section loading. NEVER bulk-read .wiki/sections/." } else { "MISSING -- run /wiki-init to bootstrap (mandatory per global rules)" })
-- KIT: $(if ($codexExists) { "yes -- read .kit/context/memory.md + handoffs.md + agent-memory/shared.md per skill 'Load Context First' steps. Use specialist-memory-resolver.ps1 for per-role memory." } else { "MISSING -- run /kit-init to bootstrap repo memory tree (memory.md + handoffs index + agent-memory/)" })
-- BUILD_BRIEF: $(if ($buildBriefPath) { "YES -- read handoff at $buildBriefPath BEFORE planning (source: $buildBriefSource)" } else { "none" })
+- REFLECT_NEEDED: no ($reflectCount entries; manual maintenance only)
+- WIKI: $(if ($wikiExists) { "yes -- read .wiki/$wikiIndexName FIRST (TOC, ~100 lines), then load only the smallest relevant architecture/codebase/features/principles page. NEVER bulk-read .wiki/sections/." } else { "MISSING -- run /wiki-init to bootstrap (mandatory per global rules)" })
+- KIT: $(if ($codexExists) { "yes -- optional focused context only. Use .kit/context/patterns.md for repo-specific agent guidance when needed; memory.md, handoffs.md, and agent-memory/ are not startup context. agent-memory/ is legacy read-only opt-in via specialist-memory-resolver.ps1 -IncludeLegacyRoleMemory." } else { "MISSING -- run /kit-init to bootstrap repo memory tree (memory.md + handoffs index + patterns.md)" })
+- BUILD_BRIEF: $(if ($buildBriefAvailable) { "prior build briefs may exist in .kit/context/handoffs.md -- load only if this task explicitly resumes or depends on prior work" } else { "none" })
 - PARALLEL_INSTANCE: $(if ($parallelWarning) { $parallelWarning } else { "none detected" })
 - STATE_FILE: $(if ($stateInitialized) { Join-Path (Get-SessionDir $SessionId) "state.json" } else { "not initialized for /$Mode" })
 "@
 
-if ($relevantHandoffs.Count -gt 0) {
-    $brief += "`n`n## Prior Sessions (this repo -- load if relevant to your task)"
-    foreach ($h in $relevantHandoffs) {
-        $brief += "`n  [$($h.Date)] $($h.Task): $($h.Summary)"
-        $brief += "`n  -> $($h.Path)"
-    }
+if ($repoHandoffsAvailable) {
+    $brief += "`n`n## Prior Sessions"
+    $brief += "`n  Repo handoffs exist. Do not load by default; inspect .kit/context/handoffs.md only when the current task explicitly resumes prior work or overlaps a known prior area."
 }
 
-if ($globalMatches.Count -gt 0) {
-    $brief += "`n`n## Cross-Repo Matches (global INDEX.md -- semantically related work in OTHER repos)"
-    $brief += "`n  Read these handoffs only if your task overlaps -- different repo, different conventions."
-    foreach ($m in $globalMatches) {
-        $brief += "`n  $($m.Row)"
-    }
+if ($globalIndexAvailable) {
+    $brief += "`n`n## Cross-Repo Matches"
+    $brief += "`n  Global index exists. Do not load by default; use only for explicit maintenance or clearly overlapping work."
 }
 
-if ($recentHistoryEntries.Count -gt 0) {
-    $brief += "`n`n## Recent History (last $($recentHistoryEntries.Count) entries from history.md)"
-    $brief += "`n  Scan this BEFORE planning. Do not re-implement or re-break what's listed here."
-    foreach ($entry in $recentHistoryEntries) {
-        # Indent each line of the entry for readability
-        $indented = ($entry.Text -split "`n" | ForEach-Object { "  $_" }) -join "`n"
-        $brief += "`n$indented"
-    }
+if ($historyAvailable) {
+    $brief += "`n`n## Recent History"
+    $brief += "`n  Repo history exists. Do not scan by default; consult .kit/context/history.md only when the task touches a known fragile area or explicitly asks for historical context."
 }
 
-if ($gitInRepo -and $gitLogStr) {
-    $brief += "`n`n## Recent Git Log (last 20 commits)"
-    $brief += "`n  Cross-reference with history.md to understand what changed and when."
-    $indentedLog = ($gitLog | ForEach-Object { "  $_" }) -join "`n"
-    $brief += "`n$indentedLog"
+if ($gitInRepo) {
+    $brief += "`n`n## Git History"
+    $brief += "`n  Git history is available for on-demand archaeology only; do not read recent commits by default."
 }
 
 $brief += @"
@@ -393,14 +277,13 @@ $brief += @"
 /$Mode $Task
 
 ## Instructions to orchestrator
-- PRIOR SESSIONS: for each entry above, decide if its summary is relevant to this task. If yes, read its handoff path before planning.
-- RECENT HISTORY: read the history entries above before planning. If your task touches an area mentioned in history, understand what was done and why before changing it. Do not re-implement something already built. Do not re-introduce a bug already fixed.
-- GIT LOG: cross-reference with history. A fix commit followed shortly by a revert = fragile area -- treat with extra caution and flag to user.
+- PRIOR SESSIONS / HISTORY: do not load by default. Use them only when the task explicitly resumes prior work, references a prior decision, or touches a known fragile area.
+- GIT LOG: optional archaeology only. Use when history is relevant to the task, not as startup context.
 - Follow the /$Mode workflow in ~/.agents/skills/$Mode/SKILL.md.
 - TIER_REC in brief is machine-classified. Start with this tier. Override UPWARD only if you have concrete evidence the scope is larger.
-- REFLECT_NEEDED in brief: if YES, run /reflect before starting implementation. This is mandatory.
-- WIKI in brief: if yes, read .wiki/features.md as your first read -- it replaces most explore-phase work.
-- BUILD_BRIEF in brief: if YES, read the handoff at the path given immediately. Use it as the primary prior-session brief.
+- REFLECT_NEEDED is never a normal-work gate. Run /reflect only when explicitly doing maintenance.
+- WIKI in brief: if yes, read .wiki/$wikiIndexName first, then load the smallest relevant wiki file for the task.
+- BUILD_BRIEF in brief: load only when the task explicitly resumes or depends on that prior work.
 - PARALLEL_INSTANCE in brief: if detected, treat .kit/context/ files as append-only for this session.
 "@
 
@@ -428,13 +311,13 @@ Write-Host "${DIM}Session ID saved. Run post-session when done:${RESET}"
 Write-Host "${YELLOW}  pwsh ~/.agents/tools/post-session.ps1 -SessionId $SessionId -Mode $Mode -Task `"$taskSlug`"${RESET}"
 Write-Host ""
 
-# Context bloat guard -- auto-compress if files exceed hard limits
-$bloatGuard = & $script:AgentsShell -NoProfile -File "$TOOLS/context-bloat-guard.ps1" -RepoRoot (Get-Location).Path -AutoFix -Json 2>$null
+# Context bloat guard -- report only. Self-improvement maintenance is manual-only.
+$bloatGuard = & $script:AgentsShell -NoProfile -File "$TOOLS/context-bloat-guard.ps1" -RepoRoot (Get-Location).Path -Json 2>$null
 if ($bloatGuard) {
     try {
         $bg = $bloatGuard | ConvertFrom-Json
         if ($bg.status -eq "critical") {
-            Write-Host "WARN: context files exceed hard limits -- auto-compress ran. Check $($bg.total_critical) file(s)."
+            Write-Host "WARN: context files exceed hard limits -- run manual maintenance when convenient. Check $($bg.total_critical) file(s)."
         } elseif ($bg.status -eq "warn") {
             Write-Host "Note: $($bg.total_warnings) context file(s) approaching soft limit."
         }

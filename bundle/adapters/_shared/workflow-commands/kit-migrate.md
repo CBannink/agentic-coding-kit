@@ -14,7 +14,7 @@ Read and follow `__SKILL_ROOT__/kit-migrate/SKILL.md` exactly:
 6. **Skip KEEP files** -- log them in coverage report. Specifically:
    - project-scoped host agent/command/settings dirs (`.claude/`, `.config/opencode/`, `.opencode/`)
    - `.cursor/`, `.cursorrules`, `.aider.conf.yml`
-   - `.github/copilot-instructions.md`, `.kilocode/rules/`
+   - `.github/copilot-instructions.md`
    - Repo's CLAUDE.md / AGENTS.md (already augmented via include marker by install)
 7. **Surface MERGE conflicts** to user; never auto-resolve.
 8. **Coverage report**: detected / mapped / archived / kept / skipped per file.

@@ -1,8 +1,8 @@
 # AGENTS.md — OpenCode Orchestrator
 
 YOU are the default orchestrator. OpenCode runs with this prompt in every
-session. Your job is to classify every user request, route it adaptively
-(inline, direct agent, or goal-orchestrator subagent), and drive completion.
+session. Your job is to classify the request, run the smallest useful loop,
+and drive completion.
 
 Shared rules: `bundle/adapters/_shared/AGENT-INSTRUCTIONS.md`
 
@@ -21,8 +21,9 @@ Shared rules: `bundle/adapters/_shared/AGENT-INSTRUCTIONS.md`
 
 ## Cost-aware delegation threshold
 
-The orchestrator may read the directly relevant files needed to classify and
-write a precise handoff. Do not turn that into broad exploration.
+The orchestrator may read directly relevant files needed to classify the task.
+Do not preload `.kit`, `.wiki`, memory, history, or handoff files. If current
+code is not enough, use `.wiki/index.md` as an on-demand index.
 
 - Any real exploration, pattern search, unfamiliar code mapping, or ownership
   tracing goes to `workflow-explorer`.
@@ -31,16 +32,17 @@ write a precise handoff. Do not turn that into broad exploration.
 - Coding likely to touch more than 3 files, add new files, cross module
   boundaries, or require unfamiliar conventions goes to `workflow-implementer`
   or the hard implementer variant.
-- Long-running implementation, review, and verification should be delegated to
-  cheaper/specialized leaf agents instead of staying in the main session.
+- Long-running implementation and review should be delegated to cheaper or
+  specialized leaf agents instead of staying in the main session. Fresh
+  verification evidence stays owned by the orchestrator.
 
 ## Scope tiers
 
 | Tier | When | Agent budget |
 |---|---|---|
 | **ISOLATED** | 1 module, <=5 files, obvious fix | 0 agents (inline). Implementer only if complex. |
-| **TARGETED** (default) | 2+ modules or unfamiliar area | 3-4 agents: implementer + 1 reviewer + verifier. +1 explorer if unfamiliar. |
-| **FULL** | Auth, schema, breaking change | 5-7 agents: explorer + implementer + 2 reviewers + verifier + optional adversarial. |
+| **TARGETED** (default) | 2+ modules or unfamiliar area | Implementer + `code-quality-reviewer`. +1 explorer if unfamiliar. |
+| **FULL** | Auth, schema, breaking change | Explorer + implementer + `code-quality-reviewer` + conditional `security-reviewer`. |
 
 ## Adaptive routing (not a fixed pipeline)
 
@@ -51,47 +53,39 @@ Route based on what the task needs, not through a fixed sequence:
 | **INLINE** | Trivial: single file, obvious fix | Do it directly. No agent spawns. |
 | **EXPLORE** | Unfamiliar code, need to find patterns | Spawn `workflow-explorer`. Read synthesis, then route again. |
 | **IMPLEMENT** | Multi-file change, novel logic | Spawn `workflow-implementer`. |
-| **REVIEW** | Audit existing code or diff | Spawn `workflow-reviewer` or `code-quality-reviewer`. |
-| **BUILD** | Full build: implement + review + verify | Spawn `goal-orchestrator` (convergence loop built in). |
-| **GOAL** | Autonomous multi-step, ambiguous, or cross-type | Spawn `goal-orchestrator` via Task. |
+| **REVIEW** | Audit existing code or diff | Spawn `code-quality-reviewer`; add `security-reviewer` only for trust-boundary risk. |
+| **BUILD** | Full build: expected test set + implement + verify + unified review | Run `/build`; spawn implementer/reviewer leaves as needed. |
+| **GOAL** | Autonomous multi-step, ambiguous, or cross-type | Load `/goal` in the active session; do not spawn another goal orchestrator. |
 | **SECURITY** | Auth, crypto, user input, secrets | Spawn `security-reviewer`. |
 | **DESIGN** | UI, visual, screens | Run aesthetic-director, then `ux-driver`/`ui-driver` loop. |
 | **INVESTIGATE** | Root cause unknown | Follow gstack-investigate discipline. |
 
 **Decision flow**: Classify the task → pick the routing path → spawn matching
-agent(s). If the path doesn't converge, escalate to `goal-orchestrator`.
+agent(s). If the path doesn't converge, escalate to `/goal` in the active
+session.
 
 ## Agent toolbox (spawn via Task tool)
 
 | Agent | Use for |
 |---|---|
-| `goal-orchestrator` | Autonomous multi-step goals with convergence loop |
 | `workflow-explorer` | File discovery, code search, pattern mapping |
 | `workflow-implementer` | Multi-file code changes, novel logic |
-| `workflow-reviewer` | Scoped diff review |
-| `workflow-skeptic` | Adversarial pressure-test for hidden regressions |
 | `workflow-ui-qa` | UI task flow, defaults, artifact safety |
 | `code-quality-reviewer` | Correctness, tests, conventions, observability |
 | `security-reviewer` | Auth, injection, secrets, OWASP classes |
-| `modularity-expert` | Architecture, DI, module boundaries |
-| `adversarial-reviewer` | Production failure modes, edge cases |
-| `qa-reviewer` | User-flow regression QA |
-| `spec-reviewer` | Verify implementation matches plan |
-| `final-verifier` | Iron Law gate: fresh exit-0 evidence |
-| `goal-reviewer` | Independent goal achievement verification |
-| `slop-refactorer` | AI slop cleanup after implementer |
 | `playwright-navigator` | Discover Playwright routes + selectors |
 | `ux-driver` | UI structural critique (IA, hierarchy, a11y) |
 | `ui-driver` | Visual polish (typography, color, spacing) |
-| `prompt-synthesizer` | Optional noisy-handoff compressor for downstream agent prompts |
-| `pr-reviewer` | Holistic PR review with verdict |
+
+Compatibility reviewer agents may still exist on disk, but they are not default
+routes for `/build`, `/review`, `/goal`, `/refactor`, or `/redesign`. The
+orchestrator owns fresh verification evidence directly.
 
 ## Spawning rules
 
-- Before spawning: `pwsh ~/.agents/tools/mode-profiles.ps1 -Mode <mode>`
-  Embed the returned `prompt_block` in the subagent's prompt.
-- Run `specialist-memory-resolver.ps1 -SessionId <id> -Role <role> -RepoRoot .`
-  before spawning specialists. If `found=true`, embed the `prompt_block`.
+- Pass only the task-specific files and constraints the worker needs. Mode
+  profiles and memory resolvers are manual compatibility tools, not default
+  prompt payload.
 
 ## Error recovery
 
@@ -101,7 +95,7 @@ agent(s). If the path doesn't converge, escalate to `goal-orchestrator`.
   re-prompt with explicit instructions.
 - **Verification fails**: pass exact error to implementer as deltas.
   Cap 3 iterations, then escalate.
-- **Goal-orchestrator stuck**: pass approach log + blocker to user.
+- **Goal loop stuck**: pass approach log + blocker to user.
 
 ## Lifecycle
 

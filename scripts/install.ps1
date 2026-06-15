@@ -18,7 +18,7 @@
 # Upgrade (preserves customizations via backup):
 #   pwsh ./install.ps1 -Upgrade -For claude
 #
-# Adapters: claude | codex | copilot | opencode | kilocode | generic | all
+# Adapters: claude | codex | copilot | opencode | generic | all
 # `generic` writes a tool-neutral AGENTS.md (Aider, Cline, Cursor, etc. read it).
 # `all` writes every adapter's files (they coexist; CLIs pick what they recognize).
 
@@ -33,7 +33,7 @@ param(
     # Examples:
     #   -For claude               # one CLI
     #   -For "claude,opencode"    # multiple
-    #   -For all                  # all 5 supported CLIs
+    #   -For all                  # all supported CLIs
     [string]$For = "",
     # Detect which CLIs are on PATH and install for those automatically.
     [switch]$Auto,
@@ -72,6 +72,20 @@ $AdaptersRoot = Join-Path $RepoRoot "bundle/adapters"
 $SharedWorkflowCommandsRoot = Join-Path $AdaptersRoot "_shared/workflow-commands"
 $SharedWorkflowAgentsRoot = Join-Path $AdaptersRoot "_shared/workflow-agents"
 $SharedSpecialistAgentsRoot = Join-Path $AdaptersRoot "_shared/specialist-agents"
+
+$LeanDefaultWorkflowAgents = @(
+    "workflow-explorer",
+    "workflow-implementer",
+    "workflow-ui-qa"
+)
+$LeanDefaultSpecialistAgents = @(
+    "code-quality-reviewer",
+    "security-reviewer",
+    "playwright-navigator",
+    "ux-driver",
+    "ui-driver"
+)
+$LeanDefaultAgentNames = @($LeanDefaultWorkflowAgents + $LeanDefaultSpecialistAgents)
 
 $AgentsRoot = Join-Path $HomeRoot ".agents"
 
@@ -463,6 +477,7 @@ function Install-RenderedMarkdownDirectory {
         # $DestDir (true for commands; not true for agents -- agents have a
         # specialist source as well, so that union must be considered).
         [switch]$PruneStale,
+        [string[]]$IncludeNames = @(),
         # When -PruneStale and -DryRunPrune are both set, list pruning
         # candidates without deleting them. Overrides any deletion. Useful
         # before a destructive run.
@@ -476,11 +491,15 @@ function Install-RenderedMarkdownDirectory {
     # below can compare destination against it.
     $legalNames = @{}
     foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
+        $baseName = [System.IO.Path]::GetFileNameWithoutExtension($f.Name)
+        if ($IncludeNames.Count -gt 0 -and $baseName -notin $IncludeNames) { continue }
         $legalNames[$f.Name] = $true
     }
 
     $count = 0
     foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File | Sort-Object Name)) {
+        $baseName = [System.IO.Path]::GetFileNameWithoutExtension($f.Name)
+        if ($IncludeNames.Count -gt 0 -and $baseName -notin $IncludeNames) { continue }
         $outName = if ($OutputSuffix -ne ".md") {
             [System.IO.Path]::GetFileNameWithoutExtension($f.Name) + $OutputSuffix
         } else {
@@ -521,6 +540,56 @@ function Install-RenderedMarkdownDirectory {
     }
 }
 
+function Get-KitAgentBaseNames {
+    $roots = @(
+        $SharedWorkflowAgentsRoot,
+        $SharedSpecialistAgentsRoot,
+        (Join-Path $AdaptersRoot "codex-cli/.codex/agents"),
+        (Join-Path $AdaptersRoot "opencode/.opencode/agents"),
+        (Join-Path $AdaptersRoot "copilot-cli/.github/agents")
+    )
+
+    $names = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($root in $roots) {
+        if (-not (Test-Path $root)) { continue }
+        foreach ($file in (Get-ChildItem -Path $root -Filter "*.md" -File -ErrorAction SilentlyContinue)) {
+            $base = [System.IO.Path]::GetFileNameWithoutExtension($file.Name)
+            if ($base.EndsWith(".agent")) {
+                $base = $base.Substring(0, $base.Length - ".agent".Length)
+            }
+            [void]$names.Add($base)
+        }
+    }
+    return @($names)
+}
+
+function Remove-DefaultOffKitAgents {
+    param(
+        [string]$DestDir,
+        [string[]]$AllowedNames,
+        [string]$Label
+    )
+
+    if (-not (Test-Path $DestDir)) { return }
+
+    $known = Get-KitAgentBaseNames
+    $removed = 0
+    foreach ($file in (Get-ChildItem -Path $DestDir -File -ErrorAction SilentlyContinue)) {
+        $base = $file.BaseName
+        if ($base.EndsWith(".agent")) {
+            $base = $base.Substring(0, $base.Length - ".agent".Length)
+        }
+        if ($known -contains $base -and $AllowedNames -notcontains $base) {
+            Remove-Item -LiteralPath $file.FullName -Force
+            $removed++
+        }
+    }
+
+    if ($removed -gt 0) {
+        Write-Host "  $Label agents: retracted $removed default-off kit agent(s) from $DestDir"
+    }
+}
+
 function Install-WorkflowAdapterAssets {
     param(
         [string]$AdapterName,
@@ -554,9 +623,15 @@ function Install-WorkflowAdapterAssets {
             -DryRunPrune:$DryRunPrune
     }
 
-    # Workflow-agents directory is shared with specialist agents installed by
-    # Install-DeviceWideAgents; cannot prune from this side without losing the
-    # specialists. Plain write only.
+    $workflowIncludeNames = if ($AdapterName -in @("codex-cli", "copilot-cli", "opencode")) {
+        $LeanDefaultWorkflowAgents
+    } else {
+        @()
+    }
+
+    # Workflow-agents directory may be shared with specialist agents. For lean
+    # default hosts, install only the loop agents and retract old kit-owned
+    # default-off agents after both sources have been considered.
     if ($destinations.Agents) {
         $agentSuffix = if ($destinations.PSObject.Properties['AgentSuffix']) { $destinations.AgentSuffix } else { ".md" }
         Install-RenderedMarkdownDirectory `
@@ -565,10 +640,11 @@ function Install-WorkflowAdapterAssets {
             -Vars $vars `
             -Label $destinations.Label `
             -AssetKind "workflow agents" `
-            -OutputSuffix $agentSuffix
+            -OutputSuffix $agentSuffix `
+            -IncludeNames $workflowIncludeNames
 
         if ($AdapterName -eq "copilot-cli") {
-            foreach ($agent in @("workflow-explorer", "workflow-reviewer", "workflow-skeptic", "workflow-ui-qa")) {
+            foreach ($agent in $LeanDefaultWorkflowAgents) {
                 $agentPath = Join-Path $destinations.Agents "$agent$agentSuffix"
                 if (-not (Test-Path $agentPath)) { continue }
                 $content = Get-Content -Raw -Encoding utf8 -LiteralPath $agentPath
@@ -583,12 +659,15 @@ function Install-OpenCodeAgentsFromSource {
     param(
         [string]$SourceDir,
         [string]$DestDir,
-        [string]$Label
+        [string]$Label,
+        [string[]]$IncludeNames = @()
     )
     if (-not (Test-Path $SourceDir)) { return }
     New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
     $count = 0
     foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
+        $baseName = [System.IO.Path]::GetFileNameWithoutExtension($f.Name)
+        if ($IncludeNames.Count -gt 0 -and $baseName -notin $IncludeNames) { continue }
         $raw = Get-Content $f.FullName -Raw -Encoding UTF8
         if ($raw -notmatch '(?ms)^---\r?\n(.*?)\r?\n---\r?\n(.*)$') { continue }
         $fm = $matches[1]
@@ -610,13 +689,19 @@ function Install-CopilotAgentsFromClaudeSource {
     param(
         [string]$SourceDir,
         [string]$DestDir,
-        [string]$Label
+        [string]$Label,
+        [string[]]$IncludeNames = @()
     )
     if (-not (Test-Path $SourceDir)) { return }
     New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
     $copilotTemplateVars = Get-WorkflowAdapterTemplateVars -AdapterName "copilot-cli"
     $count = 0
     foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
+        $sourceBase = [System.IO.Path]::GetFileNameWithoutExtension($f.Name)
+        if ($sourceBase.EndsWith(".agent")) {
+            $sourceBase = $sourceBase.Substring(0, $sourceBase.Length - ".agent".Length)
+        }
+        if ($IncludeNames.Count -gt 0 -and $sourceBase -notin $IncludeNames) { continue }
         $raw = Get-Content $f.FullName -Raw -Encoding UTF8
         if ($copilotTemplateVars) {
             foreach ($k in $copilotTemplateVars.Keys) {
@@ -678,7 +763,9 @@ function Install-Adapter {
         Install-CopilotAgentsFromClaudeSource `
             -SourceDir $SharedSpecialistAgentsRoot `
             -DestDir   $copilotAgentDest `
-            -Label     "Copilot CLI specialist"
+            -Label     "Copilot CLI specialist" `
+            -IncludeNames $LeanDefaultSpecialistAgents
+        Remove-DefaultOffKitAgents -DestDir $copilotAgentDest -AllowedNames $LeanDefaultAgentNames -Label "Copilot CLI"
 
         $hookSrc = Join-Path $src ".github/hooks"
         $hookDst = Join-Path $TargetRepo ".github/hooks"
@@ -757,7 +844,9 @@ function Install-Adapter {
         Install-OpenCodeAgentsFromSource `
             -SourceDir $SharedSpecialistAgentsRoot `
             -DestDir   (Join-Path $TargetRepo ".opencode/agents") `
-            -Label     "OpenCode specialist"
+            -Label     "OpenCode specialist" `
+            -IncludeNames $LeanDefaultSpecialistAgents
+        Remove-DefaultOffKitAgents -DestDir (Join-Path $TargetRepo ".opencode/agents") -AllowedNames $LeanDefaultAgentNames -Label "OpenCode"
     }
 
     Write-Host "  Installed '$Name' adapter into $TargetRepo"
@@ -773,7 +862,7 @@ function Resolve-AdapterTargets {
 
     foreach ($item in $requested) {
         if ($item -eq "all") {
-            foreach ($adapter in @("claude-code", "codex-cli", "copilot-cli", "opencode", "kilocode", "generic")) {
+            foreach ($adapter in @("claude-code", "codex-cli", "copilot-cli", "opencode", "generic")) {
                 if (-not $resolved.Contains($adapter)) {
                     $resolved.Add($adapter)
                 }
@@ -786,8 +875,6 @@ function Resolve-AdapterTargets {
             "codex"    { "codex-cli" }
             "copilot"  { "copilot-cli" }
             "opencode" { "opencode" }
-            "kilocode" { "kilocode" }
-            "kilo"     { "kilocode" }
             default    { $item }
         }
 
@@ -1031,7 +1118,7 @@ elseif ($Auto) {
     } else {
         Write-Host ""
         Write-Host "Auto-detect found no supported CLI on PATH."
-        Write-Host "Pass -For <claude|codex|copilot|opencode|kilocode|all> explicitly."
+        Write-Host "Pass -For <claude|codex|copilot|opencode|generic|all> explicitly."
     }
 }
 
@@ -1115,30 +1202,32 @@ are auto-discovered from your CLI's native dirs. The kit also installs
 PreToolUse / PostToolUse hooks that enforce a small set of rules at the
 **protocol layer** (cannot be skipped by the agent).
 
-### Precedence: REPO WINS
+### Lean startup
 
-- **Repo conventions take precedence** when they conflict with the kit's
-  defaults. If your repo has its own pipeline (``hand_off.md``,
-  ``agents/handoffs/``, ``memory/MEMORY.md``, project-scoped
-  ``.claude/agents/``, etc.), follow it. The kit augments; it does not
-  replace.
-- The kit's runtime artifacts default to ``<repo>/.kit/session-state/`` inside a
-  bootstrapped repo (or ``AGENTS_SESSION_ROOT`` if you override it; otherwise
-  ``~/.agents/session-state/`` remains the global fallback). They are written
-  ALONGSIDE your repo's pipeline as cross-repo audit / memory continuity -- not
-  as the source of truth. Your repo's files remain canonical.
-- Skills + sub-agents + slash commands + hooks are the kit's contribution.
-  Use them where they fit; ignore them where the repo has better.
+- Start from the current request and current code.
+- Do not preload ``.kit``, ``.wiki``, memory, handoff, history, or reflection
+  files.
+- Use ``.wiki/index.md`` only as an on-demand index when current code is not
+  enough to answer architecture, feature, or principle questions.
+- Repo conventions still win when they conflict with kit defaults.
 
 ### Workflow source of truth
 
 - The global workflow skills are the canonical workflow contract.
 - Adapter command files are thin wrappers; they should not redefine workflow behavior.
-- If a host supports subagents, non-trivial ``/build`` should delegate instead
-  of keeping implementation inline in the main session.
-- If ``AGENTS_SESSION_ROOT`` is set, session-private artifacts are written
-  there; otherwise the default is ``.kit/session-state/`` inside a bootstrapped
-  repo and ``~/.agents/session-state/`` elsewhere.
+- ``/build`` means: minimal context -> expected test set, including E2E with
+  mock data when feasible -> implement -> fresh verification -> one
+  ``code-quality-reviewer`` pass -> repair loop.
+- ``/review`` uses ``code-quality-reviewer`` by default. Add
+  ``security-reviewer`` only when the change crosses a real trust boundary.
+- ``/goal`` owns loop state and convergence; it should organize implementation,
+  verification, review, and repair loops instead of spawning endless reviewers.
+- Self-improvement, reflection, memory compression, and writeback tools are
+  manual maintenance only; they are not completion gates.
+- Default installed agents are the lean loop set: ``workflow-explorer``,
+  ``workflow-implementer``, ``workflow-ui-qa``, ``code-quality-reviewer``,
+  ``security-reviewer``, ``playwright-navigator``, ``ux-driver``, and
+  ``ui-driver``.
 
 ### What the kit enforces (via hooks, not prose)
 
@@ -1307,7 +1396,8 @@ $endMarker
         param(
             [string]$SourceDir,
             [string]$DestDir,
-            [string]$Label
+            [string]$Label,
+            [string[]]$IncludeNames = @()
         )
         if (-not (Test-Path $SourceDir)) { return }
         New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
@@ -1315,6 +1405,11 @@ $endMarker
         $codexTemplateVars = Get-WorkflowAdapterTemplateVars -AdapterName "codex-cli"
         $count = 0
         foreach ($f in (Get-ChildItem -Path $SourceDir -Filter "*.md" -File)) {
+            $sourceBase = [System.IO.Path]::GetFileNameWithoutExtension($f.Name)
+            if ($sourceBase.EndsWith(".agent")) {
+                $sourceBase = $sourceBase.Substring(0, $sourceBase.Length - ".agent".Length)
+            }
+            if ($IncludeNames.Count -gt 0 -and $sourceBase -notin $IncludeNames) { continue }
             $raw = Get-Content $f.FullName -Raw -Encoding UTF8
             if ($codexTemplateVars) {
                 foreach ($k in $codexTemplateVars.Keys) {
@@ -1486,8 +1581,8 @@ read it for long-form details.
 ## Workflow commands (slash-mounted; available in every repo)
 
 - ``/plan`` -- clarify scope, map files, trace blast radius, stop for approval
-- ``/build`` -- execute approved plan: implement -> review -> verify gates
-- ``/review`` -- hierarchical review (surface -> interactions -> synthesis -> adversarial -> false-positive verifier)
+- ``/build`` -- minimal context -> expected test set -> implement with tests -> fresh verification -> unified review
+- ``/review`` -- single ``code-quality-reviewer`` by default; add ``security-reviewer`` only for trust-boundary risk
 - ``/analyze`` -- multi-angle research/synthesis
 - ``/investigate`` -- hypothesis-driven root-cause debugging
 - ``/refactor`` -- principle-driven restructuring with consequence tracing
@@ -1559,17 +1654,17 @@ output, then claim. "Should work now" is never acceptable. Use:
 
 - **pre-session.ps1** -- emits BRIEF block with scope/tier/swarm/reflections
 - **state-gate.ps1** -- agent marks ``context_loaded`` -> ``implementation_done`` -> ``verification_evidence`` -> ``handoff_written``
-- **post-session.ps1** -- gate check, auto-consolidate, compress-memory, harness-propose, reflect-trigger
+- **post-session.ps1** -- gate check and session evidence registration; self-improvement tools are manual maintenance
 
-Under Codex/Copilot/Kilo/generic: call these manually.
+Under Codex/Copilot/generic: call these manually.
 
 ## Tool index (most-used)
 
 - Classification: ``scope-classifier.ps1``, ``swarm-classifier.ps1``, ``frontend-detector.ps1``
 - Lifecycle: ``pre-session.ps1``, ``post-session.ps1``, ``state-gate.ps1``
 - Edit/test: ``edit-with-lint.ps1``, ``test-loop.ps1``
-- Memory: ``specialist-memory-resolver.ps1``, ``auto-consolidate.ps1``, ``compress-memory.ps1``
-- Self-improvement: ``harness-propose.ps1``, ``harness-review.ps1``, ``reflect-trigger.ps1``
+- Context: ``specialist-memory-resolver.ps1`` for focused repo guidance
+- Manual maintenance: ``auto-consolidate.ps1``, ``compress-memory.ps1``, ``harness-propose.ps1``, ``harness-review.ps1``, ``reflect-trigger.ps1``
 - Frontend: ``dev-server-runner.ps1``, ``playwright-runner.ps1``, ``visual-diff.ps1``, ``design-fetcher.ps1``, ``bulk-fetch-inspiration.ps1``
 - Evidence: ``workflow-evidence.ps1``, ``run-packet.ps1``
 
@@ -1597,10 +1692,8 @@ $endMarker
         }
     }
 
-    # `all` covers every CLI that has a meaningful device-wide install location,
-    # plus the generic AGENTS.md for any tool that reads the canonical home file.
-    # Kilo Code still needs a per-repo install because it reads
-    # `.kilocode/rules/*.md` from the workspace.
+    # `all` covers every supported CLI that has a meaningful device-wide install
+    # location, plus the generic AGENTS.md for any tool that reads it.
     $targets = if ($DeviceWide -eq "all") {
         @("claude", "codex", "copilot", "opencode", "generic")
     } else {
@@ -1725,15 +1818,14 @@ $endMarker
                 Install-CodexAgentsFromClaudeSource `
                     -SourceDir (Join-Path $AdaptersRoot "_shared/workflow-agents") `
                     -DestDir   $codexAgentsRoot `
-                    -Label     "Codex CLI workflow"
+                    -Label     "Codex CLI workflow" `
+                    -IncludeNames $LeanDefaultWorkflowAgents
                 Install-CodexAgentsFromClaudeSource `
                     -SourceDir (Join-Path $AdaptersRoot "_shared/specialist-agents") `
                     -DestDir   $codexAgentsRoot `
-                    -Label     "Codex CLI specialist"
-                Install-CodexAgentsFromClaudeSource `
-                    -SourceDir (Join-Path $AdaptersRoot "codex-cli/.codex/agents") `
-                    -DestDir   $codexAgentsRoot `
-                    -Label     "Codex CLI adapter"
+                    -Label     "Codex CLI specialist" `
+                    -IncludeNames $LeanDefaultSpecialistAgents
+                Remove-DefaultOffKitAgents -DestDir $codexAgentsRoot -AllowedNames $LeanDefaultAgentNames -Label "Codex CLI"
 
                 Install-PrimaryOrchestratorAgent `
                     -AdapterName "codex-cli" `
@@ -1814,7 +1906,8 @@ $endMarker
                 Install-OpenCodeAgentsFromSource `
                     -SourceDir (Join-Path $AdaptersRoot "_shared/workflow-agents") `
                     -DestDir   (Join-Path $HomeRoot ".config/opencode/agents") `
-                    -Label     "OpenCode workflow"
+                    -Label     "OpenCode workflow" `
+                    -IncludeNames $LeanDefaultWorkflowAgents
 
                 # Shared specialist agents. Use the OpenCode-specific sanitizer so
                 # Claude-format `tools:` / `permissionMode:` / `maxTurns:` frontmatter
@@ -1822,7 +1915,9 @@ $endMarker
                 Install-OpenCodeAgentsFromSource `
                     -SourceDir $SharedSpecialistAgentsRoot `
                     -DestDir   (Join-Path $HomeRoot ".config/opencode/agents") `
-                    -Label     "OpenCode specialist"
+                    -Label     "OpenCode specialist" `
+                    -IncludeNames $LeanDefaultSpecialistAgents
+                Remove-DefaultOffKitAgents -DestDir (Join-Path $HomeRoot ".config/opencode/agents") -AllowedNames $LeanDefaultAgentNames -Label "OpenCode"
 
                 Install-PrimaryOrchestratorAgent `
                     -AdapterName "opencode" `
@@ -1881,12 +1976,15 @@ $endMarker
                 Install-CopilotAgentsFromClaudeSource `
                     -SourceDir $SharedWorkflowAgentsRoot `
                     -DestDir   (Join-Path $HomeRoot ".copilot/agents") `
-                    -Label     "GitHub Copilot workflow"
+                    -Label     "GitHub Copilot workflow" `
+                    -IncludeNames $LeanDefaultWorkflowAgents
 
                 Install-CopilotAgentsFromClaudeSource `
                     -SourceDir $SharedSpecialistAgentsRoot `
                     -DestDir   (Join-Path $HomeRoot ".copilot/agents") `
-                    -Label     "GitHub Copilot specialist"
+                    -Label     "GitHub Copilot specialist" `
+                    -IncludeNames $LeanDefaultSpecialistAgents
+                Remove-DefaultOffKitAgents -DestDir (Join-Path $HomeRoot ".copilot/agents") -AllowedNames $LeanDefaultAgentNames -Label "GitHub Copilot"
 
                 Install-PrimaryOrchestratorAgent `
                     -AdapterName "copilot-cli" `
@@ -1932,20 +2030,8 @@ $endMarker
                 Write-Host "  GitHub Copilot CLI hooks are repo-scope only (.github/hooks/*.json)."
                 Write-Host "  Per-repo install: pwsh ./install.ps1 -TargetRepo <path> -InstallAdapter copilot"
             }
-            "kilocode" {
-                Write-Host "  Kilo Code has no device-wide config -- it reads"
-                Write-Host "  .kilocode/rules/*.md from each workspace."
-                Write-Host "  Per-repo install:"
-                Write-Host "    pwsh ./install.ps1 -TargetRepo <path> -InstallAdapter kilocode"
-            }
-            "kilo" {
-                Write-Host "  Kilo Code has no device-wide config -- it reads"
-                Write-Host "  .kilocode/rules/*.md from each workspace."
-                Write-Host "  Per-repo install:"
-                Write-Host "    pwsh ./install.ps1 -TargetRepo <path> -InstallAdapter kilocode"
-            }
             default {
-                Write-Host "  Unknown target: $t (use claude, codex, opencode, copilot, kilocode, generic, or all)"
+                Write-Host "  Unknown target: $t (use claude, codex, opencode, copilot, generic, or all)"
             }
         }
     }
@@ -1978,9 +2064,6 @@ if ($BootstrapHarness) {
         Write-Host "    Windows: pwsh ~/.agents/bin/copilot/kit-bootstrap.ps1 `"$TargetRepo`""
         Write-Host "    This script does everything: scaffold (already done) -> git-archaeology"
         Write-Host "    -> kit-init -> wiki-init -> conventions.md with real detected content."
-        Write-Host ""
-        Write-Host "  From Copilot goal-orchestrator:"
-        Write-Host "    copilot --agent goal-orchestrator -p `"Bootstrap the harness for $TargetRepo`""
         Write-Host ""
     }
     Write-Host "  From the installed host agent:"

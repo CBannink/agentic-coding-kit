@@ -1,15 +1,18 @@
 # Caspar Bannink Agentic Coding Kit — Agent Instructions
 
 This repo uses the kit. The instructions below apply to any CLI agent (Claude Code,
-Codex CLI, Copilot CLI, OpenCode, Kilo Code, or anything else that reads
+Codex CLI, Copilot CLI, OpenCode, or anything else that reads
 AGENTS.md / system-prompt files).
 
 ## Core operating rules
 
-1. Respect the `.kit` layout in this repo (`.kit/context/`, `.kit/workflows/`).
-2. Use `.wiki/features.md` and `.wiki/.features` for user-visible capabilities.
-3. Treat session handoffs as session-private; repo memory as durable.
-4. Prefer:
+1. Start from the current request and current code.
+2. Do not preload `.kit`, `.wiki`, handoffs, history, reflections, or memory files.
+3. Use `.wiki/index.md` only as an on-demand index when architecture, feature,
+   or principle context is needed.
+4. Treat `.kit/context/patterns.md` and old role-specific context as optional
+   manual guidance, not normal startup context.
+5. Prefer:
    - `/plan` before non-trivial implementation
    - `/build` for execution
    - `/review` for audits
@@ -19,22 +22,23 @@ AGENTS.md / system-prompt files).
    - `/redesign` for greenfield UI / multi-component visual work (swarm-eligible)
    - `/security-review` for adversarial audits (swarm-eligible)
    - `/goal` for autonomous end-to-end achievement of multi-step goals (classifies type, routes to the correct workflow, iterates until done)
-5. Use role-specific repo memory only through the mechanical resolver:
-   `pwsh ~/.agents/tools/specialist-memory-resolver.ps1 -SessionId {id} -Role {role}`
 6. Default execution is **sequential**. Swarms only fire when all three hold:
    verb is parallel-safe (audit / explore / port / redesign / pentest), scope
    classifies as fan-out-able, and the user opts in (`--swarm` or a swarm command).
 
 ## Command semantics
 
+`/build` is the test-set-first loop: minimal indexed context, expected test set,
+implementation with tests, fresh verification, unified review, and repair.
+
 - `/plan` — clarify, explore, map files, pressure-test, stop for approval
-- `/build` — execute approved plan, review, verify
-- `/review` — hierarchical swarm review (sequential implement, parallel reviewers OK)
+- `/build` — context if needed, implement, verify, unified review, repair loop
+- `/review` — unified review with false-positive checking
 - `/analyze` — multi-angle feature / idea / architecture evaluation; not for simple factual lookups
 - `/investigate` — root-cause-first debugging
 - `/refactor` — principle-driven restructuring with consequence tracing
 - `/redesign` — multi-component UI work (parallel design agents per component). Locks aesthetic direction via `aesthetic-director` skill if `DESIGN.md` is missing — prevents parallel agents from each defaulting to LLM aesthetic (Inter + purple gradient + rounded cards) and producing variations of one boring look.
-- `/security-review` — adversarial audit (parallel attack-class agents)
+- `/security-review` — authorized trust-boundary audit
 - `/goal` — thin autonomous wrapper; the active orchestrator owns success criteria and convergence, routes to the correct workflow, and iterates by workflow pass until the goal is provably achieved
 
 ## Workflow source of truth
@@ -97,17 +101,7 @@ route safely.
 - If the ambiguity is minor and does not materially change execution, state the
   assumption and continue.
 - The top-level router owns clarification. Do **not** push this responsibility
-  down to `prompt-synthesizer` or the worker you are about to spawn.
-
-### Prompt synthesis
-
-- Default to direct `router -> worker` handoffs.
-- Use `prompt-synthesizer` only when the handoff is genuinely noisy: long
-  multi-source context, retry/re-spawn after failure, or a cross-harness handoff
-  that needs a tighter brief.
-- If `prompt-synthesizer` still finds material ambiguity, route that back to the
-  top-level router. It is a compression helper, not a clarification owner or
-  spawn decision-maker.
+  down to another worker.
 
 ## Non-trivial `/build` discipline
 
@@ -117,7 +111,13 @@ delegate rather than stay inline in the main session.
 - one-file mechanical fixes may stay inline
 - anything needing more than two source-file reads should delegate exploration
 - anything beyond a one-file mechanical edit should delegate implementation
-- non-trivial review should delegate reviewer agents when the host supports them
+- before implementation, define the expected test set: unit, integration,
+  contract, and E2E where feasible, with mock data/fixtures for external
+  systems and edge cases
+- if E2E is infeasible, record why and use the nearest integration, contract,
+  or workflow test that exercises the behavior
+- non-trivial review should delegate to `code-quality-reviewer`; add
+  `security-reviewer` only for real trust-boundary risk
 - after exploration synthesis, the main session should stop reading source files
 
 ## Mode profiles
@@ -148,19 +148,19 @@ pre-session.ps1 → /plan or /build or … → state-gate enforcement → post-s
 
 - `pre-session.ps1` classifies scope (`ISOLATED` / `SHARED` / `CRITICAL`),
   recommends a tier (`INLINE` / `TARGETED` / `FULL` / `SWARM`), generates a brief.
-- `state-gate.ps1` enforces gates and the agent cap.
+- `state-gate.ps1` enforces verification/agent-cap gates. Memory, wiki,
+  handoff, and reflection writes are not implementation-completion gates.
 - `test-loop.ps1` is the verification heartbeat — runs your test command,
   marks `verification_evidence` gate on pass, escalates on stuck (3-in-a-row
   same failure → exit code 3 + escalation message).
 - `edit-with-lint.ps1` applies file edits with linter validation — refuses
   changes that break syntax (auto-detects linter by extension).
-- `post-session.ps1` is the single owner of handoff registration and evidence.
-  Runs three closure phases automatically: auto-consolidate (mechanical),
-  compress-memory (slop prevention), harness-propose (kit-level proposals).
+- `post-session.ps1` registers handoffs and evidence. Self-improvement and
+  writeback tools are manual maintenance, not lifecycle gates.
 
-## Self-improvement loop (closes itself)
+## Manual self-improvement
 
-`post-session.ps1` automatically runs:
+These tools remain available when explicitly doing maintenance:
 
 - **`auto-consolidate.ps1`** — dedups identical reflections, archives
   promoted-and-resolved, drops single-occurrence stale entries, auto-promotes
@@ -172,11 +172,11 @@ pre-session.ps1 → /plan or /build or … → state-gate enforcement → post-s
   total times AND 3+ within 30 days AND matches kit vocabulary, writes a
   proposal markdown file. **Never auto-applies.** Surfaces a yellow banner
   at session end with explicit review commands. Decisions stick.
-- **`reflect-trigger.ps1`** — gates on the unaddressed reflection count.
-  Status: ok (<3) / soft (3-4) / mandatory (5+, blocks ship in NonInteractive).
+- **`reflect-trigger.ps1`** — reports unaddressed reflection count for manual
+  maintenance.
 
-Most sessions need no manual `/reflect`. When `harness-propose` does fire,
-review with:
+Normal build/review/refactor/redesign/security workflows do not run these tools
+or block on reflection backlog. When reviewing harness proposals manually, use:
 
 ```
 pwsh ~/.agents/tools/harness-review.ps1                  # list pending
@@ -187,51 +187,21 @@ pwsh ~/.agents/tools/harness-review.ps1 -ProposalId <id> -Action accept|reject|d
 The implementation gap is intentional: the kit detects and proposes; you
 decide and implement manually. No auto-modification of kit files.
 
-## Startup repo preflight
-
-At session start, check whether the repo has the expected kit scaffold:
-
-- `.kit/context/memory.md`
-- `.kit/workflows/`
-- `.wiki/index.md`
-- `.wiki/features.md`
-- `.wiki/.features`
-
-If `.kit` is missing, tell the user the repo is not bootstrapped for the kit yet and suggest:
-
-- `/bootstrap-harness` (preferred when the repo command is available)
-- or `pwsh <path-to-agentic-coding-kit>\scripts\install-<host>.ps1 -BootstrapHarness -TargetRepo "<repo>"`
-
-If `.wiki/index.md`, `.wiki/architecture.md`, `.wiki/codebase.md`, `.wiki/features.md`, or `.wiki/.features` is missing, suggest:
-
-- `/bootstrap-harness` if the repo is missing the full scaffold
-- or the same installer bootstrap command if the repo is missing the whole scaffold
-
-`/bootstrap-harness` is the single high-level init path. It should scaffold the
-repo AND run the evidence-based init flows (`git-archaeology`, `kit-init`,
-`wiki-init`) so the repo is actually ready for coding afterward.
-
-Do not act as though repo-local memory, wiki requirements, and workflow overrides are available when these files are absent. Continue for quick questions if needed, but warn that the repo is only partially wired into the kit until the scaffold exists.
+For normal coding sessions, do not bulk-read `.kit/context`, session handoffs,
+or the whole `.wiki` tree at startup. If current code is not enough, use
+`.wiki/index.md` as the on-demand knowledge-base index, then pull only the
+specific file needed for architecture, feature behavior, or principles.
 
 ## Verification freshness
 
 If files change after verification has been captured, treat the verification as stale and rerun it. The harness should not carry fresh verification evidence across later edits.
 
-## Memory write routing
-
-| Bucket | Target |
-|---|---|
-| Durable repo facts | `.kit/context/memory.md` |
-| Repo-local specialist guidance | `.kit/context/agent-memory/{role}.md` or `shared.md` |
-| Cross-repo skill patterns | `~/.agents/skills/{skill}/memory.md` |
-| Session-only | `${AGENTS_SESSION_ROOT}/{id}/handoffs.md` (default `.kit/session-state` in a bootstrapped repo, else `~/.agents/session-state`, overridable) |
-
 ## File layout to respect
 
 ```text
-.kit/context/         # repo memory + role memory + handoffs index
-.kit/workflows/       # repo-specific workflow overrides
-.wiki/                  # user-visible feature docs
+.kit/context/patterns.md # optional focused repo guidance
+.kit/workflows/          # repo-specific workflow overrides
+.wiki/index.md           # on-demand index into architecture/features/principles
 ```
 
 ## Tool quick reference
@@ -239,25 +209,24 @@ If files change after verification has been captured, treat the verification as 
 | Tool | Purpose |
 |---|---|
 | `pre-session.ps1` | Classify scope/tier, generate brief, init session state |
-| `post-session.ps1` | Register handoff, run consolidate→compress→propose→gate |
+| `post-session.ps1` | Register handoff and session evidence |
 | `state-gate.ps1` | Mark gates, register agents under tier cap, query state |
 | `test-loop.ps1` | Run test command, capture output, mark verification gate, detect loops |
 | `edit-with-lint.ps1` | Apply file edit with linter validation, atomic write+revert |
-| `specialist-memory-resolver.ps1` | Inject role-specific repo memory into spawned agents |
 | `mode-profiles.ps1` | Resolve tool/file restrictions for a named agent mode; embed `prompt_block` in subagent prompt |
-| `auto-consolidate.ps1` | Dedup/archive/promote reflections (mechanical, no agent) |
-| `compress-memory.ps1` | Archive old session dirs, age out history, dedup memory files |
-| `harness-propose.ps1` | Detect recurring kit-level patterns, write proposals (no auto-apply) |
+| `auto-consolidate.ps1` | Manual dedup/archive/promote reflections |
+| `compress-memory.ps1` | Manual archive old session dirs, age out history, dedup memory files |
+| `harness-propose.ps1` | Manual recurring kit-level proposal generation |
 | `harness-review.ps1` | List/show/decide on harness proposals |
-| `reflect-trigger.ps1` | Gate on unaddressed reflection count |
+| `reflect-trigger.ps1` | Report unaddressed reflection count |
 | `detect-slop.ps1` | Scan for AI-slop patterns in code; -Fix for safe cosmetic fixes |
 | `scope-classifier.ps1` | ISOLATED / SHARED / CRITICAL scope from changed files |
 | `swarm-classifier.ps1` | sequential / swarm-review / swarm-fanout from verb+scope+opt-in |
 | `playwright-runner.ps1` + `.py` | Capture screenshots from a YAML screen-flow |
 | `visual-diff.ps1` | Pair before/after screenshots, produce diff PNGs |
-| `context-bloat-guard.ps1 -RepoRoot . -AutoFix -Json` | Context size check — run at session start and every 3 iterations in goal loops |
-| `multi-pass-review.ps1 -SessionId <id> -Passes 3` | Multi-pass shuffled review for large diffs (>5 files) — 2× bug detection rate |
+| `context-bloat-guard.ps1 -RepoRoot . -Json` | Context size report for manual maintenance |
+| `multi-pass-review.ps1 -SessionId <id> -Passes 3` | Manual compatibility tool; not default review routing |
 | `test-loop-runner.ps1 -SessionId <id> -TestCommand "<cmd>" -MaxRounds 5` | Iterate-until-pass test runner for /test-gen and verification loops |
-| `memory-inbox.ps1 -Action collect -SessionId <id>` | Collect learned patterns into memory inbox — run at session end |
+| `memory-inbox.ps1 -Action collect -SessionId <id>` | Manual collection of learned patterns into memory inbox |
 
 Read the docs in the kit for the full operating model.

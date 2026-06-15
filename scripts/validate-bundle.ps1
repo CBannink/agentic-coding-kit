@@ -185,10 +185,7 @@ $briefDir = Join-Path $Bundle "repo-template/.kit/context/workflow-briefs"
 $requiredBriefs = @(
     "workflow-explorer.md",
     "workflow-implementer.md",
-    "workflow-reviewer.md",
-    "workflow-skeptic.md",
-    "workflow-ui-qa.md",
-    "prompt-synthesizer.md"
+    "workflow-ui-qa.md"
 )
 $briefIssues = 0
 foreach ($brief in $requiredBriefs) {

@@ -11,15 +11,17 @@ Primary mature harnesses:
 - OpenCode
 - GitHub Copilot CLI
 
-Additional lightweight adapters exist for generic `AGENTS.md`, Kilo Code, and
+Additional lightweight adapters exist for generic `AGENTS.md` and
 Gemini-style layouts, but the strongest subagent workflow is on the four
-primary harnesses above.
+primary harnesses above. Kilo Code support has been removed from the supported
+installer surface.
 
 ## What It Does
 
 The kit makes the main session an orchestrator first. The main agent classifies
-the request, loads the relevant repo memory, then delegates concrete work to
-specialized workflow or specialist agents. It avoids the common failure mode
+the request, loads the smallest relevant indexed context, defines the expected
+test set, then delegates concrete work to specialized workflow or specialist
+agents. It avoids the common failure mode
 where the main chat keeps every file, every diff, every reviewer thought, and
 every implementation detail in one bloated context.
 
@@ -33,20 +35,21 @@ implementer variant.
 Core behavior:
 
 - Plan/build/review/investigate/refactor/security/redesign workflows.
-- Shared workflow agents for exploration, implementation, review, skepticism,
-  UI QA, and prompt compression.
-- Shared specialist agents for code quality, security, modularity, PR review,
-  UX/UI, QA, product, marketing, cold email, offers, content, support, and
-  self-improvement.
-- Repo-local `.kit/` memory for architecture, conventions, workflow briefs, and
-  role-specific guidance.
-- Repo-local `.wiki/` for codebase maps, architecture, user-visible features,
-  and retrieval during coding.
+- Lean default agents for exploration, implementation, UI QA, code quality,
+  conditional security review, and UI route/UX/visual checks.
+- Additional specialist, product, marketing, prompt-synthesis, and learning
+  agents remain in source for explicit manual use, not default install/routing.
+- Minimal repo context: current code first, `.wiki/index.md` only as an
+  on-demand index, `.kit/context/patterns.md` only when focused guidance helps.
+- Test-set-first build loop: define expected unit/integration/E2E coverage
+  before implementation, using mock data or fixtures where possible.
 - Verification gates: no completion claim without fresh build/test/lint
   evidence.
-- Self-improvement loop: session reflections, auto-consolidation, bounded
-  specialist memory, memory inbox/review, and proposal generation for kit-level
-  changes.
+- Lazy global loop skills for `test-strategy`, `silent-failure-hunter`,
+  `verification-before-completion`, and `skill-import`; these are available
+  across hosts but are not default agents or startup context.
+- Self-improvement tools remain installed for explicit manual maintenance, but
+  they are not normal workflow gates.
 - Cross-harness install: the same canonical agent sources are rendered into
   Claude/OpenCode markdown, Codex TOML, and Copilot `.agent.md`.
 
@@ -113,11 +116,11 @@ Installs:
   - `multi_agent = true`
   - `hooks = false`
 
-Codex receives:
+Codex receives the lean default agent set only:
 
-- 6 shared workflow agents.
-- 28 shared specialist agents.
-- Codex adapter agents.
+- `workflow-explorer`, `workflow-implementer`, `workflow-ui-qa`
+- `code-quality-reviewer`, `security-reviewer`
+- `playwright-navigator`, `ux-driver`, `ui-driver`
 
 The portable kit source contains no model references. Local model routing, if
 used, belongs only in `~/.codex/config.toml` and `~/.codex/agents/*.toml`.
@@ -146,10 +149,7 @@ Installs:
   - no `effortLevel` override.
 - `~/.agents/bin/copilot/kit-*.ps1` and `kit-*.sh` wrapper scripts.
 
-Copilot receives:
-
-- 6 shared workflow agents.
-- 28 shared specialist agents.
+Copilot receives the same lean default agent set as `.agent.md` files.
 
 Copilot CLI has no documented user slash-command surface, so this kit uses
 global instructions, custom agents, and wrapper scripts instead. Repo-scoped
@@ -195,8 +195,7 @@ Installs:
   `orchestrator`.
 - `~/.config/opencode/plugins/agentic-kit.ts`.
 
-OpenCode receives the same shared workflow and specialist agent set, sanitized
-for OpenCode frontmatter.
+OpenCode receives the lean default agent set as sanitized markdown agents.
 
 ## Bootstrap A New Repo
 
@@ -229,14 +228,10 @@ pwsh .\.github\copilot-bin\kit-bootstrap.ps1 C:\path\to\repo
 Scaffold alone may contain placeholders. A completed bootstrap creates and
 populates:
 
-- `.kit/context/memory.md`
+- `.kit/context/patterns.md`
 - `.kit/context/conventions.md`
-- `.kit/context/reusables.md`
-- `.kit/context/agent-memory/shared.md`
 - `.kit/context/workflow-briefs/<workflow-agent>.md`
-- `.kit/context/handoffs.md`
-- `.kit/context/history.md`
-- `.kit/context/reflections.md`
+- `.kit/workflows/`
 - `.wiki/index.md`
 - `.wiki/architecture.md`
 - `.wiki/codebase.md`
@@ -249,22 +244,17 @@ The bootstrap flow must replace placeholders with real repo facts. The gate
 fails if files still contain `PLACEHOLDER`, `_not yet detected_`, or
 `Generated by: _not yet run_`.
 
-The completed gate must include `.kit/context/reusables.md` and all six core
-workflow briefs:
+The completed gate must include the core workflow briefs:
 
 - `workflow-explorer.md`
 - `workflow-implementer.md`
-- `workflow-reviewer.md`
-- `workflow-skeptic.md`
 - `workflow-ui-qa.md`
-- `prompt-synthesizer.md`
 
 After bootstrap, the most important quality signal is not that the files exist;
 it is that workflow agents can find compact, repo-specific guidance before they
 touch code. In practice, check that `.kit/context/workflow-briefs/` contains
-real notes for explorer, implementer, reviewer, skeptic, UI QA, and prompt
-synthesis, and that `.wiki/index.md` points to useful architecture/codebase
-pages.
+real notes for explorer, implementer, and UI QA, and that `.wiki/index.md`
+points to useful architecture/codebase pages.
 
 ## Existing Repo With Its Own Rules
 
@@ -286,7 +276,7 @@ Then in that repo:
 - where session state goes
 - where handoffs go
 - where repo memory goes
-- how specialist memory is routed
+- how repo context patterns and legacy role memory are routed
 - how workflow state is recorded
 
 Repo-specific build commands, deploy rules, coding style, and product context
@@ -301,14 +291,17 @@ Routing model:
 - trivial single-file mechanical work can stay inline
 - unfamiliar work uses `workflow-explorer`
 - multi-file coding uses `workflow-implementer`
-- review uses `workflow-reviewer` or specialist reviewers
-- risky plans/diffs use `workflow-skeptic`
+- review uses one `code-quality-reviewer`
+- security review is added only for real trust-boundary risk
 - UI behavior uses `workflow-ui-qa`, `ux-driver`, and `ui-driver`
-- autonomous multi-step work uses `goal-orchestrator`
-- heavy loops can use `learning-curator`
+- autonomous multi-step work uses the active `/goal` loop
+- heavy-loop learning tools are manual maintenance
 
 The main agent should keep its own context small, pass precise briefs to leaf
-agents, read their summaries, and verify the result.
+agents, read their summaries, and verify the result. For code changes, it also
+owns the test strategy: add or update the relevant unit, integration, contract,
+or E2E tests, use mock data/fixtures for external surfaces, and record why if
+E2E is infeasible.
 
 ## Workflows
 
@@ -331,8 +324,11 @@ The kit ships 13 shared workflow command templates:
 Main workflows:
 
 - `/plan`: scope and design before implementation.
-- `/build`: explore, synthesize prompt, implement, review, verify, handoff.
-- `/review`: diff review with false-positive checking.
+- `/build`: minimal context, expected test set, implement with tests, verify,
+  unified review, repair loop.
+- `/test-gen`: focused test-writing loop for large missing coverage; useful
+  inside `/build` after the expected test set is known.
+- `/review`: unified diff review with false-positive checking.
 - `/investigate`: hypothesis-driven root cause analysis.
 - `/refactor`: behavior-preserving restructuring.
 - `/redesign`: aesthetic lock, browser capture, UX/UI critique, visual verify.
@@ -349,76 +345,51 @@ instructions, description matching, or wrapper scripts.
 
 - `workflow-explorer`: bounded file discovery and pattern mapping.
 - `workflow-implementer`: multi-file implementation.
-- `workflow-reviewer`: scoped diff review.
-- `workflow-skeptic`: assumption ledger and hidden failure modes.
 - `workflow-ui-qa`: user-flow/defaults/artifact-safety QA.
-- `prompt-synthesizer`: compresses noisy handoffs without losing constraints.
 
 ### Engineering Specialists
 
 - `code-quality-reviewer`
 - `security-reviewer`
-- `modularity-expert`
-- `adversarial-reviewer`
-- `qa-reviewer`
-- `spec-reviewer`
-- `final-verifier`
-- `goal-reviewer`
-- `slop-refactorer`
 - `playwright-navigator`
 - `ux-driver`
 - `ui-driver`
-- `pr-reviewer`
 
-### Product, Marketing, and Business Specialists
+`code-quality-reviewer` is the single default post-verification reviewer for
+normal build/review/refactor/redesign flows. `security-reviewer` is the only
+optional default specialist and is used only for trust-boundary risk. UI agents
+run only when route discovery, UX, or visual review is relevant.
 
-- `product-strategist`
-- `marketing-strategist`
-- `positioning-messaging-expert`
-- `growth-experimenter`
-- `customer-researcher`
-- `copywriter`
-- `sales-enablement-expert`
-- `business-model-analyst`
-- `cold-email-strategist`
-- `content-strategist`
-- `offer-architect`
-- `landing-page-critic`
-- `customer-support-analyst`
+### Lazy Loop Skills
 
-### Orchestration and Learning
+- `test-strategy`: define the expected test set before implementation.
+- `silent-failure-hunter`: focused review for swallowed errors and false success.
+- `verification-before-completion`: check that verification evidence is fresh.
+- `skill-import`: normalize external skill ideas without importing runtime bloat.
 
-- `goal-orchestrator`
-- `learning-curator`
+These are global skills installed with the kit. They stay on demand and do not
+add reviewers, startup context, lifecycle hooks, or memory gates.
 
-`learning-curator` runs only after heavy build/review loops. It can append up
-to 5 high-confidence cross-repo lessons to bounded global specialist memory via
-`specialist-memory-append.ps1`; uncertain lessons go to reflections.
+### Manual Compatibility Agents
 
-## Memory Model
+Product, marketing, business, prompt-synthesis, legacy reviewer/verifier, and
+learning agents remain in `bundle/adapters/_shared/specialist-agents/` for
+explicit manual installs or experiments. They are not part of the default
+Codex/Copilot/OpenCode install surface.
 
-The kit separates memory by durability and scope.
+## Context Model
 
-| Memory | Path | Purpose |
-|---|---|---|
-| Repo facts | `.kit/context/memory.md` | durable architecture, commands, constraints |
-| Repo conventions | `.kit/context/conventions.md` | detected git, PR, testing, architecture style |
-| Reusables | `.kit/context/reusables.md` | compact index of reusable APIs/components/utilities |
-| Workflow briefs | `.kit/context/workflow-briefs/<agent>.md` | per-workflow-agent preload, under 5000 tokens |
-| Repo specialist memory | `.kit/context/agent-memory/<role>.md` | role-specific repo guidance |
-| Global specialist memory | `~/.agents/context/specialist-memory/<role>.md` | cross-repo specialist lessons |
-| Session state | `.kit/session-state/<id>/` or `~/.agents/session-state/<id>/` | run packets, evidence, handoffs |
-| Reflections | `.kit/context/reflections.md`, `~/.agents/context/reflections.md` | self-improvement candidates |
+Default coding context is current request plus current code. The kit keeps a
+small optional knowledge base, but it is not startup context:
 
-During coding:
+- `.wiki/index.md`: on-demand index into architecture, codebase, features, and
+  principles.
+- `.kit/context/patterns.md`: optional focused repo guidance.
+- `.kit/session-state/`: run evidence and private session artifacts.
 
-1. The workflow agent reads its own workflow brief first.
-2. It falls back to `memory.md`, `conventions.md`, `reusables.md`, and relevant
-   `.wiki` pages only when needed.
-3. Specialist agents receive global specialist memory, then repo-local
-   specialist memory, through `specialist-memory-resolver.ps1`.
-4. The orchestrator should not bulk-read the entire wiki unless the task truly
-   needs it.
+Memory files, handoffs, reflections, and legacy role-specific guidance are
+manual maintenance or compatibility surfaces. They are not completion gates and
+should not be bulk-read in normal coding loops.
 
 ## `.wiki` Retrieval
 
@@ -433,22 +404,22 @@ During coding:
 Agents use `.wiki` to avoid rediscovering the repo from scratch and to detect
 documentation drift when user-visible behavior changes.
 
-## Self-Improvement Loop
+## Manual Self-Improvement
 
-The kit has a controlled learning loop:
+The kit has a controlled learning surface:
 
-1. Workflows and hooks emit reflections when agents miss something, repeat a
-   false positive, or discover a durable workflow issue.
-2. `post-session.ps1` runs auto-consolidation and memory compression.
-3. Safe repeated patterns can be promoted mechanically.
-4. Risky routing/gating/verification changes remain in reflections until
-   `/reflect` or human review.
-5. `learning-curator` can write bounded global specialist memory after heavy
-   loops.
-6. `harness-propose.ps1` creates proposals for recurring kit-level changes.
+1. Reflections and memory inbox entries are stored for explicit review.
+2. `auto-consolidate.ps1`, `compress-memory.ps1`, `harness-propose.ps1`,
+   `auto-apply-reflect.ps1`, `prompt-improver.ps1`, and `memory-inbox.ps1`
+   remain available as manual maintenance tools.
+3. Normal completion is not blocked by reflection backlog, writeback warnings,
+   wiki updates, memory updates, or handoff writes.
+4. Completion means requested behavior is done, fresh checks are green, and no
+   unhandled BLOCKING finding remains from the unified reviewer.
 
-This is deliberately conservative. The kit should learn, but it should not
-silently rewrite core prompts or scripts from a single noisy session.
+This is deliberately conservative. The kit should learn, but normal coding
+loops should stay focused on implementation, verification, and one useful
+review.
 
 ## Safety and Validation
 

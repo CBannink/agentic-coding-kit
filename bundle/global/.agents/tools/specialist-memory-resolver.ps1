@@ -6,6 +6,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$Role,
     [string]$RepoRoot = "",
+    [switch]$IncludeLegacyRoleMemory,
     [int]$MaxCharsPerFile = 2500,
     [int]$MaxLinesPerFile = 80
 )
@@ -41,11 +42,12 @@ $sessionDir = Get-SessionDir $SessionId
 $resolvedDir = Join-Path $sessionDir "resolved-specialist-memory"
 New-Item -ItemType Directory -Path $resolvedDir -Force | Out-Null
 
-$memoryDir = Join-Path $RepoRoot ".kit\context\agent-memory"
+$patternsPath = Join-Path $RepoRoot ".kit\context\patterns.md"
+$legacyMemoryDir = Join-Path $RepoRoot ".kit\context\agent-memory"
 $globalMemoryDir = Join-Path $script:AgentsRoot "context\specialist-memory"
 $reusablesPath = Join-Path $RepoRoot ".kit\context\reusables.md"
-$sharedPath = Join-Path $memoryDir "shared.md"
-$rolePath = Join-Path $memoryDir "$Role.md"
+$legacySharedPath = Join-Path $legacyMemoryDir "shared.md"
+$legacyRolePath = Join-Path $legacyMemoryDir "$Role.md"
 $globalSharedPath = Join-Path $globalMemoryDir "shared.md"
 $globalRolePath = Join-Path $globalMemoryDir "$Role.md"
 
@@ -77,19 +79,29 @@ if (Test-Path $globalRolePath) {
     }
 }
 
-if (Test-Path $sharedPath) {
-    $sharedText = Get-Content $sharedPath -Raw
-    if ($sharedText.Trim()) {
-        [void]$usedFiles.Add($sharedPath)
-        [void]$sections.Add("## shared.md`n" + (Normalize-Excerpt -Text $sharedText -MaxChars $MaxCharsPerFile -MaxLines $MaxLinesPerFile))
+if (Test-Path $patternsPath) {
+    $patternsText = Get-Content $patternsPath -Raw
+    if ($patternsText.Trim()) {
+        [void]$usedFiles.Add($patternsPath)
+        [void]$sections.Add("## repo context patterns`n" + (Normalize-Excerpt -Text $patternsText -MaxChars $MaxCharsPerFile -MaxLines $MaxLinesPerFile))
     }
 }
 
-if (Test-Path $rolePath) {
-    $roleText = Get-Content $rolePath -Raw
-    if ($roleText.Trim()) {
-        [void]$usedFiles.Add($rolePath)
-        [void]$sections.Add("## $Role.md`n" + (Normalize-Excerpt -Text $roleText -MaxChars $MaxCharsPerFile -MaxLines $MaxLinesPerFile))
+if ($IncludeLegacyRoleMemory) {
+    if (Test-Path $legacySharedPath) {
+        $legacySharedText = Get-Content $legacySharedPath -Raw
+        if ($legacySharedText.Trim()) {
+            [void]$usedFiles.Add($legacySharedPath)
+            [void]$sections.Add("## legacy shared role memory`n" + (Normalize-Excerpt -Text $legacySharedText -MaxChars $MaxCharsPerFile -MaxLines $MaxLinesPerFile))
+        }
+    }
+
+    if (Test-Path $legacyRolePath) {
+        $legacyRoleText = Get-Content $legacyRolePath -Raw
+        if ($legacyRoleText.Trim()) {
+            [void]$usedFiles.Add($legacyRolePath)
+            [void]$sections.Add("## legacy $Role role memory`n" + (Normalize-Excerpt -Text $legacyRoleText -MaxChars $MaxCharsPerFile -MaxLines $MaxLinesPerFile))
+        }
     }
 }
 
@@ -100,8 +112,8 @@ $promptBlock = ""
 if ($found) {
     $joinedSections = ($sections -join "`n`n").Trim()
     $promptBlock = @"
-Repo-local specialist memory for role '$Role':
-Use this repo-specific guidance only as role-targeted context. Do not widen scope beyond the assigned task.
+Repo context patterns for role '$Role':
+Use this repo-specific guidance only as bounded context. Prefer current code when it conflicts. Do not widen scope beyond the assigned task.
 
 $joinedSections
 "@
@@ -113,8 +125,8 @@ $joinedSections
         & $script:AgentsShell -NoProfile -File (Join-Path $toolsDir "run-packet.ps1") -SessionId $SessionId -AddMemoryPath $file | Out-Null
         & $script:AgentsShell -NoProfile -File (Join-Path $toolsDir "workflow-evidence.ps1") -SessionId $SessionId -AddRepoContext $file | Out-Null
     }
-    & $script:AgentsShell -NoProfile -File (Join-Path $toolsDir "run-packet.ps1") -SessionId $SessionId -AddNote "role-memory:$Role|$($usedFiles.Count) file(s)" | Out-Null
-    & $script:AgentsShell -NoProfile -File (Join-Path $toolsDir "workflow-evidence.ps1") -SessionId $SessionId -AddNote "role-memory:$Role|$($usedFiles.Count) file(s)" | Out-Null
+    & $script:AgentsShell -NoProfile -File (Join-Path $toolsDir "run-packet.ps1") -SessionId $SessionId -AddNote "repo-context-patterns:$Role|$($usedFiles.Count) file(s)" | Out-Null
+    & $script:AgentsShell -NoProfile -File (Join-Path $toolsDir "workflow-evidence.ps1") -SessionId $SessionId -AddNote "repo-context-patterns:$Role|$($usedFiles.Count) file(s)" | Out-Null
 } elseif (Test-Path $resolvedPath) {
     Remove-Item -Force $resolvedPath
 }
@@ -123,6 +135,7 @@ $result = [ordered]@{
     found        = $found
     role         = $Role
     repo_root    = $RepoRoot
+    include_legacy_role_memory = [bool]$IncludeLegacyRoleMemory
     files        = @($usedFiles)
     resolved_path = if ($found) { $resolvedPath } else { "" }
     prompt_block = $promptBlock

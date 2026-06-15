@@ -4,7 +4,7 @@
 # Reads reflections.md (repo or global), groups by class, and applies improvements:
 #   - class=additive  count>=2: append patch to target file directly
 #   - class=gating    count>=3: write proposal file to ~/.agents/proposals/ for review
-#   - class=noise     count>=2: append suppression rule to .kit/context/agent-memory/{role}.md
+#   - class=noise     count>=2: append suppression rule to .kit/context/patterns.md
 #   - class=correction count>=2: treat as additive, append to global instructions
 #
 # All applied improvements are tracked in ~/.agents/context/prompt-improvements.md
@@ -214,7 +214,7 @@ Apply by editing the target file above and removing this proposal file when done
         continue
     }
 
-    # ---- noise: append suppression to agent-memory (count >= 2) ---------------
+    # ---- noise: append suppression to repo context patterns (count >= 2) -----
     if ($class -eq "noise" -and $totalCount -ge 2) {
         # Derive role from evidence field (emitter hints) or target path
         $role = "unattributed"
@@ -228,9 +228,9 @@ Apply by editing the target file above and removing this proposal file when done
                 $role = $hint; break
             }
         }
-        $memPath = Join-Path $RepoRoot ".kit/context/agent-memory/$role.md"
-        $note = "- AUTO-SUPPRESSED $(Get-Date -Format 'yyyy-MM-dd'): noise pattern observed ${totalCount}x -- `"$($pattern.Substring(0,[Math]::Min(120,$pattern.Length)))`". Suppress unless context changes."
-        $existing = if (Test-Path $memPath) { Get-Content $memPath -Raw -Encoding UTF8 } else { "# $role memory (this repo)`n`n" }
+        $memPath = Join-Path $RepoRoot ".kit/context/patterns.md"
+        $note = "- AUTO-SUPPRESSED $(Get-Date -Format 'yyyy-MM-dd') [$role]: noise pattern observed ${totalCount}x -- `"$($pattern.Substring(0,[Math]::Min(120,$pattern.Length)))`". Suppress unless context changes."
+        $existing = if (Test-Path $memPath) { Get-Content $memPath -Raw -Encoding UTF8 } else { "# Repo Context Patterns`n`n" }
         if ($existing -match [regex]::Escape($pattern.Substring(0, [Math]::Min(60,$pattern.Length)))) {
             $result.skipped++
             [void]$result.improvements.Add([ordered]@{type=$class; target=$memPath; action="skipped-already-present"; pattern=$pattern})

@@ -35,18 +35,16 @@ request or prior context.
 The orchestrator may read the directly relevant files needed to classify,
 route, and write a precise handoff. Do not turn that into broad exploration.
 
-- **Any real exploration** (searching for patterns, mapping unfamiliar code,
-  reading several candidate files, or tracing ownership) goes to
-  `workflow-explorer`, preferably on the cheap explorer model where the host
-  supports model routing.
+- **Any real exploration** (pattern search, unfamiliar code mapping, ownership
+  tracing) goes to `workflow-explorer`, preferably on the cheap explorer model
+  where the host supports model routing.
 - **Inline coding** is for direct answers, commands, and obvious mechanical
   edits across at most 3 files.
 - **Coding likely to touch more than 3 files**, add new files, cross module
   boundaries, or require unfamiliar conventions goes to `workflow-implementer`
   or the host's hard implementer variant for risky work.
-- Do not keep a long-running task inline just because the orchestrator can do
-  it. Use the orchestrator for judgment; use leaf agents for sustained search,
-  implementation, review, and verification.
+- Keep the orchestrator small: classify, define the expected test set, delegate
+  sustained search/implementation/review, then run fresh verification directly.
 
 ### Clarification gate
 
@@ -57,16 +55,7 @@ Before routing, check whether the request is clear enough to classify safely.
   first.
 - If the ambiguity is minor and does not materially change execution, state the
   assumption and continue.
-- Do **not** delegate clarification to `prompt-synthesizer` or another worker.
-
-### Prompt synthesis
-
-- Default to direct `router -> worker` handoffs.
-- Use `prompt-synthesizer` only for genuinely noisy handoffs: long multi-source
-  context, retry/re-spawn after failure, or a cross-harness handoff that needs a
-  tighter brief.
-- If `prompt-synthesizer` still finds material ambiguity, route that back to the
-  router. It is a compression helper, not a clarification owner.
+- Do **not** delegate clarification to another worker.
 
 ## Edit gate
 
@@ -101,15 +90,14 @@ git diff --name-only HEAD
 |---|---|
 | Multi-file implementation | `workflow-implementer` |
 | File discovery / pattern mapping | `workflow-explorer` |
+| UI behavior/defaults check | `workflow-ui-qa` |
 | General review | `code-quality-reviewer` |
-| Security review | `security-reviewer` |
-| Modularity / shared types | `modularity-expert` |
-| Final verification | `final-verifier` |
-| Goal achievement check | `goal-reviewer` |
-| Slop cleanup | `slop-refactorer` |
-| UX / UI review | `ux-driver`, `ui-driver` |
-| Product / marketing / growth / sales | `product-strategist`, `marketing-strategist`, `positioning-messaging-expert`, `growth-experimenter`, `customer-researcher`, `copywriter`, `sales-enablement-expert`, `business-model-analyst`, `cold-email-strategist`, `content-strategist`, `offer-architect`, `landing-page-critic`, `customer-support-analyst` |
-| Heavy-loop learning | `learning-curator` |
+| Security review | `security-reviewer` only for trust-boundary risk |
+| UI route/visual review | `playwright-navigator`, `ux-driver`, `ui-driver` |
+| Manual maintenance | specialist, business, product, prompt-synthesis, and self-improvement agents only when explicitly requested |
+
+The orchestrator owns fresh verification evidence directly. Compatibility
+reviewers and verifier agents are not default build/review/goal routes.
 
 __OPTIONAL_WORKFLOW_LOADING__
 

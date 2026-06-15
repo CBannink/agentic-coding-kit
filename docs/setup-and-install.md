@@ -87,15 +87,15 @@ pwsh ~/.agents/bin/copilot/kit-build.ps1 "add JWT auth"
 pwsh ~/.agents/bin/copilot/kit-plan.ps1 "<request>"
 pwsh ~/.agents/bin/copilot/kit-review.ps1 "<request>"
 pwsh ~/.agents/bin/copilot/kit-goal.ps1 "achieve this autonomously: ..."
-# Or: copilot --agent goal-orchestrator -p "..."
 ```
 
 On current Copilot CLI builds, the same install also exposes inherited skills
 from `~/.agents/skills/`. That means `/skills` can list `goal`, `build`,
-`investigate`, `analyze`, `gstack-*`, and similar kit skills directly. The
-Copilot-specific slash entry skills are installed to keep orchestration inline
-in the main session and only spawn leaf agents; the wrapper commands above
-remain the explicit fallback path.
+`investigate`, `analyze`, `gstack-*`, `test-strategy`,
+`silent-failure-hunter`, `verification-before-completion`, `skill-import`, and
+similar kit skills directly. The Copilot-specific slash entry skills are
+installed to keep orchestration inline in the main session and only spawn leaf
+agents; the wrapper commands above remain the explicit fallback path.
 
 If the repo has a per-repo Copilot adapter installed, prefer:
 
@@ -111,14 +111,14 @@ pwsh .github\copilot-bin\kit-build.ps1 "<request>"
 /goal "achieve this autonomously: ..."
 ```
 
-OpenCode discovers skills from `~/.agents/skills/` automatically. Slash
-commands map to the same global skill files as Claude Code.
+OpenCode receives host-native skills at `~/.config/opencode/skills/`. Slash
+commands map to those installed global skill files.
 
 ## 5. Quick repo checklist
 
 For a repo to be fully ready, expect:
 
-- `.kit/context/memory.md`
+- `.kit/context/patterns.md`
 - `.kit/context/conventions.md`
 - `.wiki/index.md`
 - `.wiki/features.md`

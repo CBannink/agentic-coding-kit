@@ -5,8 +5,8 @@
 # Auto-applies findings in SAFE buckets only; gates everything else for /reflect.
 #
 # Safe auto-apply buckets:
-#   1. specialist-memory accretion -- append "in THIS repo, X is intentional"
-#      to .kit/context/agent-memory/{role}.md when same finding observed 3+ times
+#   1. repo-pattern accretion -- append "for role X, this repo treats Y as intentional"
+#      to .kit/context/patterns.md when same finding observed 3+ times
 #      and was [SUPERSEDED] or marked false-positive each time.
 #   2. conventions.md refinements -- update detected git/arch patterns when
 #      observed PR merges contradict the existing detection.
@@ -46,7 +46,7 @@ New-Item -ItemType Directory -Path $snapshotsDir -Force | Out-Null
 $content = Get-Content $reflectionsPath -Raw -Encoding UTF8
 $entries = $content -split "(?m)^## " | Where-Object { $_.Trim() } | ForEach-Object { "## $_" }
 
-# Bucket 1: specialist-memory accretion -- find findings repeated 3+ times by signature.
+# Bucket 1: repo-pattern accretion -- find findings repeated 3+ times by signature.
 $signaturePattern = '(?m)^- (?:\[SUPERSEDED\]|\[FALSE-POSITIVE\]) (\S+:\d+:\S+) by (\S+)'
 $signatureCounts = @{}
 foreach ($e in $entries) {
@@ -64,20 +64,21 @@ foreach ($sig in $signatureCounts.Keys) {
     $parts = $sig -split '\|', 2
     $role = $parts[0]
     $finding = $parts[1]
-    $memoryPath = Join-Path $RepoRoot ".kit/context/agent-memory/$role.md"
-    if (-not (Test-Path (Split-Path $memoryPath))) { continue }
+    $memoryPath = Join-Path $RepoRoot ".kit/context/patterns.md"
+    $memoryDir = Split-Path $memoryPath
+    if (-not (Test-Path $memoryDir)) { continue }
 
-    $note = "- AUTO-APPLIED $(Get-Date -Format 'yyyy-MM-dd'): finding `"$finding`" superseded $($signatureCounts[$sig])x in this repo. Skip flagging unless context changes."
-    $existing = if (Test-Path $memoryPath) { Get-Content $memoryPath -Raw -Encoding UTF8 } else { "# $role memory (this repo)`n`n## Auto-applied dampeners`n" }
+    $note = "- AUTO-APPLIED $(Get-Date -Format 'yyyy-MM-dd') [$role]: finding `"$finding`" superseded $($signatureCounts[$sig])x in this repo. Skip flagging unless context changes."
+    $existing = if (Test-Path $memoryPath) { Get-Content $memoryPath -Raw -Encoding UTF8 } else { "# Repo Context Patterns`n`n## Auto-applied dampeners`n" }
     if ($existing -match [regex]::Escape($finding)) { continue }  # already noted
 
     if (-not $DryRun) {
-        $snapPath = Join-Path $snapshotsDir "$(Get-Date -Format 'yyyyMMdd-HHmmss')_$role.md"
+        $snapPath = Join-Path $snapshotsDir "$(Get-Date -Format 'yyyyMMdd-HHmmss')_patterns.md"
         Set-Content -Path $snapPath -Value $existing -Encoding utf8 -NoNewline
         $new = if ($existing -match "## Auto-applied dampeners") { $existing + "`n$note" } else { $existing + "`n`n## Auto-applied dampeners`n$note" }
         [System.IO.File]::WriteAllText($memoryPath, $new, [System.Text.UTF8Encoding]::new($false))
     }
-    [void]$applied.Add("specialist-memory: $role <- $finding ($($signatureCounts[$sig])x)")
+    [void]$applied.Add("repo-patterns: $role <- $finding ($($signatureCounts[$sig])x)")
 }
 
 # Bucket 2: prompt pattern accumulation -- additive reflections with count >= 2

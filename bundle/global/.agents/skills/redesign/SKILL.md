@@ -1,56 +1,22 @@
 ---
 name: redesign
-description: Use when the user asks to redesign, greenfield UI, multi-component visual refresh, or fresh look. Runs aesthetic lock, current-state capture, per-component design, implement, visual-diff verification.
+description: "Use when the user asks to redesign, greenfield UI, multi-component visual refresh, or fresh look."
 ---
 
 # /redesign
 
-Multi-component visual work. Swarm-eligible when scope has 3+ independent screens/components.
+Use design specialists for visual judgment, then keep code completion on the
+lean engineering loop.
 
-## Phase 1 — Aesthetic lock
+Lock direction, capture current screens when available, use `ux-driver` and
+`ui-driver` when design judgment is required, implement, run fresh build/test
+and visual checks, then spawn `code-quality-reviewer`.
 
-Check for `DESIGN.md` in the repo root. If it exists, read it. If it does not exist, run the `aesthetic-director` skill: it proposes 2-3 named directions (Swiss Minimalism, Editorial, Brutalism, Glassmorphism, Dark OLED Luxury, etc.), user picks one, and it writes a locked `DESIGN.md` with typography, OKLCH palette, density, motion, and a banned-defaults list.
+Spawn `security-reviewer` only for trust-boundary changes: auth/authz, secrets,
+crypto, permissions, untrusted input, external HTTP, DB writes, filesystem
+paths, command execution, payments, or sensitive data exposure.
 
-Do NOT skip this phase. Without a locked direction, parallel design agents converge on Inter + purple gradient + rounded cards.
+Repair BLOCKING findings and rerun verification + review, max 3 repair cycles.
 
-## Phase 2 — Current-state capture
-
-Start the dev server: `pwsh ~/.agents/tools/dev-server-runner.ps1 -RepoRoot .`
-
-If target routes are not yet mapped in `.agents/screen-flows.yaml`, spawn `playwright-navigator` to discover route + auth + stable selectors.
-
-Capture before-screenshots: `pwsh ~/.agents/tools/playwright-runner.ps1 -Mode before -Screens <list>`
-
-## Phase 3 — Per-component design
-
-For each screen/component in scope:
-- **TARGETED polish** (1-2 components): spawn `design-driver` with DESIGN.md, before-screenshot, and the specific component.
-- **FULL redesign** (3+ components): spawn `ux-driver` FIRST. If `structure_ok=false`, loop on structure before any visual work. Only when `structure_ok=true`, spawn `ui-driver` for visual polish.
-
-Cap parallel design agent spawns at ~8. Use a swarm if more.
-
-## Phase 4 — Prompt synthesis (before implementer)
-
-Spawn `prompt-synthesizer` with: consolidated design proposals from all design agents, `DESIGN.md` contents, before-screenshot pointers, target screens/components, target type "implementer". Use its `PROMPT_SYNTHESIS` output.
-
-## Phase 5 — Implementation
-
-Spawn `workflow-implementer` with the synthesized prompt from Phase 4. Give it the exact aesthetic constraints so it doesn't drift from the locked direction.
-
-Mark gate: `pwsh ~/.agents/tools/state-gate.ps1 -SessionId "<id>" -Mark "implementation_done"`
-
-## Phase 6 — Visual diff
-
-Capture after-screenshots: `pwsh ~/.agents/tools/playwright-runner.ps1 -Mode after -Screens <same list>`
-
-Run visual diff: `pwsh ~/.agents/tools/visual-diff.ps1 -Before <dir> -After <dir>`
-
-If unintended regressions appear on screens NOT in scope: surface to user. Do not suppress.
-
-## Phase 7 — Verification
-
-Run the project's build/lint command. Spawn `final-verifier`. Visual regression check passes if no unintended regressions found. Run writeback.
-
-## Phase 8 — Handoff
-
-Include before/after screenshot pointers and visual-diff report in the summary.
+Do not spawn legacy reviewer/verifier agents as normal redesign gates. Do not
+run writeback, reflection, or memory maintenance gates.

@@ -75,8 +75,9 @@ needed to route well, but sustained work should move to leaf agents:
 - Use `workflow-implementer-hard` for risky multi-file work, architecture-
   sensitive changes, difficult bug fixes, or when the default implementer
   stalls.
-- Use reviewer/verifier agents for serious review and fresh validation instead
-  of letting the orchestrator grade its own long-running work.
+- The orchestrator owns fresh verification evidence directly. After tests pass,
+  use `code-quality-reviewer` as the single default reviewer. Add
+  `security-reviewer` only for real trust-boundary risk.
 
 When the user asks to use a workflow by name, including "build workflow",
 "builder workflow", "review workflow", or "goal workflow", that is explicit

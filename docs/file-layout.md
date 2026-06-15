@@ -29,10 +29,10 @@ Contains reusable workflow skills such as:
 - `reflect`
 
 Also includes expert skills and supporting skills:
-- `experts/modularity`
-- `experts/ui-ux`
-- `experts/performance`
-- `experts/silent-failure-hunter`
+- `test-strategy`
+- `silent-failure-hunter`
+- `verification-before-completion`
+- `skill-import`
 - `gstack-*`
 - `git-archaeology`
 - `derive-repo-skills`
@@ -71,13 +71,12 @@ These live inside each target repo.
 ```text
 .kit/
   context/
-    memory.md
-    history.md
-    handoffs.md
-    reflections.md
-    agent-memory/
-      shared.md
-      {role}.md
+    patterns.md
+    conventions.md
+    workflow-briefs/
+      workflow-explorer.md
+      workflow-implementer.md
+      workflow-ui-qa.md
   workflows/
     shared.md
     analyze.md
@@ -90,12 +89,13 @@ These live inside each target repo.
 
 | File | Purpose |
 |---|---|
-| `memory.md` | durable repo facts + session handoff index |
-| `history.md` | major milestones, bugs fixed, architectural decisions |
-| `handoffs.md` | shared session tag index only |
-| `reflections.md` | unaddressed workflow improvement candidates |
-| `agent-memory/shared.md` | repo-local role guidance shared by multiple specialists |
-| `agent-memory/{role}.md` | repo-local role-specific guidance |
+| `patterns.md` | default repo-specific agent guidance shared across roles |
+| `conventions.md` | compact repo conventions discovered during bootstrap |
+| `workflow-briefs/*.md` | small role-specific briefs for the lean workflow agents |
+
+Legacy `memory.md`, `history.md`, `handoffs.md`, `reflections.md`, and
+`agent-memory/` files may exist in older repos. They are opt-in compatibility
+context, not default startup context.
 
 ## Wiki files
 

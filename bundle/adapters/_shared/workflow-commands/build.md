@@ -1,175 +1,134 @@
 ---
-description: User-typed /build entry point. Run the kit's phased pipeline for this workflow on __HOST_NAME__. Main session orchestrates, decides mode, and spawns only leaf agents via the Task tool.
+description: User-typed /build entry point. Run the kit's lean implementation loop on __HOST_NAME__.
 ---
 
 # /build
 
-You are the main Claude Code / OpenCode session. The user invoked /build because they want to implement / fix / refactor / change code. You ARE the orchestrator — no wrapping subagent layer; you read this body and execute the phases yourself, using the **Task tool** to spawn leaf subagents (workflow-explorer, workflow-implementer, code-quality-reviewer, etc.) when phases call for it.
+You are the main Claude Code / OpenCode session. The user invoked `/build`
+because they want code changed. You are the orchestrator for this session; use
+leaf agents only when the phase below calls for them.
 
-Run the kit's phased build pipeline. You ARE the orchestrator. Delegate to leaf subagents via the Task tool when delegation pays off; do simple edits inline.
+Default loop:
 
-If the user asks to use the build or builder workflow, treat that as explicit
-permission to use this workflow's normal leaf agents. Do not load this workflow
-and then keep multi-file or non-trivial work inline because of a generic
-"subagents only when explicitly asked" host rule.
+1. Load minimal indexed context only when needed.
+2. Define the expected test set.
+3. Implement with the needed tests.
+4. Run fresh verification.
+5. Run one unified review with `code-quality-reviewer`.
+6. Optionally run `security-reviewer` only when the diff crosses a real trust
+   boundary.
+7. Repair BLOCKING findings and repeat, max 3 repair cycles.
 
-## Router handoff
+Completion means: requested behavior is done, the meaningful test set covers it
+where feasible, tests/build/checks are green, and there is no unhandled
+BLOCKING reviewer finding. Handoffs, memory, wiki updates, writeback warnings,
+and reflection backlog are not completion gates.
 
-This workflow is meant to load **after** the top-level router has already
-decided that the task belongs in `/build`.
+## Router Handoff
 
-If the current session already has a routing handoff, **honor it**:
+If the current session already has a routing handoff, honor it:
 
 - `WORKFLOW_MODE: inline | targeted | full`
 - `SCOPE_CLASS: isolated | shared | critical`
 - `ROUTING_REASON: <why this mode was chosen>`
 
-Do **not** reopen the `inline vs workflow` question when that handoff exists.
-You may escalate mode with evidence, but you should not demote a routed workflow
-back to inline just to save spawns.
+If the user invoked `/build` directly and no handoff exists, classify from
+`git status` and `git diff --stat HEAD`:
 
-If the user invoked `/build` directly and no handoff exists, classify now:
+- `isolated`: one module, no shared contract, obvious low-risk edit.
+- `shared`: multiple modules or shared workflow/source contracts.
+- `critical`: auth, permissions, crypto, schema/data loss, secrets, payments, or
+  another trust boundary.
 
-| Scope class | Default mode |
-|---|---|
-| `isolated` | `inline` |
-| `shared` | `targeted` |
-| `critical` | `full` |
+## Phase 1 - Context
 
-## Mode contract
+Read the smallest useful local context. Prefer `.wiki/index.md` first, then the
+smallest relevant architecture, codebase, feature, or principles page it points
+to. Spawn `workflow-explorer` only when file ownership, patterns, or call sites
+are unclear. Repo-local `.kit/context/patterns.md` is optional focused guidance;
+legacy `.kit/context/agent-memory/*.md`, handoffs, and session context are
+compatibility/manual surfaces, not startup context.
 
-| Mode | Meaning | Default shape |
-|---|---|---|
-| `inline` | one-file, obvious, low-risk | main session + direct verify |
-| `targeted` | bounded multi-file change | implementer + 1 reviewer + final-verifier |
-| `full` | cross-cutting or high-risk | explorer + implementer + review pressure + final-verifier |
+## Phase 2 - Expected Test Set
 
-## Phase 0 — Handoff or classification
+Before coding, state the tests that should prove the change:
 
-If `WORKFLOW_MODE` is already present, accept it and continue. Otherwise,
-read `git status` + `git diff --stat HEAD`. Classify:
-- **ISOLATED** — 1 module, no shared types, ≤5 files. Inline edits OK; spawn workflow-implementer only for genuinely complex logic.
-- **SHARED** — 2+ modules or shared interfaces. Spawn workflow-implementer for the change.
-- **CRITICAL** — auth, schema migration, breaking change. Spawn workflow-implementer + extra adversarial pressure.
+- unit tests for pure logic
+- integration or contract tests for cross-module behavior
+- E2E tests for user-visible flows when the repo can run them
+- mock data or fixtures for external systems, permissions, and edge cases
 
-## Phase 1 — Context (when needed)
+If E2E is infeasible, say why and use the nearest integration, contract, or
+workflow test that exercises the requested behavior. Do not rely only on green
+existing tests when the request changes behavior.
 
-If the change touches >2 unfamiliar files OR you need to discover code patterns: spawn `workflow-explorer` via Task with the user's verbatim request + 3-5 likely files to explore. Read its synthesis, then proceed.
+## Phase 3 - Implementation
 
-If the codebase is small or already understood: skip this phase.
+Inline edits are allowed only for obvious single-file mechanical work. For
+multi-file changes, new files, or unfamiliar logic, spawn `workflow-implementer`
+with the user request, scoped files, relevant context, expected test set, and
+verification command. The implementer should add or update the tests, or explain
+why no test change is appropriate.
 
-## Phase 2 — Implementation
+Do not run a separate slop cleanup agent by default. The unified reviewer owns
+AI slop, misplaced files, over-abstraction, duplicate logic, weak tests, and
+maintainability regressions.
 
-**MECHANICAL pre-implementation gate (no exceptions — this is a routing rule, not a style preference):**
+## Phase 4 - Fresh Verification
 
-```bash
-git diff --name-only HEAD
-```
+Run the project's build/test/lint command directly in the main session and read
+the output. Capture the command and exit code in your notes. If verification
+fails, fix the failure before review.
 
-Count the files. If **>1 file OR any new file**: you MUST spawn
-`workflow-implementer`. Do NOT proceed inline. If `WORKFLOW_MODE=inline` and
-the gate fails, escalate immediately to `targeted` and continue.
+Do not spawn a verifier agent. The orchestrator owns fresh verification evidence
+directly.
 
-| Condition | Action |
-|---|---|
-| 1 existing file touched, no new files | Inline Edit/Write allowed |
-| >1 file OR new file created | Spawn `workflow-implementer` immediately |
+## Phase 5 - Unified Review
 
-If the implementer is warranted, spawn via Task with:
-- The user's request verbatim.
-- The explorer synthesis (compact form) if Phase 1 ran.
-- Explicit list of files in scope.
-- The verification command (test/lint/build) the implementer must run after editing.
+Spawn exactly one `code-quality-reviewer` after fresh verification passes.
 
-For ISOLATED single-file mechanical edits: do them inline with Read + Edit.
+The reviewer checks correctness bugs, architecture mismatch, over-abstraction,
+misplaced files, duplicate logic, AI slop, weak tests, and obvious
+maintainability regressions. It also checks whether the expected test set is
+real, whether E2E was added or reasonably ruled out, whether mocks/fixtures are
+credible, and whether the requested behavior was actually exercised. Findings
+must be tagged `BLOCKING`, `NON-BLOCKING`, or `NIT`.
 
-## Phase 2.5 — AI slop refactoring (automatic, every build)
+Spawn `security-reviewer` only when the diff touches at least one trust-boundary
+trigger:
 
-After implementation, run slop detection on changed files:
+- auth/authz
+- secrets or credentials
+- crypto
+- permissions
+- untrusted input
+- external HTTP
+- DB writes
+- filesystem paths
+- command execution
+- payments
+- sensitive data exposure
 
-```
-pwsh ~/.agents/tools/detect-slop.ps1 -Path . -Fix -Json
-```
+Do not spawn other coding reviewers by default.
 
-The `-Fix` flag handles cosmetic fixes mechanically (trailing whitespace, excess blank lines).
+## Phase 6 - Repair Loop
 
-If the report contains `warning`-severity findings (commented-out code, empty catch, oversized functions, generic variable names):
-1. Spawn `slop-refactorer` with the report and changed files
-2. The refactorer reads each finding, applies judgment-level fixes, and verifies tests still pass
-3. If tests break after a fix, the refactorer reverts that specific fix
+If review returns BLOCKING findings, send only those deltas back to the
+implementer, rerun fresh verification, then rerun `code-quality-reviewer`.
+Repeat at most 3 repair cycles for the same task before surfacing a blocker.
 
-Skip spawning if only `info`-severity findings remain after auto-fix.
+Security BLOCKING findings follow the same loop and require fresh verification
+after the fix.
 
-This pass runs on EVERY build, not opt-in. AI-generated code should look human-written by the time it ships. The slop-refactorer is scoped to files changed in this session only — it does NOT refactor pre-existing slop.
+## Handoff
 
-## Phase 3 — Review (single reviewer by default)
+Return a concise summary of files changed, behavior delivered, verification
+command and result, reviewer outcome, and any remaining non-blocking risks.
 
-**One reviewer covers most cases.** Pick ONE based on dominant diff signal:
+## Not Default
 
-- New files / moved files / shared types / DI wiring → `modularity-expert`
-- Auth / external HTTP / DB writes / file paths / user input → `security-reviewer`
-- Everything else (default) → `code-quality-reviewer`
+Legacy reviewer and verifier agents are compatibility or manual-specialist
+tools. They are not part of the default `/build` loop.
 
-Spawn a SECOND reviewer ONLY if the first surfaces a finding clearly outside its lane (e.g. modularity-expert flags a missing input-validation that needs security-reviewer follow-up).
-
-If the reviewer returns BLOCKING findings: spawn `workflow-implementer` again with the findings as deltas. Cap at 3 iterations of fix-loop.
-
-## Phase 4 — Adversarial pass (REMOVED from default)
-
-`adversarial-reviewer` is no longer in the default matrix. Evidence from session reflections + Anthropic multi-agent research: critic loops past 2-3 reviewers degrade output (false-positive flooding, the critic finds problems to justify itself). `code-quality-reviewer` + `final-verifier` already catch the genuine issues.
-
-Spawn `adversarial-reviewer` ONLY if the user explicitly asks for it OR the change is a security-critical rewrite (auth subsystem, crypto, schema migration with data loss risk).
-
-## Phase 5 — Iron Law gate
-
-Run the verification command yourself (Bash) and capture exit code. Then spawn `final-verifier` via Task to confirm:
-- Verification command ran fresh.
-- Exit code 0 was captured.
-- No code modified after the last verification.
-
-If final-verifier returns red: surface to user, do NOT claim "done."
-
-## Phase 6 — Handoff
-
-One-paragraph summary: files changed (1 line each), behavior delivered, verification status. If `.wiki/features.md` exists and the change added a user-visible feature, append a 1-line entry.
-
-## What NOT to do
-
-- Do NOT spawn another orchestrator (no `build-orchestrator`, no `goal-orchestrator`) — you ARE the orchestrator, that's recursion.
-- Do NOT skip Phase 5 (Iron Law). "Tests probably pass" is forbidden.
-- Do NOT add scope. If the user asked for X and you notice Y, mention Y in handoff but don't fix it.
-## Phase 5b — Mechanical writeback gate (run this, do not skip)
-
-After verification passes, run the writeback gate via Bash:
-
-```
-pwsh ~/.agents/tools/verify-writeback.ps1 -SessionId "$CLAUDE_SESSION_ID"
-```
-
-Output ends with `OK writeback: ...` (proceed) or `WARN NO WRITEBACK -- ...`. If WARN: either update `.wiki/features.md` / `.kit/context/memory.md` and re-run, OR include the warning in your final response so the user sees the gap. Do NOT silently skip.
-
-## Phase 5c — Reflect trigger (mechanical)
-
-Check `~/.agents/context/reflections.md` length. If 5+ unaddressed entries: spawn the `reflect` skill via the Skill tool (or surface to user "5+ workflow reflections accumulated, recommend running /reflect"). Mechanical, not vibes.
-
-## Simplification policy (v2 — minimal default, escalate only on evidence)
-
-**Per-tier spawn budgets:**
-
-| Tier | Typical | Max | Composition |
-|---|---|---|---|
-| ISOLATED | **0** | 1 | Inline edits + inline verify. Spawn workflow-implementer only if genuinely complex multi-file logic. |
-| SHARED (default) | **3** | 4 | workflow-implementer + 1 reviewer (picked by dominant diff signal) + final-verifier. +1 explorer if codebase unfamiliar. |
-| CRITICAL | **5** | 7 | explorer + implementer + 1-2 reviewers + final-verifier + (optional) adversarial-reviewer if user requests OR auth/schema/crypto rewrite. |
-
-**Single-reviewer rule (Phase 3):** spawn ONE reviewer based on dominant diff signal. Spawn a second only if the first surfaces a finding clearly outside its lane.
-
-**Adversarial-reviewer NOT in default matrix at any tier.** Evidence: critic loops past 2-3 reviewers produce diminishing returns + false-positive flooding (Anthropic multi-agent research; barkain delegation-orchestrator deprecation note). Reserve for explicit user-requested adversarial passes or genuine security-critical rewrites.
-
-**Rule of thumb:** prefer 1-line inline edits over implementer spawn. Prefer ONE reviewer over multiple unless evidence demands more. Every spawn beyond the typical count must be justifiable in the handoff.
-
-## Test generation
-
-For test generation tasks specifically, prefer the `/test-gen` skill which runs
-a build-verified iteration loop (generate → run → fix → re-run, max 5 rounds)
-instead of single-shot test generation. Tests are not "done" until they pass.
+Do not run writeback, reflection, memory inbox, prompt-improvement,
+compression, proposal, or auto-consolidation tools as build gates.

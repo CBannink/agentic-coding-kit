@@ -38,6 +38,13 @@ $fileTable = @(
         HardAction = "compress-memory"
     },
     [pscustomobject]@{
+        Key        = "repo-patterns"
+        Path       = Join-Path $RepoRoot ".kit/context/patterns.md"
+        SoftLimit  = 120
+        HardLimit  = 200
+        HardAction = "flag"
+    },
+    [pscustomobject]@{
         Key        = "repo-reflections"
         Path       = Join-Path $RepoRoot ".kit/context/reflections.md"
         SoftLimit  = 50
@@ -165,13 +172,21 @@ foreach ($entry in $fileTable) {
                 }
                 "flag" {
                     $actionTaken = "flagged"
-                    [void]$recommendations.Add("Run /reflect to consolidate skill memory ($($entry.Key), $lineCount lines)")
+                    if ($entry.Key -eq 'repo-patterns') {
+                        [void]$recommendations.Add("Trim .kit/context/patterns.md back under 200 lines and graduate repeated procedures into skills or workflow briefs")
+                    } else {
+                        [void]$recommendations.Add("Run /reflect to consolidate skill memory ($($entry.Key), $lineCount lines)")
+                    }
                 }
             }
         } else {
             if ($entry.HardAction -eq "flag") {
                 $actionTaken = "flagged"
-                [void]$recommendations.Add("Run /reflect to consolidate skill memory ($($entry.Key), $lineCount lines)")
+                if ($entry.Key -eq 'repo-patterns') {
+                    [void]$recommendations.Add("Trim .kit/context/patterns.md back under 200 lines and graduate repeated procedures into skills or workflow briefs")
+                } else {
+                    [void]$recommendations.Add("Run /reflect to consolidate skill memory ($($entry.Key), $lineCount lines)")
+                }
             }
         }
 

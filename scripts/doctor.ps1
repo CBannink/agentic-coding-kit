@@ -115,23 +115,19 @@ if (Test-Path $claudeSettings) {
     foreach ($e in $hookEvents) {
         if ($sj -notmatch """$e""") { $missing += $e }
     }
-    $matcherChecks = @(
-        @{ Name = "Read"; Pattern = '"matcher"\s*:\s*"Read"' },
-        @{ Name = "Write|Edit"; Pattern = '"matcher"\s*:\s*"Write\|Edit"' },
-        @{ Name = "Task"; Pattern = '"matcher"\s*:\s*"Task"' }
-    )
-    $missingMatchers = @()
-    foreach ($matcher in $matcherChecks) {
-        if ($sj -notmatch $matcher.Pattern) {
-            $missingMatchers += $matcher.Name
-        }
-    }
-    if ($missing.Count -eq 0 -and $missingMatchers.Count -eq 0) {
-        Add-Check "Claude Code hooks wired" "PASS" "all 6 events and Read/Write|Edit/Task matchers present"
+    $pretoolBashDispatcherOk = ($sj -match '"PreToolUse"') -and
+                             ($sj -match '"matcher"\s*:\s*"Bash"') -and
+                             ($sj -match 'pretool-bash-dispatcher\.ps1')
+    $posttoolBashVerifyOk = ($sj -match '"PostToolUse"') -and
+                            ($sj -match '"matcher"\s*:\s*"Bash"') -and
+                            ($sj -match 'posttool-bash-verify-mark\.ps1')
+    if ($missing.Count -eq 0 -and $pretoolBashDispatcherOk -and $posttoolBashVerifyOk) {
+        Add-Check "Claude Code hooks wired" "PASS" "all 6 events, PreToolUse Bash dispatcher, and PostToolUse Bash verify hook present"
     } else {
         $detail = @()
         if ($missing.Count -gt 0) { $detail += "Missing events: $($missing -join ', ')" }
-        if ($missingMatchers.Count -gt 0) { $detail += "Missing matchers: $($missingMatchers -join ', ')" }
+        if (-not $pretoolBashDispatcherOk) { $detail += "Missing PreToolUse Bash dispatcher hook" }
+        if (-not $posttoolBashVerifyOk) { $detail += "Missing PostToolUse Bash verify hook" }
         Add-Check "Claude Code hooks wired" "WARN" "$($detail -join '; ') -- run merge-claude-settings.ps1"
     }
 } else {
@@ -179,7 +175,17 @@ if (Test-Path $codexConfig) {
 }
 
 $codexAgentsDir = Join-Path $HOME ".codex/agents"
-$requiredCodexAgents = @("orchestrator.toml", "goal-orchestrator.toml", "workflow-implementer.toml", "workflow-explorer.toml", "code-quality-reviewer.toml", "final-verifier.toml")
+$requiredCodexAgents = @(
+    "workflow-explorer.toml",
+    "workflow-implementer.toml",
+    "workflow-ui-qa.toml",
+    "code-quality-reviewer.toml",
+    "security-reviewer.toml",
+    "playwright-navigator.toml",
+    "ux-driver.toml",
+    "ui-driver.toml",
+    "orchestrator.toml"
+)
 if (Test-Path $codexAgentsDir) {
     $missingCodexAgents = @($requiredCodexAgents | Where-Object { -not (Test-Path (Join-Path $codexAgentsDir $_)) })
     if ($missingCodexAgents.Count -eq 0) {
@@ -209,13 +215,14 @@ if (Test-Path $copilotWrapperDir) {
 $copilotAgentsDir = Join-Path $HOME ".copilot/agents"
 $requiredCopilotAgents = @(
     "orchestrator.agent.md",
-    "goal-orchestrator.agent.md",
     "workflow-implementer.agent.md",
     "workflow-explorer.agent.md",
-    "workflow-reviewer.agent.md",
-    "prompt-synthesizer.agent.md",
+    "workflow-ui-qa.agent.md",
     "code-quality-reviewer.agent.md",
-    "final-verifier.agent.md"
+    "security-reviewer.agent.md",
+    "playwright-navigator.agent.md",
+    "ux-driver.agent.md",
+    "ui-driver.agent.md"
 )
 $missingCopilotAgents = @()
 foreach ($agentFile in $requiredCopilotAgents) {
@@ -228,7 +235,7 @@ $copilotInstructionsOk = $false
 if (Test-Path $copilotInstructionsPath) {
     $copilotInstructions = Get-Content $copilotInstructionsPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
     $copilotInstructionsOk = ($copilotInstructions -match 'YOU are the orchestrator') -and
-                           ($copilotInstructions -match 'Never spawn goal-orchestrator')
+                           ($copilotInstructions -match 'Never spawn another orchestrator subagent')
 }
 if ($missingCopilotAgents.Count -eq 0 -and $copilotInstructionsOk) {
     Add-Check "Copilot orchestration surfaces" "PASS" "orchestrator instructions + required leaf agents installed"

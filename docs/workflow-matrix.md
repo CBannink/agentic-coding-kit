@@ -6,17 +6,38 @@
 |---|---|---|
 | `/goal` | you want autonomous goal achievement with iteration | goal verdict + handoff |
 | `/plan` | you need an approval-ready implementation plan before coding | `plan.md` + `run-packet.json` |
-| `/build` | you want code changed, built, reviewed, and verified | diff + verification evidence |
-| `/review` | you want quality audit / code review | findings with verifier-filtered evidence |
+| `/build` | you want code changed, tested, and reviewed | diff + verification evidence + reviewer outcome |
+| `/review` | you want quality audit / code review | findings with false-positive-checked evidence |
+| `/test-gen` | the expected test set is clear but coverage is missing | tests + build-verified iteration output |
 | `/analyze` | you want research or architectural judgment | synthesis + optional build brief |
 | `/investigate` | cause is unknown and must be proven | root-cause evidence + optional build brief |
-| `/refactor` | you want structural improvement against principles | refactor plan + implementation |
+| `/refactor` | you want structural improvement without behavior change | implementation + behavior-equivalence review |
 
-## Autonomous flow selection
+## Default Engineering Loop
 
-The system makes **two decisions**:
+Normal code workflows use the same lean loop:
 
-### 1. Scope
+1. Load minimal indexed context only when needed.
+2. Define the expected test set.
+3. Implement with the needed tests.
+4. Run fresh verification.
+5. Spawn one `code-quality-reviewer`.
+6. Spawn `security-reviewer` only for trust-boundary risk.
+7. Repair BLOCKING findings and repeat, max 3 repair cycles.
+
+Trust-boundary risk means auth/authz, secrets, crypto, permissions, untrusted
+input, external HTTP, DB writes, filesystem paths, command execution, payments,
+or sensitive data exposure.
+
+The orchestrator owns test strategy and fresh verification evidence directly.
+For behavior changes, the expected test set should include relevant
+unit/integration coverage and E2E for user-visible flows when the repo can run
+it. Use mock data or fixtures for external systems and edge cases. If E2E is
+infeasible, record why and use the nearest integration, contract, or workflow
+test. Legacy reviewer and verifier agents remain installed for compatibility
+or explicit manual use, not normal routing.
+
+## Scope And Tier
 
 | Scope | Meaning |
 |---|---|
@@ -24,103 +45,21 @@ The system makes **two decisions**:
 | `SHARED` | shared interfaces, multiple modules, some integration risk |
 | `CRITICAL` | auth, schema, public API, dangerous contracts, broad blast radius |
 
-### 2. Tier
-
 | Tier | Meaning |
 |---|---|
-| `INLINE` | lite flow |
-| `TARGETED` | medium flow |
-| `FULL` | critical/full swarm flow |
+| `INLINE` | direct answer or obvious mechanical edit |
+| `TARGETED` | implementer + unified reviewer, plus explorer if unfamiliar |
+| `FULL` | same loop with broader context and conditional security review |
 
-This is how the system achieves **lite / targeted / critical** behavior without user micromanagement.
+## Goal Flow
 
-## Agent shapes by workflow
+`/goal` owns success criteria, scope, expected test set, E2E feasibility,
+verification command, loop state, and blockers. It routes into the right
+workflow and stops when criteria are met, the meaningful test set exists where
+feasible, verification is green, and no BLOCKING unified-review finding remains.
 
-### `/plan`
+Caps:
 
-Typical roles:
-- `wiki-explorer`
-- `architecture-explorer`
-- `integration-explorer`
-- `history-explorer`
-- `ownership-explorer`
-- `consequence-agent`
-- `eng-plan-reviewer`
-
-### `/build`
-
-Typical roles:
-- `plan-freshness-checker`
-- `delta-explorer`
-- `patterns-explorer`
-- `implementer`
-- `spec-reviewer`
-- `code-quality-reviewer`
-- `modularity-expert`
-- `security-reviewer`
-- `build-loop-gate`
-- `adversarial-reviewer`
-- `final-verifier`
-
-### `/review`
-
-Hierarchical swarm:
-
-#### Surface reviewers
-- `software-reviewer`
-- `security-reviewer`
-- `api-reviewer`
-- `testing-reviewer`
-- optional surface specialists (`performance-reviewer`, `maintainability-reviewer`, `data-migration-reviewer`)
-
-#### Interaction reviewers
-- `caller-callee-reviewer`
-- `shared-contract-reviewer`
-- `state-flow-reviewer`
-
-#### Parent merge layer
-- `synthesis-reviewer`
-
-#### Final passes
-- `adversarial-reviewer`
-- `false-positive-verifier`
-
-### `/analyze`
-
-Typical roles:
-- `architecture-explorer`
-- `surface-explorer`
-- `impact-explorer`
-- `pragmatist`
-- `skeptic`
-- `claim-verifier`
-- optional `consequence-agent`
-
-### `/investigate`
-
-Typical roles depend on the failure, but the logic is hypothesis-driven rather than role-first.
-
-### `/goal` (goal-orchestrator)
-
-The goal-orchestrator classifies the goal type and delegates to the right workflow. It spawns:
-
-- Scope classification via `scope-classifier.ps1`
-- Trust scoring via `agent-trust-scorer.ps1` (calibrates noisy agents)
-- Then routes to `/build`, `/investigate`, `/analyze`, `/review`, `/redesign`, or `/bootstrap-harness`
-
-Convergence guards:
-- Stuck detection (3 same-blocker iterations)
-- Lateral-drift detection (3 different blockers, no improvement)
-- Empty-diff watchdog (2 consecutive empties)
-- Rollback gate (3 consecutive rollbacks)
-- Rollback-oscillation detection (files alternating as failure sources)
-- Cap: 6 iterations max
-
-## Why this matters
-
-The system does **not** treat every change as a swarm problem.
-
-It uses:
-- **lite** when direct reads are enough
-- **targeted** when there are some real boundaries or unknowns
-- **full** when contracts, auth, migrations, or system interactions are risky
+- max 3 repair cycles for the same blocker/task
+- soft cap 6 total iterations
+- hard cap 12 total iterations

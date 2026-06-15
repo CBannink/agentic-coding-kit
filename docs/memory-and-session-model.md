@@ -1,12 +1,13 @@
 # Memory and Session Model
 
-## Four memory classes
+## Core context classes
 
 | Class | Location | Use for |
 |---|---|---|
 | Global workflow memory | `~/.agents/skills/{skill}/memory.md` | cross-repo workflow patterns |
 | Repo memory | `.kit/context/memory.md` | durable facts about one repo |
-| Repo specialist memory | `.kit/context/agent-memory/` | durable role-specific guidance for one repo |
+| Repo context patterns | `.kit/context/patterns.md` | durable repo-specific agent guidance shared across roles |
+| Legacy repo role memory | `.kit/context/agent-memory/` | read-only compatibility for old role-specific guidance |
 | Session memory | `.kit/session-state/{SESSION_ID}/...` (default in a bootstrapped repo) | current task state and artifacts |
 
 ## Is build memory shared across repos?
@@ -23,7 +24,8 @@ That file should **not** contain:
 
 Route those instead to:
 - `.kit/context/memory.md` for durable repo facts
-- `.kit/context/agent-memory/{role}.md` for repo-local specialist guidance
+- `.kit/context/patterns.md` for repo-specific agent guidance
+- `.kit/context/agent-memory/{role}.md` only when legacy read-only compatibility requires role-specific guidance
 - `.kit/session-state/{id}/...` for current-task notes
 
 Normal reinstalls preserve accumulated skill memory, so the cross-repo pattern
@@ -44,22 +46,28 @@ It is **not** for:
 - speculative notes
 - session chatter
 
-## Repo specialist memory
+## Repo context patterns
 
 Use:
 
 ```text
-.kit/context/agent-memory/
-  shared.md
-  implementer.md
-  security-reviewer.md
-  ...
+.kit/context/
+  patterns.md
 ```
 
 This exists because some guidance is:
-- too specific for repo memory
+- too specific for `memory.md`
 - too durable for a handoff
-- useful only for a particular role
+- worth sharing across roles without repeating it in every workflow brief
+
+Hard cap: keep `patterns.md` under 200 lines. Repeated procedures should become
+skills, workflow briefs, or tools instead of growing this file.
+
+## Legacy repo role memory
+
+Use `.kit/context/agent-memory/{role}.md` only when you need read-only
+compatibility with older role-specific guidance. `specialist-memory-resolver.ps1`
+excludes it by default and includes it only with `-IncludeLegacyRoleMemory`.
 
 ### Injection path
 
@@ -72,7 +80,9 @@ pwsh ~/.agents/tools/specialist-memory-resolver.ps1 `
   -RepoRoot "{repo-root}"
 ```
 
-If `found=true`, inject the returned `prompt_block`.
+Add `-IncludeLegacyRoleMemory` only when the task explicitly needs the old
+read-only `agent-memory/` guidance. If `found=true`, inject the returned
+`prompt_block`.
 
 ## Session artifacts
 
@@ -86,7 +96,7 @@ compact reusable execution packet containing:
 - likely files
 - integration points
 - verification items
-- repo specialist memory used
+- repo context patterns used
 
 ### `workflow-evidence.json`
 machine-readable proof of:

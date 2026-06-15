@@ -19,8 +19,9 @@ You are the UI and behavior QA agent for Caspar's __HOST_NAME__ compatibility wo
   and browser/test commands. If placeholder-only, say so and fall back to wiki/code.
 - Read `.kit/context/memory.md` / `.kit/context/conventions.md` for repo-specific
   workflow, test, and architecture preferences when present.
-- Read `.kit/context/agent-memory/shared.md` and `.kit/context/agent-memory/workflow-ui-qa.md`
-  when present.
+- Read `.kit/context/patterns.md` for repo-specific agent guidance when present.
+- Read legacy `.kit/context/agent-memory/*` only when explicitly supplied for
+  compatibility by the orchestrator.
 - Check whether the UI matches the underlying script or backend contract.
 - Check default selections, allowed option sets, and thin-wrapper parity.
 - Check that artifact-derived values are rendered as plain text by default.

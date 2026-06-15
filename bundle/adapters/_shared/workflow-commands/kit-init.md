@@ -9,15 +9,16 @@ Read and follow `__SKILL_ROOT__/kit-init/SKILL.md` exactly:
 3. Harvest durable facts (stable, non-obvious, load-bearing).
 4. Write `.kit/context/memory.md` (<=40 entries with file:line citations).
 5. Seed `.kit/context/handoffs.md`, `history.md`, `reflections.md` (headers only).
-6. Write `.kit/context/agent-memory/shared.md` only if >=3 cross-role patterns found, including git-backed architecture conventions when stable.
-7. Write `.kit/workflows/{shared,build,review}.md` ONLY if the kit's
+6. Write `.kit/context/patterns.md` with concise repo-specific agent guidance only. Keep it shared across roles, free of task progress, and under 200 lines.
+7. Do not create or grow `.kit/context/agent-memory/*`; preserve existing files only as legacy read-only compatibility.
+8. Write `.kit/workflows/{shared,build,review}.md` ONLY if the kit's
    global skills need repo-specific augmentation. Otherwise skip.
-8. Recommend `/derive-repo-skills` next (separate workflow, do NOT auto-run).
-9. Emit a coverage report listing facts considered but skipped.
+9. Recommend `/derive-repo-skills` next (separate workflow, do NOT auto-run).
+10. Emit a coverage report listing facts considered but skipped.
 
 Hard rules: evidence-grounded only (every entry traces to a real file),
-size budgets enforced (memory.md <=40 entries, agent-memory/shared.md
-<=200 lines, workflows files <=150 lines each), no generic templates, no
+size budgets enforced (memory.md <=40 entries, patterns.md <=200 lines,
+legacy agent-memory files are read-only when retained, workflows files <=150 lines each), no generic templates, no
 aspirational entries.
 
 If `.kit/` already exists, AUDIT instead of overwrite -- diff entries

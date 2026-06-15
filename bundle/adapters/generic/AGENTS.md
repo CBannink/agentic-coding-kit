@@ -17,8 +17,9 @@ Aider, Cline, Cursor, Continue, etc.) gets the right behavior from this file.
    - `/refactor` for principle-driven restructuring
    - `/redesign` for greenfield UI / multi-component visual work (swarm-eligible)
    - `/security-review` for adversarial audits (swarm-eligible)
-5. Use role-specific repo memory only through the mechanical resolver:
+5. Use repo-specific agent guidance only through the mechanical resolver:
    `pwsh ~/.agents/tools/specialist-memory-resolver.ps1 -SessionId {id} -Role {role}`
+   Add `-IncludeLegacyRoleMemory` only when old read-only `agent-memory/` files are explicitly needed.
 6. Default execution is **sequential**. Swarms only fire when all three hold:
    parallel-safe verb (audit / explore / port / redesign / pentest), fan-out-able
    scope, explicit user opt-in.
@@ -44,7 +45,8 @@ absorb sustained worker context.
 | Bucket | Target |
 |---|---|
 | Durable repo facts | `.kit/context/memory.md` |
-| Repo-local specialist guidance | `.kit/context/agent-memory/{role}.md` or `shared.md` |
+| Repo context patterns | `.kit/context/patterns.md` |
+| Legacy repo role guidance | `.kit/context/agent-memory/{role}.md` or `shared.md` (read-only compatibility) |
 | Cross-repo skill patterns | `~/.agents/skills/{skill}/memory.md` |
 | Session-only | `${AGENTS_SESSION_ROOT}/{id}/handoffs.md` (default `~/.agents/session-state`) |
 

@@ -22,7 +22,7 @@ Keep these concepts unchanged:
 | session-specific handoff body | **Yes** |
 | run packet | **Yes** |
 | review/build/plan workflow split | **Yes** |
-| repo-local specialist memory | **Yes** |
+| repo-local context patterns | **Yes** |
 
 ## What Claude Code needs
 
@@ -72,15 +72,14 @@ If you do this, update path references in the installed skill/tool files.
 
 ## Commands in Claude Code
 
-Claude Code now has **13 commands** installed (not just the basic 5 listed in older docs), plus **12 agents** including `goal-orchestrator` and `pr-reviewer`. Commands are auto-discovered from `.claude/commands/` — no manual registration needed.
+Claude Code command files remain available, but Codex/Copilot/OpenCode now use a
+lean default agent surface: explorer, implementer, UI QA, code-quality review,
+conditional security review, and UI route/UX/visual checks. Larger specialist
+catalogs are manual compatibility assets, not default routing.
 
 If your Claude Code setup supports command markdown files under `.claude/commands`, copy the provided command files into the target repo.
 
 If not, use the command files as **prompt templates** and keep `CLAUDE.md` as the main entrypoint.
-
-### New tools available in Claude Code
-
-`agent-trust-scorer.ps1` is available via the `goal-orchestrator` agent to inject calibration prompts when delegating to agents with a noisy track record.
 
 ## Recommended adoption path
 
@@ -95,8 +94,8 @@ If not, use the command files as **prompt templates** and keep `CLAUDE.md` as th
 The system is strong because it has:
 - autonomous lite / targeted / full flow selection
 - plan-first execution
-- hierarchical review swarms
-- repo-local specialist memory
+- unified post-verification review with conditional security review
+- repo-local context patterns
 - hook-ready lifecycle helpers
 - compact run packets for resuming and compaction
 - wiki-aware feature memory

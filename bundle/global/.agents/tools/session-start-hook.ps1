@@ -32,31 +32,12 @@ $record = [ordered]@{
     repo_root   = $RepoRoot
 }
 
-# Filesystem-truth baseline. Captures session-start timestamp + size+sha256 of
-# the critical writeback files so session-end-hook can detect whether anything
-# was actually written, and so state-gate.ps1 has a session_start to compare
-# mtimes against.
-function Get-FileSnapshot([string]$Path) {
-    if (-not (Test-Path $Path)) { return @{ exists = $false; size = 0; sha256 = ""; mtime = "" } }
-    $i = Get-Item $Path
-    $sha = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
-    return @{ exists = $true; size = $i.Length; sha256 = $sha; mtime = $i.LastWriteTime.ToString('o') }
-}
-$baselineFiles = @{}
-if ($RepoRoot -and (Test-Path $RepoRoot)) {
-    $baselineFiles['memory.md']      = Get-FileSnapshot (Join-Path $RepoRoot '.kit\context\memory.md')
-    $baselineFiles['shared.md']      = Get-FileSnapshot (Join-Path $RepoRoot '.kit\context\agent-memory\shared.md')
-    $baselineFiles['features.md']    = Get-FileSnapshot (Join-Path $RepoRoot '.wiki\features.md')
-    $baselineFiles['reflections.md'] = Get-FileSnapshot (Join-Path $RepoRoot '.kit\context\reflections.md')
-}
-$baselineFiles['handoffs.md'] = Get-FileSnapshot (Join-Path $sessionDir 'handoffs.md')
-
 $baseline = [ordered]@{
     session_id    = $SessionId
     session_start = (Get-Date -Format 'o')
     repo_root     = $RepoRoot
     mode          = $Mode
-    files         = $baselineFiles
+    files         = @{}
 }
 $baselinePath = Join-Path $sessionDir 'baseline.json'
 $baseline | ConvertTo-Json -Depth 6 | Set-Content -Path $baselinePath -Encoding utf8
