@@ -1,0 +1,35 @@
+# Threat-model routes
+
+## FOCUSED
+
+Use for one feature, component, diff, API, or trust boundary. Trace only its
+inputs, outputs, identities, privileges, sensitive assets, dependencies, and
+failure paths. Stop when material attack paths and controls for that boundary
+are accounted for.
+
+## FULL
+
+Use when the user requests a system-wide model or no trustworthy baseline
+exists. Map the requested system's deployables, actors, data stores, external
+dependencies, entry points, privilege boundaries, and recovery controls. Split
+one targeted Scout only when a flow cannot be established without broad search.
+
+## INCREMENTAL
+
+Start from an explicitly supplied existing threat model and the exact current
+diff or change range. Verify the baseline against current source, then report:
+
+- changed components, flows, assets, and trust boundaries;
+- new threats and controls;
+- threats resolved by the change;
+- materially altered residual risk;
+- unchanged findings that remain applicable;
+- stale baseline claims.
+
+Do not rewrite the full baseline when only a narrow delta changed.
+
+## Escalation
+
+Use `security-reviewer` to independently challenge material attack paths,
+control assumptions, severity, and mitigations. If implementation is requested,
+return the accepted findings to the orchestrator for a security-assured `build`.

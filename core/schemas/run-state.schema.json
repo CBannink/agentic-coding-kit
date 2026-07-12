@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schemaVersion", "runId", "contractRevision", "currentRoute", "openFindings", "evidenceReferences", "retryCounts"],
+  "properties": {
+    "schemaVersion": { "const": 1 }, "runId": { "type": "string" }, "contractRevision": { "type": "integer", "minimum": 1 }, "currentRoute": { "type": "string" }, "openFindings": { "type": "array", "items": { "type": "string" } }, "evidenceReferences": { "type": "array", "items": { "type": "string" } }, "baseRevision": { "type": "string" }, "currentRevision": { "type": "string" }, "worktreeIdentity": { "type": "string" }, "retryCounts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } }
+  },
+  "additionalProperties": false
+}

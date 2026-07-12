@@ -1,480 +1,334 @@
-# Caspar Bannink Agentic Coding Kit
+# Agentic Coding Kit v6
 
-A cross-harness agentic workflow kit for serious coding, review, product, and
-marketing work. It installs one shared operating layer under `~/.agents/`, then
-renders the right skills, agents, instructions, and wrappers for each host.
+A native, development-focused workflow kit for long-horizon coding work in
+Codex, Claude Code, OpenCode, and GitHub Copilot CLI. The active harness session
+is the orchestrator. Skills define reusable loops; small, bounded agents keep
+exploration, implementation, review, testing, and specialist judgment out of
+the main context.
 
-Primary mature harnesses:
+The kit is intentionally model-neutral. It does not force one provider's model
+names into another harness.
 
-- Claude Code
-- Codex
-- OpenCode
-- GitHub Copilot CLI
+## Start here
 
-Additional lightweight adapters exist for generic `AGENTS.md` and
-Gemini-style layouts, but the strongest subagent workflow is on the four
-primary harnesses above. Kilo Code support has been removed from the supported
-installer surface.
+### Requirements
 
-## What It Does
+- Windows or macOS.
+- Node.js 20 or newer. The current release is a bundled JavaScript CLI, not a
+  standalone native executable.
+- At least one supported harness installed separately: `codex`, `claude`,
+  `opencode`, or `copilot`.
+- Git for project-scope installation and wiki initialization.
 
-The kit makes the main session an orchestrator first. The main agent classifies
-the request, loads the smallest relevant indexed context, defines the expected
-test set, then delegates concrete work to specialized workflow or specialist
-agents. It avoids the common failure mode
-where the main chat keeps every file, every diff, every reviewer thought, and
-every implementation detail in one bloated context.
-
-The root prompts bias toward cost-aware delegation: the orchestrator may read
-the directly relevant files needed to route well, but real exploration goes to
-`workflow-explorer`; obvious mechanical edits across at most 3 files may stay
-inline; coding likely to touch more than 3 files, add files, cross modules, or
-need unfamiliar conventions goes to `workflow-implementer` or the hard
-implementer variant.
-
-Core behavior:
-
-- Plan/build/review/investigate/refactor/security/redesign workflows.
-- Lean default agents for exploration, implementation, UI QA, code quality,
-  conditional security review, and UI route/UX/visual checks.
-- Additional specialist, product, marketing, prompt-synthesis, and learning
-  agents remain in source for explicit manual use, not default install/routing.
-- Minimal repo context: current code first, `.wiki/index.md` only as an
-  on-demand index, `.kit/context/patterns.md` only when focused guidance helps.
-- Test-set-first build loop: define expected unit/integration/E2E coverage
-  before implementation, using mock data or fixtures where possible.
-- Verification gates: no completion claim without fresh build/test/lint
-  evidence.
-- Lazy global loop skills for `test-strategy`, `silent-failure-hunter`,
-  `verification-before-completion`, and `skill-import`; these are available
-  across hosts but are not default agents or startup context.
-- Self-improvement tools remain installed for explicit manual maintenance, but
-  they are not normal workflow gates.
-- Cross-harness install: the same canonical agent sources are rendered into
-  Claude/OpenCode markdown, Codex TOML, and Copilot `.agent.md`.
-
-## Quick Install
-
-Run from the kit checkout:
+Build the management CLI once from the repository root:
 
 ```powershell
-# Recommended: install one harness with its dedicated script
-pwsh .\scripts\install-codex.ps1
-pwsh .\scripts\install-copilot.ps1
-pwsh .\scripts\install-claude.ps1
-pwsh .\scripts\install-opencode.ps1
-
-# Advanced shared backend: install for multiple harnesses
-pwsh .\scripts\install.ps1 -For "codex,copilot"
-
-# Install for all supported device-wide targets
-pwsh .\scripts\install.ps1 -For all
-
-# Auto-detect installed CLIs on PATH
-pwsh .\scripts\install.ps1 -Auto
+npm ci --prefix cli
+npm run bundle --prefix cli
 ```
 
-Which command to use:
+On macOS, use the same commands in Terminal.
 
-| Situation | Command |
+### Safe install: preserve existing configuration
+
+Windows, install adapters for all four harnesses:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-all.ps1 `
+  --scope user --profile core --security preserve --memory preserve
+```
+
+macOS:
+
+```bash
+bash scripts/install-all.sh \
+  --scope user --profile core --security preserve --memory preserve
+```
+
+For one harness, use `install-codex`, `install-claude`, `install-opencode`, or
+`install-copilot` with the platform's `.ps1` or `.sh` suffix.
+
+`core` installs every coding loop and all seven core agents. Use `full` only
+when browser execution and visual UI critique are useful.
+
+### Destructive clean install
+
+> **Warning: `--clear-global-config --yes` backs up and then removes the
+> selected harness's global instructions, agents, skills, commands, and primary
+> settings/configuration file.** This includes hand-written agents, MCP/provider
+> configuration, hooks, model choices, and permission settings stored there.
+> Authentication databases and opaque application state are not intentionally
+> removed.
+
+Backups are written under:
+
+```text
+~/.agentic-kit-backup/<timestamp>/<host>/
+```
+
+Example clean install on this machine, with Codex explicitly configured for
+unrestricted local execution:
+
+```powershell
+.\scripts\install-all.ps1 --scope user --profile full `
+  --security permissive --memory preserve `
+  --clear-global-config --yes
+```
+
+On macOS:
+
+```bash
+bash scripts/install-all.sh --scope user --profile full \
+  --security permissive --memory preserve \
+  --clear-global-config --yes
+```
+
+`permissive` currently emits a validated Codex configuration with
+`approval_policy = "never"` and `sandbox_mode = "danger-full-access"`. Other
+harnesses retain their native permission semantics; the kit does not invent
+unsupported parity fields.
+
+An all-host install performs a complete dry-run preflight before changing any
+host. Files are then installed sequentially. Backups are the recovery path for
+an operating-system failure during the mutation phase.
+
+## What gets installed
+
+### Seven core skills
+
+| Skill | Purpose |
 |---|---|
-| Fresh machine, one host | `pwsh .\scripts\install-<codex|copilot|claude|opencode>.ps1` |
-| Fresh machine, several hosts | Run the dedicated scripts you want, or use `pwsh .\scripts\install.ps1 -For "codex,copilot"` |
-| Fresh machine, install every mature target | `pwsh .\scripts\install.ps1 -For all` |
-| Existing repo that needs `.kit` and `.wiki` | `pwsh .\scripts\install-<host>.ps1 -BootstrapHarness -TargetRepo C:\path\to\repo` |
-| Existing Codex setup with hand-tuned `~/.codex/agents/*.toml` models | Do a manual Codex port and preserve `model = ...` lines |
+| `build` | Implement features, fixes, refactors, migrations, UI, API, data, configuration, and code-linked documentation. |
+| `design` | Produce a feature, architecture, or UI design before implementation. |
+| `analyze` | Read-only diagnosis, explanation, comparison, architecture, dependency, and performance analysis. |
+| `review` | Independent review of a diff, branch, contract, design, subsystem, or test delta. |
+| `pr-ready` | Repair and package a diff for efficient human PR review. |
+| `threat-model` | Read-only trust-boundary, attack-path, control, and mitigation analysis. |
+| `wiki` | Initialize, reinitialize, or audit curated repository engineering knowledge. |
 
-Verify:
+These are general development workflows. They are not seven mandatory stages.
+The orchestrator chooses the smallest useful loop and may work inline for a
+clear, low-risk change.
 
-```powershell
-pwsh .\scripts\validate-bundle.ps1
-pwsh .\scripts\doctor.ps1
-```
+### Adaptive coding loops
 
-Expected current baseline: `validate-bundle.ps1` has `0` errors. Existing
-warnings are non-blocking unless you are specifically working on those areas.
+- `INLINE`: direct work for a clear, tightly bounded change. No ceremonial
+  agent spawning.
+- `STANDARD`: targeted implementation with proportionate checks and independent
+  review or testing where it adds real value.
+- `DEEP`: explicit contract, focused discovery, independent implementation
+  review and test hardening, plus conditional UI/security evidence.
 
-## Per-Harness Install Details
+The routes are prompt policy, not a rigid TypeScript workflow engine. Code
+enforces deterministic concerns such as safe installation, schema parsing,
+managed ownership, evidence files, and bounded retries. The main model decides
+which useful route comes next and when the requested outcome is sufficiently
+proven.
 
-### Codex
+Design uses `INLINE DESIGN` or `REVIEWED DESIGN`. PR preparation uses
+`INLINE`, `STANDARD`, or `DEEP`. Threat modeling uses `FOCUSED`, `FULL`, or
+`INCREMENTAL`. Failed coder/reviewer/test repair cycles stop after two
+unsuccessful rounds and return evidence to the user.
 
-```powershell
-pwsh .\scripts\install-codex.ps1
-```
+### Seven core agents
 
-Installs:
+| Agent | Responsibility | Writes |
+|---|---|---|
+| `repo-scout` | Bounded repository discovery and evidence mapping. | No |
+| `coder` | Coherent production implementation and minimum behavior tests. | Production and tests |
+| `reviewer` | Independent code, design, and test-delta judgment. | No |
+| `test-engineer` | Independent high-value test hardening. | Tests and fixtures only |
+| `diagnostician` | Discriminate repeated or ambiguous failures. | No |
+| `sage` | Rare principal-engineering challenge for difficult decisions. | No |
+| `security-reviewer` | Concrete review of material trust-boundary changes. | No |
 
-- `~/.codex/AGENTS.md` with the orchestrator rules block.
-- `~/.codex/agentic-kit.md` long-form reference.
-- `~/.codex/skills/*/SKILL.md`.
-- `~/.codex/agents/*.toml`.
-- `~/.codex/agents/orchestrator.toml` from the single shared primary
-  orchestrator template.
-- `~/.codex/config.toml` runtime posture:
-  - `approval_policy = "never"`
-  - `sandbox_mode = "danger-full-access"`
-  - `multi_agent = true`
-  - `hooks = false`
+The `full` profile additionally installs:
 
-Codex receives the lean default agent set only:
+- `browser-qa`: browser execution and evidence capture.
+- `ui-critic`: independent visual and UX critique.
 
-- `workflow-explorer`, `workflow-implementer`, `workflow-ui-qa`
-- `code-quality-reviewer`, `security-reviewer`
-- `playwright-navigator`, `ux-driver`, `ui-driver`
+All handoffs return to the main orchestrator. Agents never dispatch their own
+successor. The orchestrator sends a bounded assignment and forwards only the
+facts needed by the next role, rather than copying transcripts.
 
-The portable kit source contains no model references. Local model routing, if
-used, belongs only in `~/.codex/config.toml` and `~/.codex/agents/*.toml`.
+## Repository wiki
 
-Important: if your Codex install already has hand-tuned submodel routing in
-`~/.codex/agents/*.toml`, do not refresh it with the installer unless you have
-backed up those files or intentionally want the generated model-neutral TOML.
-Manually merge the new agent bodies and preserve each `model = ...` line.
+`wiki init` and `wiki reinit` build an architect-grade map of how the repository
+actually works: entry points, control/data flow, module boundaries, APIs,
+authentication, IPC, integrations, jobs, error/configuration conventions,
+tests, CI, release practice, and workspace-specific differences where present.
 
-### GitHub Copilot CLI
-
-```powershell
-pwsh .\scripts\install-copilot.ps1
-```
-
-Installs:
-
-- `~/.copilot/copilot-instructions.md`.
-- `~/.copilot/agentic-kit.md`.
-- `~/.copilot/agents/*.agent.md`.
-- `~/.copilot/agents/orchestrator.agent.md` from the single shared primary
-  orchestrator template.
-- `~/.copilot/settings.json` display-noise settings:
-  - `streamerMode = true`
-  - `terminalProgress = false`
-  - no `effortLevel` override.
-- `~/.agents/bin/copilot/kit-*.ps1` and `kit-*.sh` wrapper scripts.
-
-Copilot receives the same lean default agent set as `.agent.md` files.
-
-Copilot CLI has no documented user slash-command surface, so this kit uses
-global instructions, custom agents, and wrapper scripts instead. Repo-scoped
-Copilot install also writes `.github/agents`, `.github/copilot-bin`, and
-`.github/hooks` when you install the repo adapter.
-
-### Claude Code
-
-```powershell
-pwsh .\scripts\install-claude.ps1
-```
-
-Installs:
-
-- `~/.claude/CLAUDE.md` orchestrator instructions.
-- `~/.claude/agentic-kit.md`.
-- `~/.claude/skills/*/SKILL.md`.
-- `~/.claude/commands/*.md`.
-- `~/.claude/agents/*.md`.
-- `~/.claude/agents/orchestrator.md` from the single shared primary
-  orchestrator template.
-- Claude settings hook wiring via the merger.
-
-Claude receives the same shared workflow and specialist agent set, rendered as
-Claude-compatible markdown.
-
-### OpenCode
-
-```powershell
-pwsh .\scripts\install-opencode.ps1
-```
-
-Installs:
-
-- `~/.config/opencode/AGENTS.md`.
-- `~/.config/opencode/agentic-kit.md`.
-- `~/.config/opencode/skills/*/SKILL.md`.
-- `~/.config/opencode/commands/*.md`.
-- `~/.config/opencode/agents/*.md`.
-- `~/.config/opencode/agents/orchestrator.md` from the single shared primary
-  orchestrator template.
-- `~/.config/opencode/opencode.jsonc` with `default_agent` set to
-  `orchestrator`.
-- `~/.config/opencode/plugins/agentic-kit.ts`.
-
-OpenCode receives the lean default agent set as sanitized markdown agents.
-
-## Bootstrap A New Repo
-
-In a new repo, run bootstrap before expecting high-quality repo-aware coding.
-The installer command plants the scaffold and repo adapters:
-
-```powershell
-pwsh .\scripts\install-copilot.ps1 -BootstrapHarness -TargetRepo C:\path\to\repo
-```
-
-Use the dedicated script for the harness you want in that repo. Then complete
-the AI bootstrap phases. In an agent session, ask:
+The required pages are:
 
 ```text
-bootstrap this repo
+.wiki/index.md
+.wiki/repository-map.md
+.wiki/architecture.md
+.wiki/engineering.md
 ```
 
-or invoke the bootstrap skill/command if your host exposes it:
+Initialization uses deterministic inventory, one Orientation Scout, one to
+three targeted evidence scans, orchestrator synthesis, independent review, and
+a parser-backed writer/audit. Normal build sessions never update the wiki.
+
+Optional PR-history learning is a two-pass operation available only during
+wiki initialization or reinitialization:
 
 ```text
-/bootstrap-harness
+kit wiki collect-pr-history
+bounded history Scout -> candidate lessons and PR/thread IDs
+current-source validation and independent review
+kit wiki reinit --synthesis <reviewed-json>
 ```
 
-For Copilot CLI, the repo-local wrapper is the self-driving path:
+It supports authenticated GitHub/GitHub Enterprise and Azure DevOps tooling,
+examines at most 120 days, 100 merged PRs, and 1,000 human threads, and stores
+raw evidence only under `.git/agentic-kit/pr-history/`. Only repeated,
+accepted, current-source-backed lessons may enter
+`.wiki/review-practices.md`, which is capped at 20,000 characters.
 
-```powershell
-pwsh .\.github\copilot-bin\kit-bootstrap.ps1 C:\path\to\repo
-```
+## Native harness locations and invocation
 
-Scaffold alone may contain placeholders. A completed bootstrap creates and
-populates:
+| Harness | User agents | User skills | Typical invocation |
+|---|---|---|---|
+| Codex | `~/.codex/agents/*.toml` | `~/.agents/skills/<name>/SKILL.md` | `$build ...`, `$review ...` |
+| Claude Code | `~/.claude/agents/*.md` | `~/.claude/skills/<name>/SKILL.md` | `/build ...`, `/review ...` |
+| OpenCode | `~/.config/opencode/agents/*.md` | `~/.config/opencode/skills/<name>/SKILL.md` | `/build ...` thin command or native skill |
+| Copilot CLI | `~/.copilot/agents/*.agent.md` | `~/.copilot/skills/<name>/SKILL.md` | Say "Use the build skill..."; inspect with `/skills`; select agents with `/agent` |
 
-- `.kit/context/patterns.md`
-- `.kit/context/conventions.md`
-- `.kit/context/workflow-briefs/<workflow-agent>.md`
-- `.kit/workflows/`
-- `.wiki/index.md`
-- `.wiki/architecture.md`
-- `.wiki/codebase.md`
-- `.wiki/features.md`
-- `.wiki/.features`
-- host repo adapters such as `AGENTS.md`, `CLAUDE.md`, and
-  `.github/copilot-instructions.md`
+Project scope uses `.codex/agents` plus `.agents/skills`, `.claude/agents` plus
+`.claude/skills`, `.opencode/agents` plus `.opencode/skills`, and
+`.github/agents` plus `.github/skills` respectively. Codex/OpenCode/Copilot
+share one managed root `AGENTS.md` block; Claude uses one managed `CLAUDE.md`
+location.
 
-The bootstrap flow must replace placeholders with real repo facts. The gate
-fails if files still contain `PLACEHOLDER`, `_not yet detected_`, or
-`Generated by: _not yet run_`.
-
-The completed gate must include the core workflow briefs:
-
-- `workflow-explorer.md`
-- `workflow-implementer.md`
-- `workflow-ui-qa.md`
-
-After bootstrap, the most important quality signal is not that the files exist;
-it is that workflow agents can find compact, repo-specific guidance before they
-touch code. In practice, check that `.kit/context/workflow-briefs/` contains
-real notes for explorer, implementer, and UI QA, and that `.wiki/index.md`
-points to useful architecture/codebase pages.
-
-## Existing Repo With Its Own Rules
-
-If a repo already has `AGENTS.md`, `CLAUDE.md`, memory files, or another
-agentic workflow, do not blindly replace it. Use:
-
-```powershell
-pwsh .\scripts\install.ps1 -For all
-```
-
-Then in that repo:
+Available logical invocations:
 
 ```text
-/kit-migrate
+build <request>
+build --test-first <request>
+design <request>
+analyze <question>
+review <target>
+pr-ready <target>
+threat-model <scope>
+wiki init|reinit|audit
 ```
 
-`kit-migrate` preserves domain preferences while converging structural state:
+Host syntax differs. Do not assume a slash command in Codex; use `$skill-name`
+or native skill selection. Do not assume custom `/build` parity in Copilot;
+use natural-language skill selection unless the installed CLI explicitly shows
+the custom skill in its command surface.
 
-- where session state goes
-- where handoffs go
-- where repo memory goes
-- how repo context patterns and legacy role memory are routed
-- how workflow state is recorded
+## Models
 
-Repo-specific build commands, deploy rules, coding style, and product context
-remain repo-owned.
+Portable source and ordinary installation are model-neutral:
 
-## Orchestrator-First Philosophy
+- Claude agents use `model: inherit`.
+- OpenCode preserves its configured provider/model.
+- Copilot preserves its selected model.
+- Generated Codex agents omit model fields unless the user adds local
+  overrides.
 
-The main agent is the coordinator, not the default implementer.
+A clean global reset necessarily removes local model overrides. Reapply them
+after installation if desired. The cost-aware Codex mapping used on the
+maintainer's machine is:
 
-Routing model:
+| Role | Local Codex model |
+|---|---|
+| Main orchestrator | `gpt-5.6-terra`, medium |
+| Repo Scout | `gpt-5.6-luna`, medium |
+| Coder, Reviewer, Test Engineer | `gpt-5.6-terra`, medium |
+| Browser QA, UI Critic | `gpt-5.6-terra`, medium |
+| Diagnostician, Security Reviewer | `gpt-5.6-sol`, medium |
+| Sage | `gpt-5.6-sol`, high |
 
-- trivial single-file mechanical work can stay inline
-- unfamiliar work uses `workflow-explorer`
-- multi-file coding uses `workflow-implementer`
-- review uses one `code-quality-reviewer`
-- security review is added only for real trust-boundary risk
-- UI behavior uses `workflow-ui-qa`, `ux-driver`, and `ui-driver`
-- autonomous multi-step work uses the active `/goal` loop
-- heavy-loop learning tools are manual maintenance
+These names are local/current Codex catalog identifiers, not portable public
+provider promises. Installer updates preserve a clean model-only Codex agent
+override while still refusing unrelated edits to managed agent files.
 
-The main agent should keep its own context small, pass precise briefs to leaf
-agents, read their summaries, and verify the result. For code changes, it also
-owns the test strategy: add or update the relevant unit, integration, contract,
-or E2E tests, use mock data/fixtures for external surfaces, and record why if
-E2E is infeasible.
+## Installation management
 
-## Workflows
+Environment overrides are respected:
 
-The kit ships 13 shared workflow command templates:
+```text
+CODEX_HOME
+CLAUDE_CONFIG_DIR
+OPENCODE_CONFIG_DIR
+OPENCODE_CONFIG
+COPILOT_HOME
+```
 
-- `analyze`
-- `bootstrap-harness`
-- `build`
-- `goal`
-- `investigate`
-- `kit-init`
-- `kit-migrate`
-- `plan`
-- `redesign`
-- `refactor`
-- `review`
-- `security-review`
-- `wiki-init`
-
-Main workflows:
-
-- `/plan`: scope and design before implementation.
-- `/build`: minimal context, expected test set, implement with tests, verify,
-  unified review, repair loop.
-- `/test-gen`: focused test-writing loop for large missing coverage; useful
-  inside `/build` after the expected test set is known.
-- `/review`: unified diff review with false-positive checking.
-- `/investigate`: hypothesis-driven root cause analysis.
-- `/refactor`: behavior-preserving restructuring.
-- `/redesign`: aesthetic lock, browser capture, UX/UI critique, visual verify.
-- `/security-review`: attack-class review for auth/input/secrets/IO surfaces.
-- `/goal`: autonomous convergence loop for mixed or ambiguous work.
-- `/bootstrap-harness`: initialize `.kit` and `.wiki`.
-
-Hosts without native slash commands still use the same skill bodies through
-instructions, description matching, or wrapper scripts.
-
-## Agents
-
-### Workflow Agents
-
-- `workflow-explorer`: bounded file discovery and pattern mapping.
-- `workflow-implementer`: multi-file implementation.
-- `workflow-ui-qa`: user-flow/defaults/artifact-safety QA.
-
-### Engineering Specialists
-
-- `code-quality-reviewer`
-- `security-reviewer`
-- `playwright-navigator`
-- `ux-driver`
-- `ui-driver`
-
-`code-quality-reviewer` is the single default post-verification reviewer for
-normal build/review/refactor/redesign flows. `security-reviewer` is the only
-optional default specialist and is used only for trust-boundary risk. UI agents
-run only when route discovery, UX, or visual review is relevant.
-
-### Lazy Loop Skills
-
-- `test-strategy`: define the expected test set before implementation.
-- `silent-failure-hunter`: focused review for swallowed errors and false success.
-- `verification-before-completion`: check that verification evidence is fresh.
-- `skill-import`: normalize external skill ideas without importing runtime bloat.
-
-These are global skills installed with the kit. They stay on demand and do not
-add reviewers, startup context, lifecycle hooks, or memory gates.
-
-### Manual Compatibility Agents
-
-Product, marketing, business, prompt-synthesis, legacy reviewer/verifier, and
-learning agents remain in `bundle/adapters/_shared/specialist-agents/` for
-explicit manual installs or experiments. They are not part of the default
-Codex/Copilot/OpenCode install surface.
-
-## Context Model
-
-Default coding context is current request plus current code. The kit keeps a
-small optional knowledge base, but it is not startup context:
-
-- `.wiki/index.md`: on-demand index into architecture, codebase, features, and
-  principles.
-- `.kit/context/patterns.md`: optional focused repo guidance.
-- `.kit/session-state/`: run evidence and private session artifacts.
-
-Memory files, handoffs, reflections, and legacy role-specific guidance are
-manual maintenance or compatibility surfaces. They are not completion gates and
-should not be bulk-read in normal coding loops.
-
-## `.wiki` Retrieval
-
-`.wiki` is the human/codebase knowledge layer:
-
-- `.wiki/index.md`: table of contents.
-- `.wiki/architecture.md`: boundaries, layers, ownership.
-- `.wiki/codebase.md`: where important code lives.
-- `.wiki/features.md`: user-visible behavior.
-- `.wiki/.features`: machine-readable feature index.
-
-Agents use `.wiki` to avoid rediscovering the repo from scratch and to detect
-documentation drift when user-visible behavior changes.
-
-## Manual Self-Improvement
-
-The kit has a controlled learning surface:
-
-1. Reflections and memory inbox entries are stored for explicit review.
-2. `auto-consolidate.ps1`, `compress-memory.ps1`, `harness-propose.ps1`,
-   `auto-apply-reflect.ps1`, `prompt-improver.ps1`, and `memory-inbox.ps1`
-   remain available as manual maintenance tools.
-3. Normal completion is not blocked by reflection backlog, writeback warnings,
-   wiki updates, memory updates, or handoff writes.
-4. Completion means requested behavior is done, fresh checks are green, and no
-   unhandled BLOCKING finding remains from the unified reviewer.
-
-This is deliberately conservative. The kit should learn, but normal coding
-loops should stay focused on implementation, verification, and one useful
-review.
-
-## Safety and Validation
-
-Installer safety:
-
-- `validate-bundle.ps1` runs before install.
-- Repo-template install only fills missing files; it does not overwrite
-  generated `.kit/context` memory on rerun.
-- Workflow brief templates are explicit placeholders and bootstrap rejects
-  placeholder content.
-- Portable kit source is model-neutral.
-- Codex hooks are disabled by default because they caused terminal-spawn noise.
-
-Run:
+Verify the installed state:
 
 ```powershell
-pwsh .\scripts\validate-bundle.ps1
-pwsh .\scripts\doctor.ps1
+node cli/dist/kit.cjs doctor --host all --scope user
 ```
 
-Useful checks:
+Update without overwriting local conflicts:
 
-- `validate-bundle.ps1`: bundle source health.
-- `doctor.ps1`: installed host health.
-- `scripts/install.ps1 -CleanReinstall -For <host>`: refresh stale managed
-  host dirs while preserving runtime state.
+```powershell
+node cli/dist/kit.cjs update --host all --scope user
+```
 
-## Repository Layout
+Uninstall removes only manifest-owned files, configuration keys, and managed
+instruction blocks:
+
+```powershell
+node cli/dist/kit.cjs uninstall --host all --scope user
+```
+
+OpenCode and Copilot can also discover compatibility skill paths used by other
+harnesses. Native copies take precedence by name; `kit doctor` reports every
+duplicate so the state is visible. OpenCode users may set
+`OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` to suppress its Claude compatibility
+copy.
+
+## Verification and smoke testing
+
+Repository validation:
+
+```powershell
+npm run typecheck --prefix cli
+npm test --prefix cli
+npm run validate --prefix cli
+npm run check:drift --prefix cli
+npm run bundle --prefix cli
+```
+
+Windows and macOS are release-blocking in CI. Both run the complete v6 suite,
+generated drift validation, bundle generation, and an all-host project launcher
+smoke test under a path containing spaces and non-ASCII text.
+
+Create a disposable behavior fixture for a fresh harness session:
+
+```powershell
+.\scripts\create-smoke-project.ps1
+```
+
+```bash
+bash scripts/create-smoke-project.sh
+```
+
+The generated `PROMPTS.md` first interrogates the installed orchestration
+behavior, then requests a small implementation. This checks skill selection,
+proportionate delegation, fresh tests, and avoidance of legacy memory files.
+
+## Source layout
 
 | Path | Purpose |
 |---|---|
-| `bundle/global/.agents/skills/` | global skills installed into host skill dirs |
-| `bundle/global/.agents/tools/` | classifiers, gates, resolvers, hooks, validators |
-| `bundle/global/.agents/context/` | protocols and global specialist memory |
-| `bundle/adapters/_shared/workflow-agents/` | canonical workflow agents |
-| `bundle/adapters/_shared/specialist-agents/` | canonical specialist agents |
-| `bundle/adapters/_shared/workflow-commands/` | canonical workflow command bodies |
-| `bundle/adapters/{claude-code,codex-cli,copilot-cli,opencode,...}/` | host adapters |
-| `bundle/repo-template/` | files planted into repos during bootstrap |
-| `scripts/install.ps1` | main installer |
-| `scripts/doctor.ps1` | installed-system diagnostic |
-| `scripts/validate-bundle.ps1` | source bundle diagnostic |
-| `docs/` | deeper architecture/setup docs |
+| `core/` | Canonical manifest, schemas, orchestrator, agents, and skills. |
+| `packs/` | Optional UI specialists. |
+| `adapters/` | Generated host-native artifacts. |
+| `cli/` | Cross-platform renderer, installer, doctor, migration, wiki, and tests. |
+| `scripts/` | Thin Windows and macOS launchers. |
 
-## Current Production Notes
+## Security
 
-- The mature target set is Claude Code, Codex, OpenCode, and GitHub Copilot CLI.
-- Copilot has the weakest command surface, so it relies on global instructions,
-  `.agent.md` agents, and wrapper scripts.
-- Codex local model routing is intentionally local-only and not part of the
-  portable kit.
-- Hooks are useful but not required for the kit to function. Codex hooks are
-  installed disabled by default.
-- New repos should run `bootstrap-harness`; otherwise agents fall back to
-  generic best practices.
+Do not run the installer elevated against a directory writable by another
+user. `permissive` removes ordinary Codex approval and sandbox protections; use
+it only with repositories, credentials, machines, and networks you trust.
 
 ## License
 

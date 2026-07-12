@@ -1,0 +1,115 @@
+schema_version: 1
+kit_version: 6.0.0
+
+model_tiers:
+  fast:
+    purpose: Narrow repeatable extraction, routing, or deterministic assistance.
+  standard:
+    purpose: Everyday bounded repository work.
+  deep:
+    purpose: Coding, review, test design, and diagnosis.
+  premium:
+    purpose: Difficult independent reasoning and high-value decisions.
+
+skills:
+  - { id: build, source: core/skills/build/SKILL.md, default: true }
+  - { id: design, source: core/skills/design/SKILL.md, default: true }
+  - { id: analyze, source: core/skills/analyze/SKILL.md, default: true }
+  - { id: review, source: core/skills/review/SKILL.md, default: true }
+  - { id: pr-ready, source: core/skills/pr-ready/SKILL.md, default: true }
+  - { id: threat-model, source: core/skills/threat-model/SKILL.md, default: true }
+  - { id: wiki, source: core/skills/wiki/SKILL.md, default: true }
+
+agents:
+  - id: repo-scout
+    description: Read-only repository discovery for bounded local codebase questions.
+    source: core/agents/repo-scout.md
+    kind: subagent
+    permission_class: read-only
+    model_tier: fast
+    default: true
+    hosts: [codex, claude, opencode, copilot]
+    return_packet: scout-brief
+  - id: coder
+    description: Production implementation with minimum contract coverage.
+    source: core/agents/coder.md
+    kind: subagent
+    permission_class: workspace-write
+    write_scope: [production, tests]
+    model_tier: standard
+    default: true
+    hosts: [codex, claude, opencode, copilot]
+    return_packet: coder-report
+  - id: reviewer
+    description: Independent implementation, design, and test-delta reviewer.
+    source: core/agents/reviewer.md
+    kind: subagent
+    permission_class: read-only
+    model_tier: standard
+    default: true
+    hosts: [codex, claude, opencode, copilot]
+    return_packet: review-report
+  - id: test-engineer
+    description: Independent adversarial test design and test-only hardening.
+    source: core/agents/test-engineer.md
+    kind: subagent
+    permission_class: test-write
+    write_scope: [tests, fixtures, test-utilities]
+    model_tier: standard
+    default: true
+    hosts: [codex, claude, opencode, copilot]
+    return_packet: test-engineer-report
+  - id: diagnostician
+    description: Read-only root-cause discrimination for ambiguous or repeated failures.
+    source: core/agents/diagnostician.md
+    kind: subagent
+    permission_class: read-only
+    model_tier: deep
+    conditional: true
+    default: true
+    hosts: [codex, claude, opencode, copilot]
+    return_packet: failure-brief
+  - id: sage
+    description: Read-only principal-engineering second opinion for difficult judgments.
+    source: core/agents/sage.md
+    kind: subagent
+    permission_class: read-only
+    model_tier: premium
+    conditional: true
+    default: true
+    hosts: [codex, claude, opencode, copilot]
+    return_packet: sage-decision-memo
+  - id: security-reviewer
+    description: Conditional concrete trust-boundary and attack-path reviewer.
+    source: core/agents/security-reviewer.md
+    kind: specialist
+    permission_class: read-only
+    model_tier: deep
+    conditional: true
+    default: true
+    hosts: [codex, claude, opencode, copilot]
+    return_packet: security-review-report
+
+packs:
+  ui:
+    default: false
+    agents:
+      - id: browser-qa
+        description: Browser execution and evidence collection for user-visible flows.
+        source: packs/ui/agents/browser-qa.md
+        kind: specialist
+        permission_class: artifact-write
+        write_scope: [temporary-artifacts]
+        model_tier: standard
+        hosts: [codex, claude, opencode, copilot]
+        return_packet: browser-qa-report
+      - id: ui-critic
+        description: Independent visual and UX judgment against a UI Design Contract.
+        source: packs/ui/agents/ui-critic.md
+        kind: specialist
+        permission_class: read-only
+        model_tier: standard
+        hosts: [codex, claude, opencode, copilot]
+        return_packet: ui-critique
+instruction_fragments:
+  orchestrator: core/orchestrator.md

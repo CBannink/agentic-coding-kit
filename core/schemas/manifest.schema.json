@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-kit.dev/schemas/manifest.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kit_version", "model_tiers", "skills", "agents", "packs", "instruction_fragments"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "kit_version": { "type": "string", "pattern": "^6\\." },
+    "model_tiers": { "type": "object", "required": ["fast", "standard", "deep", "premium"], "properties": { "fast": { "$ref": "#/$defs/model_tier" }, "standard": { "$ref": "#/$defs/model_tier" }, "deep": { "$ref": "#/$defs/model_tier" }, "premium": { "$ref": "#/$defs/model_tier" } }, "additionalProperties": false },
+    "skills": { "type": "array", "minItems": 7, "maxItems": 7, "items": { "$ref": "#/$defs/skill" } },
+    "agents": { "type": "array", "minItems": 7, "maxItems": 7, "items": { "$ref": "#/$defs/agent" } },
+    "packs": { "type": "object", "required": ["ui"], "properties": { "ui": { "$ref": "#/$defs/pack" } }, "additionalProperties": false },
+    "instruction_fragments": { "type": "object", "required": ["orchestrator"], "properties": { "orchestrator": { "type": "string" } }, "additionalProperties": false }
+  },
+  "$defs": {
+    "model_tier": { "type": "object", "required": ["purpose"], "properties": { "purpose": { "type": "string" } }, "additionalProperties": false },
+    "skill": { "type": "object", "additionalProperties": false, "required": ["id", "source", "default"], "properties": { "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }, "source": { "type": "string" }, "default": { "type": "boolean" } } },
+    "agent": { "type": "object", "additionalProperties": false, "required": ["id", "description", "source", "kind", "permission_class", "model_tier", "hosts", "return_packet"], "properties": {
+      "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }, "description": { "type": "string", "minLength": 12 }, "source": { "type": "string" }, "kind": { "enum": ["subagent", "primary-profile", "specialist"] }, "permission_class": { "enum": ["read-only", "workspace-write", "test-write", "artifact-write"] }, "write_scope": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }, "model_tier": { "enum": ["fast", "standard", "deep", "premium"] }, "default": { "type": "boolean" }, "conditional": { "type": "boolean" }, "hosts": { "type": "array", "items": { "enum": ["codex", "claude", "opencode", "copilot"] }, "uniqueItems": true }, "return_packet": { "type": "string" }
+    } },
+    "pack": { "type": "object", "additionalProperties": false, "required": ["default", "agents"], "properties": { "default": { "type": "boolean" }, "agents": { "type": "array", "items": { "$ref": "#/$defs/agent" } } } }
+  }
+}

@@ -1,0 +1,46 @@
+---
+name: pr-ready
+description: >-
+  Prepare a working-tree or commit-range diff for human pull-request review
+  through proportionate repository-aware review, repair, fresh verification,
+  and a concise PR package, optionally applying curated historical review
+  practices from the repository wiki.
+---
+
+# PR Ready
+
+Keep the main session as orchestrator. Establish the base, exact diff, current
+workspace state, changed behavior, and affected consumers. Read only relevant
+`.wiki` sections; when `.wiki/review-practices.md` exists, select only lessons
+applicable to the changed paths and concerns. Historical guidance is evidence,
+not authority, and this skill never writes `.wiki`.
+
+Choose the smallest trustworthy playbook:
+
+- `INLINE`: inspect and prepare a small, obvious diff directly, run
+  proportionate checks, and create the PR package.
+- `STANDARD`: use an independent reviewer for correctness, repository fit,
+  reuse, dead code, tests, and PR hygiene; send material repairs to the coder,
+  then rerun checks and review the delta.
+- `DEEP`: add targeted discovery, independent test hardening, and conditional
+  security or UI review for large, risky, cross-boundary, or migration-heavy
+  changes.
+
+Diff size is a signal, not a file-count rule. Escalate for behavioral breadth,
+unclear consumers, compatibility, API/data/auth/IPC boundaries, or weak proof.
+All agent reports return to the orchestrator. Stop and request user direction
+after at most two completed repairs whose next applicable gate still fails.
+
+Evaluate only applicable lenses: contract/correctness, failure propagation,
+callers and compatibility, module boundaries, existing-helper reuse,
+unnecessary duplication or abstraction, dead/debug code, repository formats,
+test quality, generated artifacts, documentation/config synchronization,
+migration/rollback, diff focus, and fresh verification.
+
+Use [history.md](references/history.md) when curated historical practices are
+available and [report.md](references/report.md) for the result packet.
+
+Return `PR READY`, `NEEDS DECISION`, or `BLOCKED`. Include a suggested title
+and description, repaired and remaining material findings, current evidence,
+risk/rollback notes when applicable, and useful reviewer-attention areas.
+Never claim that human review will produce no comments.

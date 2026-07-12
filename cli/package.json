@@ -1,0 +1,41 @@
+{
+  "name": "@agentic-coding-kit/cli",
+  "version": "6.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "kit": "dist/kit.cjs"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "bundle": "esbuild src/index.ts --bundle --platform=node --format=cjs --outfile=dist/kit.cjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --testTimeout=30000",
+    "render": "tsx src/index.ts render",
+    "validate": "tsx src/index.ts validate",
+    "check:drift": "tsx src/index.ts render --check"
+  },
+  "dependencies": {
+    "@iarna/toml": "^2.2.5",
+    "ajv": "^8.17.1",
+    "commander": "^14.0.0",
+    "gray-matter": "^4.0.3",
+    "jsonc-parser": "^3.3.1",
+    "picomatch": "^4.0.3",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.0.0",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.14",
+    "@types/picomatch": "^4.0.2",
+    "esbuild": "^0.25.6",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

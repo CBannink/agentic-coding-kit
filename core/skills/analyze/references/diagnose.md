@@ -1,0 +1,6 @@
+# Diagnosis Focus
+
+Capture exact symptom/reproduction, enumerate a small hypothesis set, choose
+cheap discriminating checks, and eliminate with evidence. Classify ownership
+before recommending a fix. Stop at diagnosis unless the user requested repair,
+in which case transition in the same main session to Build Contract creation.

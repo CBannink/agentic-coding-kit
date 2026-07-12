@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schemaVersion", "kitVersion", "host", "scope", "root", "files", "managedBlocks"],
+  "properties": {
+    "schemaVersion": { "const": 1 }, "kitVersion": { "type": "string" }, "host": { "enum": ["codex", "claude", "opencode", "copilot"] }, "scope": { "enum": ["user", "project"] }, "root": { "type": "string" },
+    "files": { "type": "array", "items": { "type": "object", "required": ["path", "sha256", "ownership", "sourceId"], "properties": { "path": { "type": "string" }, "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "ownership": { "const": "managed" }, "sourceId": { "type": "string" } }, "additionalProperties": false } },
+    "managedBlocks": { "type": "array", "items": { "type": "object", "required": ["path", "id"], "properties": { "path": { "type": "string" }, "id": { "type": "string" } }, "additionalProperties": false } },
+    "configChanges": { "type": "array", "items": { "type": "object", "required": ["path", "keyPath", "value", "previousExists", "previousValue"], "properties": { "path": { "type": "string" }, "keyPath": { "type": "array", "items": { "type": ["string", "integer"] }, "minItems": 1 }, "value": {}, "previousExists": { "type": "boolean" }, "previousValue": {} }, "additionalProperties": false } },
+    "managedLines": { "type": "array", "items": { "type": "object", "required": ["path", "line"], "properties": { "path": { "type": "string" }, "line": { "type": "string" } }, "additionalProperties": false } },
+    "securityProfile": { "enum": ["preserve", "guarded", "permissive"] },
+    "memoryProfile": { "enum": ["preserve", "wiki-only"] }
+  },
+  "additionalProperties": false
+}

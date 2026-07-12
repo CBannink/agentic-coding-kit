@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["id", "permissionClass", "returnPacket"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "permissionClass": { "enum": ["read-only", "workspace-write", "test-write", "artifact-write"] },
+    "writeScope": { "type": "array", "items": { "type": "string" } },
+    "returnPacket": { "type": "string" }
+  },
+  "additionalProperties": false
+}

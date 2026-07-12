@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "entry": "dist/kit.cjs",
+  "sourceFallback": "src/index.ts",
+  "targets": [
+    { "platform": "win32", "arch": "x64", "artifact": "kit-windows-x64" },
+    { "platform": "win32", "arch": "arm64", "artifact": "kit-windows-arm64" },
+    { "platform": "darwin", "arch": "x64", "artifact": "kit-macos-x64" },
+    { "platform": "darwin", "arch": "arm64", "artifact": "kit-macos-arm64" }
+  ],
+  "note": "Target metadata for a future binary release pipeline. The current supported distribution is the bundled JavaScript entry and requires Node 20 or newer on Windows and macOS."
+}

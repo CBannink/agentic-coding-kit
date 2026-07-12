@@ -1,0 +1,11 @@
+# UI Design Contract
+
+Cover user task, baseline route/state/screenshots, target experience,
+information hierarchy, visual direction and reusable design system, applicable
+states, interaction/focus/keyboard/feedback behavior, responsive viewports,
+browser fixtures/auth/setup, and observable visual acceptance.
+
+For implementation: Scout current UI, Browser QA baseline, contract, coder and
+minimum tests, fast gate, Browser QA target states, UI Critic deltas, up to
+two failed repaired results, independent code review, independent test
+hardening, then final browser/build/test evidence.
