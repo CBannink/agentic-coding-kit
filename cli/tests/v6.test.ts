@@ -236,7 +236,9 @@ describe("native adapter generation", () => {
   it("emits model-neutral agents and deterministic drift checks", async () => {
     const manifest = await loadManifest(root);
     const files = await renderArtifacts(root, manifest, { installProfile: "full", commands: true });
-    expect(parseToml(files.find((file) => file.path.endsWith("codex/agents/coder.toml"))!.content)).not.toHaveProperty("model");
+    const codexCoder = files.find((file) => file.path.endsWith("codex/agents/coder.toml"))!.content;
+    expect(parseToml(codexCoder)).not.toHaveProperty("model");
+    expect(codexCoder).not.toContain("\\r\\n");
     const target = await mkdtemp(path.join(tmpdir(), "kit-render-"));
     await writeGenerated(target, files);
     expect(await checkGeneratedDrift(target, files)).toEqual([]);

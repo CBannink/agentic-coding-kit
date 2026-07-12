@@ -75,6 +75,7 @@ export async function checkGeneratedDrift(repoRoot: string, files: GeneratedFile
 }
 
 function renderAgent(host: Host, agent: AgentDefinition, prompt: string): GeneratedFile {
+  prompt = withoutBom(prompt);
   const sourceId = `agent:${agent.id}`;
   if (host === "codex") {
     const config: Record<string, unknown> = {
