@@ -110,7 +110,7 @@ describe("management CLI infrastructure", () => {
     for (const name of expected) {
       const shell = await readFile(path.join(sourceRoot, "scripts", `${name}.sh`), "utf8");
       const powershell = await readFile(path.join(sourceRoot, "scripts", `${name}.ps1`), "utf8");
-      expect(shell.startsWith("#!/usr/bin/env bash\nset -euo pipefail")).toBe(true);
+      expect(shell.replace(/\r\n/g, "\n").startsWith("#!/usr/bin/env bash\nset -euo pipefail")).toBe(true);
       expect(shell).not.toMatch(/powershell|pwsh/i);
       expect(shell).toContain("cli/dist/kit.cjs");
       expect(powershell).toContain("@args");
