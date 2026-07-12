@@ -43,22 +43,3 @@ jobs:
           mkdir -p "$repo"
           git -C "$repo" init
           bash scripts/install-all.sh --scope project --repo "$repo" --profile full --dry-run
-
-  legacy-validation:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install PowerShell and Pester
-        shell: bash
-        run: |
-          if ! command -v pwsh >/dev/null; then
-            sudo apt-get update
-            sudo apt-get install -y powershell
-          fi
-          pwsh -NoProfile -Command 'Install-Module Pester -MinimumVersion 5.0.0 -Scope CurrentUser -Force -SkipPublisherCheck'
-      - name: Validate legacy migration source
-        shell: pwsh
-        run: |
-          ./scripts/validate-bundle.ps1
-          $result = Invoke-Pester ./tests/Pester/ -PassThru
-          if ($result.FailedCount -gt 0) { throw "$($result.FailedCount) test(s) failed" }

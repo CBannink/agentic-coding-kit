@@ -1,7 +1,10 @@
 import * as TOML from "@iarna/toml";
 import matter from "gray-matter";
-import { parse as parseJsoncText, parseTree, printParseErrorCode, type ParseError } from "jsonc-parser/lib/esm/main.js";
+import * as jsoncParser from "jsonc-parser";
+import type { ParseError } from "jsonc-parser";
 import YAML from "yaml";
+
+const { parse: parseJsoncText, parseTree, printParseErrorCode } = jsoncParser;
 
 export interface FrontmatterDocument<T extends Record<string, unknown> = Record<string, unknown>> {
   data: T;

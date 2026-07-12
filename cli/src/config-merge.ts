@@ -1,5 +1,8 @@
 import * as TOML from "@iarna/toml";
-import { applyEdits, modify, parse, type ParseError } from "jsonc-parser/lib/esm/main.js";
+import * as jsoncParser from "jsonc-parser";
+import type { ParseError } from "jsonc-parser";
+
+const { applyEdits, modify, parse } = jsoncParser;
 
 export function setJsoncValue(source: string, keyPath: (string | number)[], value: unknown): string {
   const base = source.trim() ? source : "{}\n";

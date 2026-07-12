@@ -7,8 +7,9 @@
     "kit": "dist/kit.cjs"
   },
   "scripts": {
+    "pretest": "npm run bundle",
     "build": "tsc -p tsconfig.json",
-    "bundle": "esbuild src/index.ts --bundle --platform=node --format=cjs --outfile=dist/kit.cjs",
+    "bundle": "esbuild src/index.ts --bundle --platform=node --format=cjs --alias:jsonc-parser=./node_modules/jsonc-parser/lib/esm/main.js --outfile=dist/kit.cjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --testTimeout=30000",
     "render": "tsx src/index.ts render",

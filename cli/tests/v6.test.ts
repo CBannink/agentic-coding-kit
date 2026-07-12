@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, readdir, rename, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rename, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -89,6 +89,7 @@ describe("canonical manifest and prompts", () => {
     if (await tryDirectoryOrFileLink(path.join(sandbox, "outside.md"), link, "file")) {
       await expect(resolveExistingContainedPath(sandbox, "core/skills/build/linked.md", "repository root")).rejects.toThrow(/symlink|junction/i);
       await expect(loadSkillResources(sandbox, "build", "core/skills/build/SKILL.md")).rejects.toThrow(/symlink|junction/i);
+      await unlink(link);
     }
     await writeFile(path.join(skillRoot, "huge.md"), "x".repeat(512 * 1024 + 1), "utf8");
     await expect(loadSkillResources(sandbox, "build", "core/skills/build/SKILL.md")).rejects.toThrow(/exceeds/);
