@@ -63,7 +63,7 @@ export async function checkGeneratedDrift(repoRoot: string, files: GeneratedFile
     try {
       const target = await resolveExistingContainedPath(repoRoot, file.path, "render root");
       const existing = await readFile(target, "utf8");
-      if (existing !== withoutBom(file.content) && !expectedConflictSet.has(normalizePath(file.path))) drift.push(file.path);
+      if (withoutBom(existing) !== withoutBom(file.content) && !expectedConflictSet.has(normalizePath(file.path))) drift.push(file.path);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") drift.push(file.path);
       else throw error;
@@ -207,7 +207,7 @@ async function findGeneratedExtras(repoRoot: string, expectedFiles: GeneratedFil
       if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
       throw error;
     }
-    if (!hasExactGeneratedHeader(content, entry.sourceId) || sha256(content) !== entry.sha256) conflicts.push(filePath);
+    if (!hasExactGeneratedHeader(content, entry.sourceId) || sha256(withoutBom(content)) !== entry.sha256) conflicts.push(filePath);
     else removable.push(filePath);
   }
   return { removable: removable.sort(), conflicts: conflicts.sort() };
@@ -232,7 +232,7 @@ async function findExpectedConflicts(repoRoot: string, expectedFiles: GeneratedF
       conflicts.push(normalizedPath);
       continue;
     }
-    if (prior.sourceId !== file.sourceId || !hasExactGeneratedHeader(content, prior.sourceId) || sha256(content) !== prior.sha256) conflicts.push(normalizedPath);
+    if (prior.sourceId !== file.sourceId || !hasExactGeneratedHeader(content, prior.sourceId) || sha256(withoutBom(content)) !== prior.sha256) conflicts.push(normalizedPath);
   }
   return conflicts.sort();
 }

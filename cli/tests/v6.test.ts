@@ -240,6 +240,11 @@ describe("native adapter generation", () => {
     const target = await mkdtemp(path.join(tmpdir(), "kit-render-"));
     await writeGenerated(target, files);
     expect(await checkGeneratedDrift(target, files)).toEqual([]);
+    for (const file of files) {
+      const filePath = path.join(target, file.path);
+      await writeFile(filePath, (await readFile(filePath, "utf8")).replace(/\r?\n/g, "\r\n"), "utf8");
+    }
+    expect(await checkGeneratedDrift(target, files)).toEqual([]);
     const first = files.find((file) => !file.path.endsWith(".agentic-kit-generated.json"))!;
     const disk = await readFile(path.join(target, first.path), "utf8");
     expect(disk.charCodeAt(0)).not.toBe(0xfeff);
