@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { access, cp, lstat, mkdir, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises";
+import { access, lstat, mkdir, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { atomicWriteContained, unlinkContained } from "./paths.js";
@@ -46,8 +46,10 @@ export interface InstallResult { host: Host; scope: InstallScope; actions: strin
 
 export const GLOBAL_RESET_WARNING = `DESTRUCTIVE GLOBAL INSTALL
 
---clear-global-config backs up and then replaces the selected harness's global
+This installation replaces the selected harness's complete global
 instructions, agents, skills, commands, and primary settings/config file.
+Custom models, permissions, MCP configuration, and hooks in those locations
+will be deleted. Back up or copy anything you want to keep before continuing.
 Authentication credentials and opaque application state are not removed.`;
 
 export async function installHost(options: InstallOptions): Promise<InstallResult> {
@@ -321,9 +323,6 @@ function isAmbiguousManagedBlock(content: string, format: "markdown" | "toml"): 
 }
 
 async function resetGlobalConfig(paths: HostPaths, options: InstallOptions, actions: string[]): Promise<void> {
-  const home = path.resolve(options.pathContext?.home ?? os.homedir());
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const backupRoot = path.join(home, ".agentic-kit-backup", stamp, paths.host);
   const targets = [
     { label: "instructions", target: paths.instruction },
     { label: "agents", target: paths.agents },
@@ -343,11 +342,8 @@ async function resetGlobalConfig(paths: HostPaths, options: InstallOptions, acti
       if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
       throw error;
     }
-    const backup = path.join(backupRoot, item.label, path.basename(resolved));
-    actions.push(`${options.dryRun ? "PLAN BACKUP+RESET" : "BACKUP+RESET"} ${resolved} -> ${backup}`);
+    actions.push(`${options.dryRun ? "PLAN RESET" : "RESET"} ${resolved}`);
     if (options.dryRun) continue;
-    await mkdir(path.dirname(backup), { recursive: true });
-    await cp(resolved, backup, { recursive: true, errorOnExist: true, force: false });
     await rm(resolved, { recursive: true, force: false });
   }
 }

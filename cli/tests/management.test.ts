@@ -72,7 +72,7 @@ describe("management CLI infrastructure", () => {
     expect(parseJsonc(await readFile(paths.config!, "utf8"))).not.toHaveProperty("default_agent");
   }, 30_000);
 
-  it("backs up and clears global harness configuration only with explicit consent", async () => {
+  it("clears global harness configuration only with explicit consent", async () => {
     const fixture = await environment("kit-global-reset-");
     const options = baseOptions("codex", "user", fixture);
     const paths = await resolveHostPaths("codex", "user", undefined, fixture.context);
@@ -88,7 +88,7 @@ describe("management CLI infrastructure", () => {
 
     await expect(installHost({ ...options, clearGlobalConfig: true })).rejects.toThrow(/clear-global-config.*--yes/i);
     await expect(installHost({ ...options, scope: "project", repo: fixture.repo, clearGlobalConfig: true, yes: true })).rejects.toThrow(/scope user/i);
-    await installHost({ ...options, clearGlobalConfig: true, yes: true });
+    const result = await installHost({ ...options, clearGlobalConfig: true, yes: true });
 
     expect(await readFile(paths.instruction, "utf8")).toContain("agentic-coding-kit:start");
     await expect(readFile(path.join(paths.agents, "old-agent.toml"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
@@ -96,13 +96,8 @@ describe("management CLI infrastructure", () => {
     await expect(readFile(path.join(path.dirname(paths.agents), "rules", "old-rule", "rule.md"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
     await expect(readFile(paths.config!, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
 
-    const [stamp] = await readdir(path.join(fixture.home, ".agentic-kit-backup"));
-    const backup = path.join(fixture.home, ".agentic-kit-backup", stamp, "codex");
-    expect(await readFile(path.join(backup, "instructions", "AGENTS.md"), "utf8")).toBe("old global instructions\n");
-    expect(await readFile(path.join(backup, "agents", "agents", "old-agent.toml"), "utf8")).toBe("old agent\n");
-    expect(await readFile(path.join(backup, "skills", "skills", "old-skill", "SKILL.md"), "utf8")).toBe("old skill\n");
-    expect(await readFile(path.join(backup, "rules", "rules", "old-rule", "rule.md"), "utf8")).toBe("old rule\n");
-    expect(await readFile(path.join(backup, "config", "config.toml"), "utf8")).toBe("old config\n");
+    expect(result.actions.some((action) => action.startsWith("RESET "))).toBe(true);
+    await expect(readdir(path.join(fixture.home, ".agentic-kit-backup"))).rejects.toMatchObject({ code: "ENOENT" });
   }, 30_000);
 
   it("ships thin launchers and four explicit release targets", async () => {
@@ -128,6 +123,13 @@ describe("management CLI infrastructure", () => {
     expect(topHelp).toMatch(/install|update|uninstall|doctor|validate|render|migrate|wiki/);
     const installHelp = (await execFile("node", [bundle, "install", "--help"], { encoding: "utf8" })).stdout;
     for (const flag of ["--scope", "--repo", "--profile", "--security", "--memory", "--wiki-split", "--set-default-agent", "--clear-global-config", "--commands", "--dry-run", "--force", "--yes", "--verbose"]) expect(installHelp).toContain(flag);
+
+    const fixture = await environment("kit-cli-confirm-");
+    const env = { ...fixture.context.env, AGENTIC_KIT_ROOT: sourceRoot };
+    await expect(execFile("node", [bundle, "install", "--host", "codex", "--scope", "user"], { encoding: "utf8", env })).rejects.toMatchObject({ stderr: expect.stringContaining("interactive confirmation or --yes") });
+    const confirmed = await execFile("node", [bundle, "install", "--host", "codex", "--scope", "user", "--yes"], { encoding: "utf8", env });
+    expect(confirmed.stderr).toContain("DESTRUCTIVE GLOBAL INSTALL");
+    expect(confirmed.stdout).toContain("codex user");
   });
 });
 

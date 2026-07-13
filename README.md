@@ -35,7 +35,16 @@ machines configured with `NODE_ENV=production` or `npm config omit=dev`. If an
 older checkout reports that `esbuild` is not recognized, run
 `npm ci --prefix cli --include=dev`, then rebuild, or pull the latest `main`.
 
-### Safe install: preserve existing configuration
+### Install
+
+> **Warning: a user-scope install replaces the selected harness's complete
+> global instructions, agents, skills, commands, and primary configuration
+> file.** Back up or copy any custom agents, skills, model settings, MCP
+> servers, hooks, permissions, or instructions you want to keep. The installer
+> does not attempt to merge or classify the previous configuration.
+
+The installer prints the warning and asks for `Y/N` confirmation before making
+changes. Use `--yes` only for deliberate non-interactive installation.
 
 Windows, install adapters for all four harnesses:
 
@@ -57,28 +66,13 @@ For one harness, use `install-codex`, `install-claude`, `install-opencode`, or
 `core` installs every coding loop and all seven core agents. Use `full` only
 when browser execution and visual UI critique are useful.
 
-### Destructive clean install
-
-> **Warning: `--clear-global-config --yes` backs up and then removes the
-> selected harness's global instructions, agents, skills, commands, and primary
-> settings/configuration file.** This includes hand-written agents, MCP/provider
-> configuration, hooks, model choices, and permission settings stored there.
-> Authentication databases and opaque application state are not intentionally
-> removed.
-
-Backups are written under:
-
-```text
-~/.agentic-kit-backup/<timestamp>/<host>/
-```
-
-Example clean install on this machine, with Codex explicitly configured for
-unrestricted local execution:
+For a non-interactive install with Codex explicitly configured for unrestricted
+local execution:
 
 ```powershell
 .\scripts\install-all.ps1 --scope user --profile full `
   --security permissive --memory preserve `
-  --clear-global-config --yes
+  --yes
 ```
 
 On macOS:
@@ -86,7 +80,7 @@ On macOS:
 ```bash
 bash scripts/install-all.sh --scope user --profile full \
   --security permissive --memory preserve \
-  --clear-global-config --yes
+  --yes
 ```
 
 `permissive` currently emits a validated Codex configuration with
@@ -95,8 +89,8 @@ harnesses retain their native permission semantics; the kit does not invent
 unsupported parity fields.
 
 An all-host install performs a complete dry-run preflight before changing any
-host. Files are then installed sequentially. Backups are the recovery path for
-an operating-system failure during the mutation phase.
+host. Files are then installed sequentially. Project-scope installation does
+not clear user-global harness configuration.
 
 ## What gets installed
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
 import { loadManifest } from "./manifest.js";
 import { checkGeneratedDrift, renderArtifacts, writeGenerated } from "./render.js";
@@ -52,9 +53,9 @@ program.command("render")
   });
 
 configureManagementCommand(program.command("install").description("Install native Agentic Coding Kit files"), true)
-  .action(async (options: ManagementCliOptions) => runInstall(options));
+  .action(async (options: ManagementCliOptions) => runInstall(options, true));
 configureManagementCommand(program.command("update").description("Update an existing managed installation"), false)
-  .action(async (options: ManagementCliOptions) => runInstall(options));
+  .action(async (options: ManagementCliOptions) => runInstall(options, false));
 configureManagementCommand(program.command("uninstall").description("Remove only managed files and blocks"), false)
   .action(async (options: ManagementCliOptions) => runUninstall(options));
 configureManagementCommand(program.command("doctor").description("Diagnose host discovery and managed installation state"), false)
@@ -156,23 +157,43 @@ function configureManagementCommand(command: Command, hostRequired: boolean): Co
     .option("--verbose", "print detailed action output");
 }
 
-async function runInstall(options: ManagementCliOptions): Promise<void> {
+async function runInstall(options: ManagementCliOptions, replaceGlobalByDefault: boolean): Promise<void> {
   validateManagementOptions(options);
   const hosts = selectedHosts(options.host);
+  const clearGlobalConfig = options.scope === "user" && (replaceGlobalByDefault || Boolean(options.clearGlobalConfig));
+  let confirmed = Boolean(options.yes);
+  if (clearGlobalConfig && !options.dryRun) {
+    console.warn(GLOBAL_RESET_WARNING);
+    if (!confirmed) confirmed = await confirmDestructiveInstall();
+    if (!confirmed) {
+      console.log("Installation cancelled; no files were changed.");
+      return;
+    }
+  }
   if (hosts.length > 1 && !options.dryRun) {
     for (const host of hosts) {
-      await installHost({ repoRoot, host, scope: options.scope, repo: options.repo, profile: options.profile, security: options.security, memory: options.memory, commands: options.commands, setDefaultAgent: Boolean(options.setDefaultAgent), dryRun: true, force: Boolean(options.force), yes: Boolean(options.yes), verbose: Boolean(options.verbose), clearGlobalConfig: Boolean(options.clearGlobalConfig) });
+      await installHost({ repoRoot, host, scope: options.scope, repo: options.repo, profile: options.profile, security: options.security, memory: options.memory, commands: options.commands, setDefaultAgent: Boolean(options.setDefaultAgent), dryRun: true, force: Boolean(options.force), yes: confirmed, verbose: Boolean(options.verbose), clearGlobalConfig });
     }
     console.log(`Preflight passed for ${hosts.join(", ")}.`);
   }
   for (const host of hosts) {
-    const installOptions: InstallOptions = { repoRoot, host, scope: options.scope, repo: options.repo, profile: options.profile, security: options.security, memory: options.memory, commands: options.commands, setDefaultAgent: Boolean(options.setDefaultAgent), dryRun: Boolean(options.dryRun), force: Boolean(options.force), yes: Boolean(options.yes), verbose: Boolean(options.verbose), clearGlobalConfig: Boolean(options.clearGlobalConfig) };
+    const installOptions: InstallOptions = { repoRoot, host, scope: options.scope, repo: options.repo, profile: options.profile, security: options.security, memory: options.memory, commands: options.commands, setDefaultAgent: Boolean(options.setDefaultAgent), dryRun: Boolean(options.dryRun), force: Boolean(options.force), yes: confirmed, verbose: Boolean(options.verbose), clearGlobalConfig };
     if (options.security === "permissive") console.warn("PERMISSIVE AGENT PROFILE\n\nThis profile allows commands and file changes with little or no approval. The Agentic Coding Kit does not make arbitrary commands safe.");
-    if (options.clearGlobalConfig) console.warn(GLOBAL_RESET_WARNING);
     const result = await installHost(installOptions);
     console.log(`${result.host} ${result.scope}`);
     for (const action of result.actions) console.log(action);
     for (const warning of result.warnings) console.warn(`WARNING ${warning}`);
+  }
+}
+
+async function confirmDestructiveInstall(): Promise<boolean> {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error("Destructive user installation requires interactive confirmation or --yes");
+  const prompt = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = (await prompt.question("Continue and replace the selected global configuration? [y/N] ")).trim().toLowerCase();
+    return answer === "y" || answer === "yes";
+  } finally {
+    prompt.close();
   }
 }
 
