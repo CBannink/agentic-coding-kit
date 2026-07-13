@@ -89,6 +89,33 @@ describe("managed native installation", () => {
     await expect(readFile(custom, "utf8")).resolves.toBe("custom\n");
   }, 30_000);
 
+  it("backs up and replaces recognizable legacy kit skills without force", async () => {
+    const fixture = await fixtureEnvironment("kit-legacy-skill-");
+    const options = baseOptions("codex", "user", fixture);
+    const paths = await resolveHostPaths("codex", "user", undefined, fixture.context);
+    const analyze = path.join(paths.skills, "analyze", "SKILL.md");
+    await mkdir(path.dirname(analyze), { recursive: true });
+    await writeFile(analyze, "---\nname: analyze\n---\n\nLoad .kit/workflows/analyze.md and ~/.agents/instructions.md.\n", "utf8");
+
+    const result = await installHost(options);
+
+    expect(result.actions.some((action) => action.startsWith("BACKUP") && action.includes("analyze"))).toBe(true);
+    expect(await readFile(analyze, "utf8")).toContain("# Analyze");
+    expect((await readdir(path.dirname(analyze))).some((name) => name.startsWith("SKILL.md.agentic-kit-backup-"))).toBe(true);
+  }, 30_000);
+
+  it("still protects an unowned same-name skill", async () => {
+    const fixture = await fixtureEnvironment("kit-custom-skill-");
+    const options = baseOptions("codex", "user", fixture);
+    const paths = await resolveHostPaths("codex", "user", undefined, fixture.context);
+    const analyze = path.join(paths.skills, "analyze", "SKILL.md");
+    await mkdir(path.dirname(analyze), { recursive: true });
+    await writeFile(analyze, "---\nname: analyze\n---\n\nMy unrelated private analysis process.\n", "utf8");
+
+    await expect(installHost(options)).rejects.toThrow(/Managed file conflict/);
+    expect(await readFile(analyze, "utf8")).toContain("unrelated private analysis");
+  }, 30_000);
+
   it("preserves JSONC/TOML settings and restores managed keys on uninstall", async () => {
     const fixture = await fixtureEnvironment("kit-config-preserve-");
     const claudePaths = await resolveHostPaths("claude", "project", fixture.repo, fixture.context);
