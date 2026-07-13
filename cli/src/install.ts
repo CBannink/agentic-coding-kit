@@ -342,7 +342,7 @@ async function resetGlobalConfig(paths: HostPaths, options: InstallOptions, acti
       if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
       throw error;
     }
-    if (paths.host === "codex" && samePath(resolved, paths.skills)) {
+    if (paths.host === "codex" && path.basename(resolved).toLowerCase() === "skills") {
       actions.push(`${options.dryRun ? "PLAN RESET" : "RESET"} ${resolved} (preserve .system)`);
       if (options.dryRun) continue;
       for (const entry of await readdir(resolved, { withFileTypes: true })) {

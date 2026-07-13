@@ -79,12 +79,17 @@ describe("management CLI infrastructure", () => {
     await mkdir(paths.agents, { recursive: true });
     await mkdir(path.join(paths.skills, "old-skill"), { recursive: true });
     await mkdir(path.join(paths.skills, ".system"), { recursive: true });
+    const codexCompatibilitySkills = path.join(path.dirname(paths.agents), "skills");
+    await mkdir(path.join(codexCompatibilitySkills, ".system"), { recursive: true });
+    await mkdir(path.join(codexCompatibilitySkills, "old-compatibility-skill"), { recursive: true });
     await mkdir(path.join(path.dirname(paths.agents), "rules", "old-rule"), { recursive: true });
     await mkdir(path.dirname(paths.instruction), { recursive: true });
     await writeFile(paths.instruction, "old global instructions\n", "utf8");
     await writeFile(path.join(paths.agents, "old-agent.toml"), "old agent\n", "utf8");
     await writeFile(path.join(paths.skills, "old-skill", "SKILL.md"), "old skill\n", "utf8");
     await writeFile(path.join(paths.skills, ".system", "host-owned.md"), "host owned\n", "utf8");
+    await writeFile(path.join(codexCompatibilitySkills, ".system", "host-owned.md"), "host owned\n", "utf8");
+    await writeFile(path.join(codexCompatibilitySkills, "old-compatibility-skill", "SKILL.md"), "old compatibility skill\n", "utf8");
     await writeFile(path.join(path.dirname(paths.agents), "rules", "old-rule", "rule.md"), "old rule\n", "utf8");
     await writeFile(paths.config!, "old config\n", "utf8");
 
@@ -96,6 +101,8 @@ describe("management CLI infrastructure", () => {
     await expect(readFile(path.join(paths.agents, "old-agent.toml"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
     await expect(readFile(path.join(paths.skills, "old-skill", "SKILL.md"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
     await expect(readFile(path.join(paths.skills, ".system", "host-owned.md"), "utf8")).resolves.toBe("host owned\n");
+    await expect(readFile(path.join(codexCompatibilitySkills, ".system", "host-owned.md"), "utf8")).resolves.toBe("host owned\n");
+    await expect(readFile(path.join(codexCompatibilitySkills, "old-compatibility-skill", "SKILL.md"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
     await expect(readFile(path.join(path.dirname(paths.agents), "rules", "old-rule", "rule.md"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
     await expect(readFile(paths.config!, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
 
