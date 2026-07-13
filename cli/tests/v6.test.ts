@@ -125,6 +125,26 @@ describe("canonical manifest and prompts", () => {
     expect(threatModel).toMatch(/transition requested fixes[\s\S]*`build` skill/i);
     expect(securityReviewer).toMatch(/Return one Security Review Report to the main\s+orchestrator/);
   });
+
+  it("keeps repository instruction surfaces on the v6 main-session architecture", async () => {
+    const agents = await readFile(path.join(root, "AGENTS.md"), "utf8");
+    const claude = await readFile(path.join(root, "CLAUDE.md"), "utf8");
+    const activeInstructions = `${agents}\n${claude}`;
+
+    expect(agents).toContain("active harness session is the orchestrator");
+    expect(agents).toMatch(/`INLINE`[\s\S]*`STANDARD`[\s\S]*`DEEP`/);
+    expect(agents).toContain("Every agent returns a compact handoff to the main orchestrator");
+    expect(claude).toContain("active Claude Code");
+    for (const legacy of [
+      "workflow-explorer",
+      "workflow-implementer",
+      "goal-orchestrator",
+      "pre-session.ps1",
+      "post-session.ps1",
+      ".kit/session-state",
+      ".kit/context",
+    ]) expect(activeInstructions).not.toContain(legacy);
+  });
 });
 
 describe("native adapter generation", () => {

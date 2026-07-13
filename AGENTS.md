@@ -1,117 +1,52 @@
-# AGENTS.md — OpenCode Orchestrator
+# Agentic Coding Kit contributor instructions
 
-YOU are the default orchestrator. OpenCode runs with this prompt in every
-session. Your job is to classify the request, run the smallest useful loop,
-and drive completion.
+The active harness session is the orchestrator. It owns the user request,
+context selection, contracts, routing, evidence, repair budget, and completion
+decision. Do not spawn or delegate the session to a child orchestrator.
 
-Shared rules: `bundle/adapters/_shared/AGENT-INSTRUCTIONS.md`
+Use the installed `build`, `design`, `analyze`, `review`, `pr-ready`,
+`threat-model`, and `wiki` skills. Choose the smallest reliable loop:
 
-## Orchestrator discipline
+- `INLINE` for clear, low-risk, tightly bounded work;
+- `STANDARD` for coherent implementation with only the agents that add value;
+- `DEEP` for ambiguous, consequential, cross-boundary, migration, security, or
+  UI work requiring explicit contracts and independent evidence.
 
-1. **Delegate, don't pile code inline.** The main session is a coordinator.
-   Push exploration, implementation, and review into spawned agents.
-   Inline edits are for obvious mechanical fixes only.
-2. **Emit progress lines** before every agent spawn so the user sees motion:
-   `[BUILD N/TOTAL] Spawning <agent>...`
-3. **Classify scope first** (tier table below).
-4. **Route adaptively** — don't always spawn the same agents. Match the
-   routing path to what the task actually needs (see Adaptive Routing).
-5. **Call your lifecycle.** `pre-session.ps1` at start, `state-gate.ps1`
-   at checkpoints, `post-session.ps1` at end.
+These are adaptive playbooks, not mandatory pipelines. Do not spawn agents to
+complete a ceremony. Use `repo-scout` only for targeted unknowns. Use `coder`
+for coherent production work, `reviewer` for independent judgment,
+`test-engineer` for valuable behavioral hardening, `diagnostician` for
+ambiguous or repeated failures, `sage` for difficult decisions, and
+`security-reviewer` for material trust-boundary risk. The full profile also
+provides `browser-qa` and `ui-critic`.
 
-## Cost-aware delegation threshold
+Every agent returns a compact handoff to the main orchestrator. Agents never
+dispatch their successor. The orchestrator validates the handoff against the
+live workspace, updates its in-context Task Capsule, and creates a fresh,
+bounded assignment for the next role. Do not forward complete transcripts.
 
-The orchestrator may read directly relevant files needed to classify the task.
-Do not preload `.kit`, `.wiki`, memory, history, or handoff files. If current
-code is not enough, use `.wiki/index.md` as an on-demand index.
+Current source, configuration, Git state, and fresh executable evidence are
+authoritative. Read `.wiki/index.md` only when repository knowledge helps, then
+load the smallest relevant section set. Normal work never updates `.wiki`;
+only explicit `wiki init` or `wiki reinit` requests may change it.
 
-- Any real exploration, pattern search, unfamiliar code mapping, or ownership
-  tracing goes to `workflow-explorer`.
-- Inline coding is for direct answers, commands, and obvious mechanical edits
-  across at most 3 files.
-- Coding likely to touch more than 3 files, add new files, cross module
-  boundaries, or require unfamiliar conventions goes to `workflow-implementer`
-  or the hard implementer variant.
-- Long-running implementation and review should be delegated to cheaper or
-  specialized leaf agents instead of staying in the main session. Fresh
-  verification evidence stays owned by the orchestrator.
+## Working on this repository
 
-## Scope tiers
+- Edit canonical sources under `core/` and `packs/`; generated `adapters/`
+  files are outputs.
+- Keep portable prompts model-neutral. Host metadata belongs in the renderer.
+- Preserve unrelated working-tree changes.
+- Use `apply_patch` for manual source edits.
+- Do not restore legacy `.kit` memory, lifecycle hooks, goal workflows, or old
+  workflow-specific agents.
+- After relevant edits, run fresh checks from the repository root:
 
-| Tier | When | Agent budget |
-|---|---|---|
-| **ISOLATED** | 1 module, <=5 files, obvious fix | 0 agents (inline). Implementer only if complex. |
-| **TARGETED** (default) | 2+ modules or unfamiliar area | Implementer + `code-quality-reviewer`. +1 explorer if unfamiliar. |
-| **FULL** | Auth, schema, breaking change | Explorer + implementer + `code-quality-reviewer` + conditional `security-reviewer`. |
-
-## Adaptive routing (not a fixed pipeline)
-
-Route based on what the task needs, not through a fixed sequence:
-
-| Path | When | Action |
-|---|---|---|
-| **INLINE** | Trivial: single file, obvious fix | Do it directly. No agent spawns. |
-| **EXPLORE** | Unfamiliar code, need to find patterns | Spawn `workflow-explorer`. Read synthesis, then route again. |
-| **IMPLEMENT** | Multi-file change, novel logic | Spawn `workflow-implementer`. |
-| **REVIEW** | Audit existing code or diff | Spawn `code-quality-reviewer`; add `security-reviewer` only for trust-boundary risk. |
-| **BUILD** | Full build: expected test set + implement + verify + unified review | Run `/build`; spawn implementer/reviewer leaves as needed. |
-| **GOAL** | Autonomous multi-step, ambiguous, or cross-type | Load `/goal` in the active session; do not spawn another goal orchestrator. |
-| **SECURITY** | Auth, crypto, user input, secrets | Spawn `security-reviewer`. |
-| **DESIGN** | UI, visual, screens | Run aesthetic-director, then `ux-driver`/`ui-driver` loop. |
-| **INVESTIGATE** | Root cause unknown | Follow gstack-investigate discipline. |
-
-**Decision flow**: Classify the task → pick the routing path → spawn matching
-agent(s). If the path doesn't converge, escalate to `/goal` in the active
-session.
-
-## Agent toolbox (spawn via Task tool)
-
-| Agent | Use for |
-|---|---|
-| `workflow-explorer` | File discovery, code search, pattern mapping |
-| `workflow-implementer` | Multi-file code changes, novel logic |
-| `workflow-ui-qa` | UI task flow, defaults, artifact safety |
-| `code-quality-reviewer` | Correctness, tests, conventions, observability |
-| `security-reviewer` | Auth, injection, secrets, OWASP classes |
-| `playwright-navigator` | Discover Playwright routes + selectors |
-| `ux-driver` | UI structural critique (IA, hierarchy, a11y) |
-| `ui-driver` | Visual polish (typography, color, spacing) |
-
-Compatibility reviewer agents may still exist on disk, but they are not default
-routes for `/build`, `/review`, `/goal`, `/refactor`, or `/redesign`. The
-orchestrator owns fresh verification evidence directly.
-
-## Spawning rules
-
-- Pass only the task-specific files and constraints the worker needs. Mode
-  profiles and memory resolvers are manual compatibility tools, not default
-  prompt payload.
-
-## Error recovery
-
-- **Agent fails/times out**: retry once. If it fails again, fall back inline
-  or spawn a different agent type.
-- **Empty diff**: read target files yourself, identify exact lines to change,
-  re-prompt with explicit instructions.
-- **Verification fails**: pass exact error to implementer as deltas.
-  Cap 3 iterations, then escalate.
-- **Goal loop stuck**: pass approach log + blocker to user.
-
-## Lifecycle
-
-```
-pwsh ~/.agents/tools/pre-session.ps1 -Mode <mode> -Task "<task>"
-# ... do work, state-gate.ps1 at checkpoints ...
-pwsh ~/.agents/tools/post-session.ps1 -SessionId "<id>"
+```text
+npm run typecheck --prefix cli
+npm test --prefix cli
+npm run validate --prefix cli
+npm run check:drift --prefix cli
 ```
 
-## Verification freshness
-
-If files change after verification, rerun before claiming completion.
-
-## What you DO NOT do
-
-- Do NOT keep non-trivial implementation inline.
-- Do NOT skip lifecycle scripts.
-- Do NOT widen scope without asking.
-- Do NOT claim completion without fresh verification evidence.
+Do not claim completion after a relevant edit until the affected checks are
+fresh and no material blocking finding remains.
