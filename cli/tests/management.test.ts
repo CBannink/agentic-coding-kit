@@ -78,11 +78,13 @@ describe("management CLI infrastructure", () => {
     const paths = await resolveHostPaths("codex", "user", undefined, fixture.context);
     await mkdir(paths.agents, { recursive: true });
     await mkdir(path.join(paths.skills, "old-skill"), { recursive: true });
+    await mkdir(path.join(paths.skills, ".system"), { recursive: true });
     await mkdir(path.join(path.dirname(paths.agents), "rules", "old-rule"), { recursive: true });
     await mkdir(path.dirname(paths.instruction), { recursive: true });
     await writeFile(paths.instruction, "old global instructions\n", "utf8");
     await writeFile(path.join(paths.agents, "old-agent.toml"), "old agent\n", "utf8");
     await writeFile(path.join(paths.skills, "old-skill", "SKILL.md"), "old skill\n", "utf8");
+    await writeFile(path.join(paths.skills, ".system", "host-owned.md"), "host owned\n", "utf8");
     await writeFile(path.join(path.dirname(paths.agents), "rules", "old-rule", "rule.md"), "old rule\n", "utf8");
     await writeFile(paths.config!, "old config\n", "utf8");
 
@@ -93,6 +95,7 @@ describe("management CLI infrastructure", () => {
     expect(await readFile(paths.instruction, "utf8")).toContain("agentic-coding-kit:start");
     await expect(readFile(path.join(paths.agents, "old-agent.toml"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
     await expect(readFile(path.join(paths.skills, "old-skill", "SKILL.md"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(path.join(paths.skills, ".system", "host-owned.md"), "utf8")).resolves.toBe("host owned\n");
     await expect(readFile(path.join(path.dirname(paths.agents), "rules", "old-rule", "rule.md"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
     await expect(readFile(paths.config!, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
 
