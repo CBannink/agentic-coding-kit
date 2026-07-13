@@ -20,7 +20,8 @@ names into another harness.
   `opencode`, or `copilot`.
 - Git for project-scope installation and wiki initialization.
 
-Build the management CLI once from the repository root:
+Build the management CLI once from the repository root. Use these exact
+commands; the repository root itself has no `package.json`:
 
 ```powershell
 npm ci --prefix cli
@@ -28,6 +29,11 @@ npm run bundle --prefix cli
 ```
 
 On macOS, use the same commands in Terminal.
+
+`esbuild` is a required source-install dependency, so this also works on
+machines configured with `NODE_ENV=production` or `npm config omit=dev`. If an
+older checkout reports that `esbuild` is not recognized, run
+`npm ci --prefix cli --include=dev`, then rebuild, or pull the latest `main`.
 
 ### Safe install: preserve existing configuration
 

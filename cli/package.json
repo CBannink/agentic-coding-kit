@@ -20,6 +20,7 @@
     "@iarna/toml": "^2.2.5",
     "ajv": "^8.17.1",
     "commander": "^14.0.0",
+    "esbuild": "^0.25.6",
     "gray-matter": "^4.0.3",
     "jsonc-parser": "^3.3.1",
     "picomatch": "^4.0.3",
@@ -31,7 +32,6 @@
   "devDependencies": {
     "@types/node": "^24.0.14",
     "@types/picomatch": "^4.0.2",
-    "esbuild": "^0.25.6",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"
