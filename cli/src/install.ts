@@ -56,6 +56,7 @@ export async function installHost(options: InstallOptions): Promise<InstallResul
   if (options.clearGlobalConfig && !options.yes) throw new Error("--clear-global-config requires --yes after reading the destructive-install warning");
   const paths = await resolveHostPaths(options.host, options.scope, options.repo, options.pathContext);
   const actions: string[] = [];
+  const backupRoot = managedBackupRoot(paths, options.pathContext);
   if (options.clearGlobalConfig) await resetGlobalConfig(paths, options, actions);
   const manifestPath = installManifestPath(paths);
   const previous = options.clearGlobalConfig ? undefined : await readInstallManifest(manifestPath);
@@ -71,7 +72,7 @@ export async function installHost(options: InstallOptions): Promise<InstallResul
   const managedLines: ManagedLine[] = [];
 
   for (const file of desired) {
-    const installedContent = await planAndWriteFile(file.target, file.content, file.sourceId, previous?.files.find((item) => samePath(item.path, file.target)), options, actions);
+    const installedContent = await planAndWriteFile(file.target, file.content, file.sourceId, previous?.files.find((item) => samePath(item.path, file.target)), options, backupRoot, actions);
     files.push({ path: file.target, sha256: sha256(installedContent), ownership: "managed", sourceId: file.sourceId });
   }
   const desiredTargets = new Set(files.map((file) => path.resolve(file.path).toLowerCase()));
@@ -81,24 +82,24 @@ export async function installHost(options: InstallOptions): Promise<InstallResul
     try { current = await readFile(stale.path, "utf8"); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") continue; throw error; }
     if (sha256(current) !== stale.sha256) {
       if (!options.force) throw new Error(`Locally modified stale managed file conflict: ${stale.path}`);
-      await backupFile(stale.path, current, options.dryRun, actions);
+      await backupFile(stale.path, current, options.dryRun, backupRoot, actions);
     }
     if (!options.dryRun) await unlinkContained(path.dirname(stale.path), path.basename(stale.path), "managed file directory");
     actions.push(`${options.dryRun ? "PLAN REMOVE" : "REMOVE"} ${stale.path}`);
   }
 
   const instructionBody = `${orchestrator.trim()}\n\n${invocationNote(options.host)}`;
-  await planAndMergeBlock(paths.instruction, instructionBody, "agentic-coding-kit", "markdown", options, actions);
+  await planAndMergeBlock(paths.instruction, instructionBody, "agentic-coding-kit", "markdown", options, backupRoot, actions);
   blocks.push({ path: paths.instruction, id: "agentic-coding-kit", bodyHash: sha256(instructionBody), format: "markdown" });
   if (paths.hostInstruction) {
     const hostBody = "For GitHub Copilot CLI, request kit skills in natural language, inspect available skills with `/skills`, and select custom agents with `/agent` or supported `--agent` invocation. Shared orchestration rules are owned by the root `AGENTS.md` block.";
-    await planAndMergeBlock(paths.hostInstruction, hostBody, "agentic-coding-kit-copilot", "markdown", options, actions);
+    await planAndMergeBlock(paths.hostInstruction, hostBody, "agentic-coding-kit-copilot", "markdown", options, backupRoot, actions);
     blocks.push({ path: paths.hostInstruction, id: "agentic-coding-kit-copilot", bodyHash: sha256(hostBody), format: "markdown" });
   }
 
   if (options.host === "codex" && paths.config && options.security !== "preserve") {
     const body = codexSecurityBody(options.security);
-    await planAndMergeBlock(paths.config, body, "agentic-coding-kit-profile", "toml", options, actions);
+    await planAndMergeBlock(paths.config, body, "agentic-coding-kit-profile", "toml", options, backupRoot, actions);
     blocks.push({ path: paths.config, id: "agentic-coding-kit-profile", bodyHash: sha256(body), format: "toml" });
   } else if (options.security !== "preserve") warnings.push(`${options.host} security profile preserved: no validated managed setting is emitted for this host`);
 
@@ -110,7 +111,7 @@ export async function installHost(options: InstallOptions): Promise<InstallResul
 
   if (options.host === "opencode" && options.setDefaultAgent && paths.config) {
     const primary = primaryOpenCodeFile(paths, orchestrator);
-    await planAndWriteFile(primary.target, primary.content, primary.sourceId, previous?.files.find((item) => samePath(item.path, primary.target)), options, actions);
+    await planAndWriteFile(primary.target, primary.content, primary.sourceId, previous?.files.find((item) => samePath(item.path, primary.target)), options, backupRoot, actions);
     files.push({ path: primary.target, sha256: sha256(primary.content), ownership: "managed", sourceId: primary.sourceId });
     configChanges.push(carryOriginalChange(await planJsoncChange(paths.config, ["default_agent"], "agentic-kit", options, actions), previous));
   }
@@ -127,12 +128,13 @@ export async function uninstallHost(options: Pick<InstallOptions, "host" | "scop
   const manifest = await readInstallManifest(manifestPath);
   if (!manifest) return { host: options.host, scope: options.scope, actions: ["NOT INSTALLED"], warnings: [], manifestPath };
   const actions: string[] = [];
+  const backupRoot = managedBackupRoot(paths, options.pathContext);
   for (const file of manifest.files) {
     try {
       const current = await readFile(file.path, "utf8");
       if (sha256(current) !== file.sha256) {
         if (!options.force) throw new Error(`Locally modified managed file conflict: ${file.path}`);
-        await backupFile(file.path, current, options.dryRun, actions);
+        await backupFile(file.path, current, options.dryRun, backupRoot, actions);
       }
       if (!options.dryRun) await unlinkContained(path.dirname(file.path), path.basename(file.path), "managed file directory");
       actions.push(`${options.dryRun ? "PLAN REMOVE" : "REMOVE"} ${file.path}`);
@@ -165,7 +167,7 @@ function mapRenderedFiles(files: GeneratedFile[], paths: HostPaths): Array<{ tar
   });
 }
 
-async function planAndWriteFile(target: string, content: string, sourceId: string, previous: ManagedFile | undefined, options: Pick<InstallOptions, "force" | "dryRun" | "clearGlobalConfig">, actions: string[]): Promise<string> {
+async function planAndWriteFile(target: string, content: string, sourceId: string, previous: ManagedFile | undefined, options: Pick<InstallOptions, "force" | "dryRun" | "clearGlobalConfig">, backupRoot: string, actions: string[]): Promise<string> {
   let existing: string | undefined;
   if (!(options.clearGlobalConfig && options.dryRun)) {
     try { existing = await readFile(target, "utf8"); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
@@ -175,22 +177,22 @@ async function planAndWriteFile(target: string, content: string, sourceId: strin
     const trusted = previous && previous.sourceId === sourceId && sha256(existing) === previous.sha256 && hasGeneratedHeader(existing, sourceId);
     const legacyKitOwned = !previous && isLegacyKitOwned(existing);
     if (!trusted && !legacyKitOwned && !options.force) throw new Error(`Managed file conflict: ${target}`);
-    if (!trusted && (legacyKitOwned || options.force)) await backupFile(target, existing, options.dryRun, actions);
+    if (!trusted && (legacyKitOwned || options.force)) await backupFile(target, existing, options.dryRun, backupRoot, actions);
   }
   if (!options.dryRun && existing !== effectiveContent) await writeAbsoluteAtomic(target, effectiveContent);
   actions.push(`${options.dryRun ? "PLAN WRITE" : existing === effectiveContent ? "UNCHANGED" : "WRITE"} ${target}`);
   return effectiveContent;
 }
 
-async function planAndMergeBlock(target: string, body: string, id: string, format: "markdown" | "toml", options: Pick<InstallOptions, "force" | "dryRun" | "clearGlobalConfig">, actions: string[]): Promise<void> {
+async function planAndMergeBlock(target: string, body: string, id: string, format: "markdown" | "toml", options: Pick<InstallOptions, "force" | "dryRun" | "clearGlobalConfig">, backupRoot: string, actions: string[]): Promise<void> {
   let existing = "";
   if (!(options.clearGlobalConfig && options.dryRun)) {
     try { existing = await readFile(target, "utf8"); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
   }
-  if (options.force && existing && isAmbiguousManagedBlock(existing, format)) await backupFile(target, existing, options.dryRun, actions);
+  if (options.force && existing && isAmbiguousManagedBlock(existing, format)) await backupFile(target, existing, options.dryRun, backupRoot, actions);
   let next: string;
   try { next = format === "toml" ? mergeTomlManagedBlock(existing, body, options.force) : mergeManagedBlock(existing, body, options.force); }
-  catch (error) { if (options.force && existing) await backupFile(target, existing, options.dryRun, actions); throw error; }
+  catch (error) { if (options.force && existing) await backupFile(target, existing, options.dryRun, backupRoot, actions); throw error; }
   if (!options.dryRun && next !== existing) await writeAbsoluteAtomic(target, next);
   actions.push(`${options.dryRun ? "PLAN BLOCK" : next === existing ? "UNCHANGED BLOCK" : "BLOCK"} ${target}#${id}`);
 }
@@ -251,7 +253,17 @@ function invocationNote(host: Host): string {
 function installManifestPath(paths: HostPaths): string { return path.join(paths.administrationRoot, `install-${paths.host}-${paths.scope}.json`); }
 async function readInstallManifest(target: string): Promise<InstallManifest | undefined> { try { return JSON.parse(await readFile(target, "utf8")) as InstallManifest; } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined; throw error; } }
 async function writeAbsoluteAtomic(target: string, content: string): Promise<void> { await atomicWriteContained(path.dirname(target), path.basename(target), content, "managed target directory"); }
-async function backupFile(target: string, content: string, dryRun: boolean, actions: string[]): Promise<void> { const backup = `${target}.agentic-kit-backup-${Date.now()}`; if (!dryRun) await writeAbsoluteAtomic(backup, content); actions.push(`${dryRun ? "PLAN BACKUP" : "BACKUP"} ${backup}`); }
+async function backupFile(target: string, content: string, dryRun: boolean, backupRoot: string, actions: string[]): Promise<void> {
+  const name = `${sha256(path.resolve(target)).slice(0, 12)}-${path.basename(target)}`;
+  const backup = path.join(backupRoot, name);
+  if (!dryRun) await writeAbsoluteAtomic(backup, content);
+  actions.push(`${dryRun ? "PLAN BACKUP" : "BACKUP"} ${backup}`);
+}
+function managedBackupRoot(paths: HostPaths, context?: PathEnvironment): string {
+  const home = path.resolve(context?.home ?? os.homedir());
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  return path.join(home, ".agentic-kit-backup", stamp, paths.host, `${paths.scope}-managed-files`);
+}
 function sha256(content: string): string { return createHash("sha256").update(content, "utf8").digest("hex"); }
 function samePath(a: string, b: string): boolean { return path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase(); }
 function hasGeneratedHeader(content: string, sourceId: string): boolean { return content.includes(`${GENERATED_MARKER};`) && content.includes(`sourceId=${sourceId}`); }

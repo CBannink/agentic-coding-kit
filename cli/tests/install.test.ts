@@ -80,8 +80,11 @@ describe("managed native installation", () => {
     const reviewer = path.join(paths.agents, "reviewer.md");
     await writeFile(reviewer, `${await readFile(reviewer, "utf8")}\nlocal edit\n`, "utf8");
     await expect(installHost(options)).rejects.toThrow(/conflict/i);
-    await installHost({ ...options, force: true });
-    expect((await readdir(paths.agents)).some((name) => name.includes("backup"))).toBe(true);
+    const forced = await installHost({ ...options, force: true });
+    const forcedBackup = forced.actions.find((action) => action.startsWith("BACKUP "))!.slice("BACKUP ".length);
+    expect(forcedBackup).toContain(`${path.sep}.agentic-kit-backup${path.sep}`);
+    await expect(readFile(forcedBackup, "utf8")).resolves.toContain("local edit");
+    expect((await readdir(paths.agents)).some((name) => name.includes("backup"))).toBe(false);
     const custom = path.join(paths.agents, "custom.md");
     await writeFile(custom, "custom\n", "utf8");
     await uninstallHost(options);
@@ -99,9 +102,11 @@ describe("managed native installation", () => {
 
     const result = await installHost(options);
 
-    expect(result.actions.some((action) => action.startsWith("BACKUP") && action.includes("analyze"))).toBe(true);
+    const backup = result.actions.find((action) => action.startsWith("BACKUP "))!.slice("BACKUP ".length);
+    expect(backup).toContain(`${path.sep}.agentic-kit-backup${path.sep}`);
+    await expect(readFile(backup, "utf8")).resolves.toContain(".kit/workflows/analyze.md");
     expect(await readFile(analyze, "utf8")).toContain("# Analyze");
-    expect((await readdir(path.dirname(analyze))).some((name) => name.startsWith("SKILL.md.agentic-kit-backup-"))).toBe(true);
+    expect((await readdir(path.dirname(analyze))).some((name) => name.includes("backup"))).toBe(false);
   }, 30_000);
 
   it("still protects an unowned same-name skill", async () => {
