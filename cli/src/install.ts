@@ -380,7 +380,7 @@ async function resetGlobalConfig(paths: HostPaths, options: InstallOptions, acti
       : isSameOrAncestor(hostRoot, resolved)
         ? hostRoot
         : item.label === "config"
-          ? path.parse(resolved).root
+          ? path.dirname(resolved)
           : undefined;
     if (!boundary) throw new Error(`Unsafe global reset target is outside validated host roots ${resetRoot} and ${hostRoot}: ${resolved}`);
     let state: Awaited<ReturnType<typeof lstat>> | undefined;
