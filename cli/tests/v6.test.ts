@@ -11,7 +11,7 @@ import {
   isEvidenceFresh,
   normalizeFailureSignature,
   recordUnsuccessfulRepair,
-  validateHandoff,
+  type DesignPlaybook,
 } from "../src/policy.js";
 import { checkGeneratedDrift, loadSkillResources, renderArtifacts, writeGenerated } from "../src/render.js";
 import { resolveContainedPath, resolveExistingContainedPath, setPathOperationHookForTests } from "../src/paths.js";
@@ -26,6 +26,7 @@ describe("parser-backed formats", () => {
     const tomlValue = { name: "reviewer", description: "Independent: reviewer", agents: { max_depth: 1 } };
     expect(parseToml(serializeToml(tomlValue))).toEqual(tomlValue);
     expect(parseJsonc('{ // retained\n "model": "inherit",\n}')).toEqual({ model: "inherit" });
+    expect(parseJsonc('\ufeff{"model":"inherit"}')).toEqual({ model: "inherit" });
     expect(() => parseJsonc('{ "broken": }')).toThrow(/Invalid JSONC/);
     const markdown = serializeFrontmatter({ name: "wiki", description: "Maintain repository knowledge." }, "# Wiki\n\nBody");
     expect(parseFrontmatter(markdown)).toMatchObject({ data: { name: "wiki" }, content: expect.stringContaining("# Wiki") });
@@ -100,30 +101,48 @@ describe("canonical manifest and prompts", () => {
     await expect(validateCanonicalPrompts(root, manifest)).resolves.toBeUndefined();
     const orchestrator = await readFile(path.join(root, "core/orchestrator.md"), "utf8");
     const normalized = orchestrator.replace(/\s+/g, " ");
-    for (const phrase of ["main-session orchestrator", "dynamic task packet", "live workspace", "compact returned handoff", "smallest reliable loop", "cheap relevant machine checks before independent model review", "test-engineer", "last relevant edit", "Normal build, design, analyze, and review work never modifies `.wiki`"]) expect(normalized).toContain(phrase);
-    expect(orchestrator).toMatch(/Delegation is optional, not a quota/);
-    expect(orchestrator).toMatch(/direct inline change/);
-    expect(orchestrator).toMatch(/Do not continue spawning agents merely to complete a ceremony/);
-    expect(orchestrator).toMatch(/User testing is\s+valuable external evidence/);
+    for (const phrase of ["host-neutral primary engineering agent", "exact user constraints", "live repository", "Delegation is optional", "one gate type at a time", "Test Engineer is conditional", "last relevant edit", "WIKI CHANGE: NONE"]) expect(normalized).toContain(phrase);
+    expect(orchestrator).toMatch(/Static inspection may be sufficient only for\s+non-behavioral changes/);
+    expect(orchestrator).toMatch(/Behavioral changes require executable behavior evidence/);
     expect(orchestrator).toMatch(/`INLINE`[\s\S]*`STANDARD`[\s\S]*`DEEP`/);
-    expect(orchestrator).toMatch(/Every agent returns to you/);
-    expect(orchestrator).toMatch(/at most two failed repaired results/);
+    expect(orchestrator).not.toMatch(/1-3[\s\S]*4-8[\s\S]*9\+/);
+    expect(orchestrator).toMatch(/Delegate coherent implementation to one production\s+Coder only when doing so improves isolation, context, or reliability; otherwise\s+the primary works inline/);
+    expect(orchestrator).not.toMatch(/Coder by default for meaningful/);
+    expect(orchestrator).toMatch(/`Result`, `Evidence`, and optional `Next`/);
+    expect(orchestrator).toMatch(/STANDARD packets use only the context[\s\S]*DEEP work or real drift[\s\S]*full literal contract/);
+    expect(orchestrator).toMatch(/After two failed repairs/);
     const buildSkill = await readFile(path.join(root, "core/skills/build/SKILL.md"), "utf8");
     const designSkill = await readFile(path.join(root, "core/skills/design/SKILL.md"), "utf8");
-    expect(buildSkill).toMatch(/playbooks are not mandatory pipelines/i);
-    expect(designSkill).toMatch(/`INLINE DESIGN`[\s\S]*`REVIEWED DESIGN`/);
+    expect(buildSkill).toMatch(/one-sentence active\s+note/);
+    expect(buildSkill).toMatch(/light contract/);
+    expect(buildSkill).toMatch(/full versioned Build Contract/);
+    expect(designSkill).toMatch(/`INLINE DESIGN`[\s\S]*`REVIEWED DESIGN`[\s\S]*`PROTOTYPE`[\s\S]*`GRILLING`/);
     const reviewer = await readFile(path.join(root, "core/agents/reviewer.md"), "utf8");
     const coder = await readFile(path.join(root, "core/agents/coder.md"), "utf8");
     const tester = await readFile(path.join(root, "core/agents/test-engineer.md"), "utf8");
     const threatModel = await readFile(path.join(root, "core/skills/threat-model/SKILL.md"), "utf8");
     const securityReviewer = await readFile(path.join(root, "core/agents/security-reviewer.md"), "utf8");
     expect(reviewer).toContain("unverified claims");
-    expect(coder).toMatch(/minimum\s+behavior tests/);
-    expect(tester).toMatch(/may not edit\s+production code/);
+    expect(coder).toMatch(/Add tests only as useful\s+durable evidence/);
+    expect(tester).toMatch(/never production/);
     expect(threatModel).toMatch(/`FOCUSED`[\s\S]*`FULL`[\s\S]*`INCREMENTAL`/);
     expect(threatModel).toMatch(/Remain read-only unless the user explicitly approves a report target path/);
     expect(threatModel).toMatch(/transition requested fixes[\s\S]*`build` skill/i);
-    expect(securityReviewer).toMatch(/Return one Security Review Report to the main\s+orchestrator/);
+    expect(securityReviewer).toMatch(/Return only `Result`, `Evidence`, and optional `Next` sections to the main/);
+    for (const relative of [
+      "core/agents/repo-scout.md", "core/agents/coder.md", "core/agents/reviewer.md",
+      "core/agents/test-engineer.md", "core/agents/diagnostician.md", "core/agents/sage.md",
+      "core/agents/security-reviewer.md", "packs/ui/agents/browser-qa.md", "packs/ui/agents/ui-critic.md",
+    ]) {
+      const prompt = await readFile(path.join(root, relative), "utf8");
+      expect(prompt).toMatch(/main\s+orchestrator/i);
+      expect(prompt).toMatch(/evidence/i);
+      expect(prompt).toMatch(/dispatch|invoke/i);
+      expect(prompt).toContain("`.wiki/index.md`");
+      expect(prompt).toMatch(/verify it against\s+current source, report drift, and never edit `\.wiki`/);
+    }
+    const canonicalWorkflow = `${orchestrator}\n${buildSkill}\n${await readFile(path.join(root, "core/skills/build/references/testing.md"), "utf8")}\n${await readFile(path.join(root, "core/skills/build/references/profiles.md"), "utf8")}\n${await readFile(path.join(root, "README.md"), "utf8")}`;
+    expect(canonicalWorkflow).not.toMatch(/--test-first|strict test-first/i);
   });
 
   it("keeps repository instruction surfaces on the v6 main-session architecture", async () => {
@@ -133,7 +152,7 @@ describe("canonical manifest and prompts", () => {
 
     expect(agents).toContain("active harness session is the orchestrator");
     expect(agents).toMatch(/`INLINE`[\s\S]*`STANDARD`[\s\S]*`DEEP`/);
-    expect(agents).toContain("Every agent returns a compact handoff to the main orchestrator");
+    expect(agents).toContain("Every agent returns `Result`, `Evidence`, and optional `Next` sections to the");
     expect(claude).toContain("active Claude Code");
     for (const legacy of [
       "workflow-explorer",
@@ -249,7 +268,7 @@ describe("native adapter generation", () => {
     expect(copilotCoder.data.tools).toEqual(["read", "search", "edit", "execute"]);
     const copilotTester = parseFrontmatter(files.find((file) => file.path === "adapters/copilot/agents/test-engineer.agent.md")!.content);
     expect(copilotTester.data.tools).toEqual(["read", "search", "edit", "execute"]);
-    expect(copilotTester.content).toMatch(/may not edit\s+production code/);
+    expect(copilotTester.content).toMatch(/never production/);
     expect(files.find((file) => file.path === "adapters/copilot/instructions.md")!.content).toContain("inspect skills with `/skills`");
   });
 
@@ -334,54 +353,9 @@ describe("deterministic orchestration policy helpers", () => {
     expect(second).toEqual({ attempts: 2, limit: 2, mayContinue: false });
   });
 
-  it("validates handoff shape without treating claims as evidence", () => {
-    expect(validateHandoff("scout", {
-      status: "CLEAR",
-      missionAnswered: "Found ownership and nearest tests",
-      relevantFlow: "src/api.ts calls the transport",
-      implementationSurface: ["src/api.ts", "tests/api.test.ts"],
-      verification: ["npm test -- api"],
-    })).toEqual({ valid: true, missing: [] });
-    expect(validateHandoff("review", {
-      verdict: "PASS",
-      contractAssessment: "Acceptance examples are covered",
-      findings: [],
-    })).toEqual({ valid: true, missing: [] });
-    expect(validateHandoff("test-charter", {
-      contractBehaviors: ["returns the transport result"],
-      existingEvidence: [],
-      highestValueGaps: [],
-      chosenTestLevel: "unit — lowest reliable level",
-    })).toEqual({ valid: true, missing: [] });
-    expect(validateHandoff("test", {
-      outcome: "PASS",
-      evidence: [{ command: "npm test", result: "pass" }],
-    })).toEqual({ valid: true, missing: [] });
-    expect(validateHandoff("test", {
-      outcome: "CODE_DEFECT",
-      evidence: [{ command: "npm test", result: "fail" }],
-    })).toEqual({ valid: false, missing: ["defectEvidence"] });
-    expect(validateHandoff("test", {
-      outcome: "CODE_DEFECT",
-      evidence: [{ command: "npm test", result: "fail" }],
-      defectEvidence: {
-        failingTest: "returns propagated failure",
-        expected: "error",
-        actual: "success",
-        productionPath: "src/api.ts",
-        reproduction: "npm test -- api",
-      },
-    })).toEqual({ valid: true, missing: [] });
-    expect(validateHandoff("coder", { status: "DONE", implemented: "behavior" })).toEqual({
-      valid: false,
-      missing: ["changed", "evidence"],
-    });
-    expect(validateHandoff("coder", {
-      status: "CONTRACT_GAP",
-      implemented: "partial behavior",
-      changed: [],
-      evidence: [],
-    })).toEqual({ valid: false, missing: ["contractGap"] });
+  it("keeps policy Design routes aligned with the documented playbooks", () => {
+    const routes: DesignPlaybook[] = ["INLINE_DESIGN", "REVIEWED_DESIGN", "PROTOTYPE", "GRILLING"];
+    expect(routes).toEqual(["INLINE_DESIGN", "REVIEWED_DESIGN", "PROTOTYPE", "GRILLING"]);
   });
 
   it("binds evidence and completion to the current revision", () => {

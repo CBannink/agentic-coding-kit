@@ -1,9 +1,7 @@
 ---
 name: wiki
 description: >-
-  Initialize, reinitialize, or audit an architect-grade repository wiki using
-  targeted evidence scans, source-backed engineering conventions, safe managed
-  sections, and read-only drift checks.
+  Initialize, reinitialize, or audit curated repository engineering knowledge.
 ---
 
 # Wiki

@@ -5,16 +5,20 @@ import type { ParseError } from "jsonc-parser";
 const { applyEdits, modify, parse } = jsoncParser;
 
 export function setJsoncValue(source: string, keyPath: (string | number)[], value: unknown): string {
-  const base = source.trim() ? source : "{}\n";
+  const hasBom = source.startsWith("\uFEFF");
+  const normalized = hasBom ? source.slice(1) : source;
+  const base = normalized.trim() ? normalized : "{}\n";
   const errors: ParseError[] = [];
   parse(base, errors, { allowTrailingComma: true, disallowComments: false });
   if (errors.length) throw new Error("Cannot safely merge malformed JSONC configuration");
-  return applyEdits(base, modify(base, keyPath, value, { formattingOptions: { insertSpaces: true, tabSize: 2, eol: "\n" } }));
+  const updated = applyEdits(base, modify(base, keyPath, value, { formattingOptions: { insertSpaces: true, tabSize: 2, eol: "\n" } }));
+  return hasBom ? `\uFEFF${updated}` : updated;
 }
 
 export function getJsoncValue(source: string, keyPath: (string | number)[]): { exists: boolean; value: unknown } {
   const errors: ParseError[] = [];
-  let current = parse(source.trim() ? source : "{}", errors, { allowTrailingComma: true, disallowComments: false }) as unknown;
+  const normalized = source.startsWith("\uFEFF") ? source.slice(1) : source;
+  let current = parse(normalized.trim() ? normalized : "{}", errors, { allowTrailingComma: true, disallowComments: false }) as unknown;
   if (errors.length) throw new Error("Cannot safely parse malformed JSONC configuration");
   for (const key of keyPath) {
     if (!current || typeof current !== "object" || !(key in current)) return { exists: false, value: undefined };

@@ -149,6 +149,149 @@ describe("managed native installation", () => {
     expect(parseToml(await readFile(codexPaths.config!, "utf8"))).toHaveProperty("mcp_servers.keep.command", "keep");
   }, 30_000);
 
+  it("manages the OpenCode primary while preserving or explicitly overriding a custom default", async () => {
+    const fixture = await fixtureEnvironment("kit-opencode-primary-");
+    const options = baseOptions("opencode", "user", fixture);
+    const paths = await resolveHostPaths("opencode", "user", undefined, fixture.context);
+    await mkdir(path.dirname(paths.config!), { recursive: true });
+    await writeFile(paths.config!, '{\n  // keep this comment\n  "theme": "dark",\n  "default_agent": "custom-primary"\n}\n', "utf8");
+
+    await installHost(options);
+    const installedPrimary = parseFrontmatter(await readFile(path.join(paths.agents, "agentic-kit.md"), "utf8"));
+    expect(installedPrimary.data).toMatchObject({ mode: "primary" });
+    expect(installedPrimary.data).not.toHaveProperty("permission");
+    expect(installedPrimary.content.trim()).toBe("");
+    expect(parseJsonc(await readFile(paths.config!, "utf8"))).toMatchObject({ theme: "dark", default_agent: "custom-primary" });
+
+    await installHost({ ...options, setDefaultAgent: true });
+    const updatedPrimary = parseFrontmatter(await readFile(path.join(paths.agents, "agentic-kit.md"), "utf8"));
+    expect(updatedPrimary.data).toMatchObject({ mode: "primary" });
+    expect(updatedPrimary.data).not.toHaveProperty("permission");
+    expect(updatedPrimary.content.trim()).toBe("");
+    expect(parseJsonc(await readFile(paths.config!, "utf8"))).toHaveProperty("default_agent", "agentic-kit");
+    await installHost(options);
+    expect(parseJsonc(await readFile(paths.config!, "utf8"))).toHaveProperty("default_agent", "agentic-kit");
+
+    await uninstallHost(options);
+    const restored = await readFile(paths.config!, "utf8");
+    expect(restored).toContain("// keep this comment");
+    expect(parseJsonc(restored)).toMatchObject({ theme: "dark", default_agent: "custom-primary" });
+    await expect(readFile(path.join(paths.agents, "agentic-kit.md"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+  }, 30_000);
+
+  it("preserves a UTF-8 BOM while updating and restoring OpenCode JSONC", async () => {
+    const fixture = await fixtureEnvironment("kit-opencode-bom-");
+    const options = baseOptions("opencode", "user", fixture);
+    const paths = await resolveHostPaths("opencode", "user", undefined, fixture.context);
+    await mkdir(path.dirname(paths.config!), { recursive: true });
+    await writeFile(paths.config!, '\uFEFF{\n  // keep this comment\n  "default_agent": "custom-primary"\n}\n', "utf8");
+
+    await installHost(options);
+    expect(await readFile(paths.config!, "utf8")).toMatch(/^\uFEFF/);
+    expect(parseJsonc(await readFile(paths.config!, "utf8"))).toHaveProperty("default_agent", "custom-primary");
+
+    await installHost({ ...options, setDefaultAgent: true });
+    const updated = await readFile(paths.config!, "utf8");
+    expect(updated).toMatch(/^\uFEFF/);
+    expect(updated).toContain("// keep this comment");
+    expect(parseJsonc(updated)).toHaveProperty("default_agent", "agentic-kit");
+
+    await uninstallHost(options);
+    const restored = await readFile(paths.config!, "utf8");
+    expect(restored).toMatch(/^\uFEFF/);
+    expect(restored).toContain("// keep this comment");
+    expect(parseJsonc(restored)).toHaveProperty("default_agent", "custom-primary");
+  }, 30_000);
+
+  it.each(["user", "project"] as const)("selects sole OpenCode JSONC and preserves comments at %s scope", async (scope) => {
+    const fixture = await fixtureEnvironment(`kit-opencode-jsonc-${scope}-`);
+    const configRoot = scope === "user" ? fixture.context.env.OPENCODE_CONFIG_DIR! : fixture.repo;
+    const config = path.join(configRoot, "opencode.jsonc");
+    await mkdir(configRoot, { recursive: true });
+    await writeFile(config, '{\n  // retained setting\n  "theme": "dark"\n}\n', "utf8");
+
+    await installHost(baseOptions("opencode", scope, fixture));
+
+    const paths = await resolveHostPaths("opencode", scope, scope === "project" ? fixture.repo : undefined, fixture.context);
+    expect(path.basename(paths.config!)).toBe("opencode.jsonc");
+    expect(await readFile(config, "utf8")).toContain("// retained setting");
+    expect(parseJsonc(await readFile(config, "utf8"))).toMatchObject({ theme: "dark", default_agent: "agentic-kit" });
+  }, 30_000);
+
+  it.each(["user", "project"] as const)("rejects ambiguous OpenCode config without writes at %s scope", async (scope) => {
+    const fixture = await fixtureEnvironment(`kit-opencode-ambiguous-${scope}-`);
+    const configRoot = scope === "user" ? fixture.context.env.OPENCODE_CONFIG_DIR! : fixture.repo;
+    await mkdir(configRoot, { recursive: true });
+    await writeFile(path.join(configRoot, "opencode.json"), '{"theme":"json"}\n', "utf8");
+    await writeFile(path.join(configRoot, "opencode.jsonc"), '{"theme":"jsonc"}\n', "utf8");
+
+    await expect(installHost(baseOptions("opencode", scope, fixture))).rejects.toThrow(/Ambiguous OpenCode configuration.*OPENCODE_CONFIG/i);
+    const instruction = scope === "user" ? path.join(configRoot, "AGENTS.md") : path.join(fixture.repo, "AGENTS.md");
+    await expect(readFile(instruction, "utf8")).rejects.toThrow();
+    expect(await readFile(path.join(configRoot, "opencode.json"), "utf8")).toBe('{"theme":"json"}\n');
+    expect(await readFile(path.join(configRoot, "opencode.jsonc"), "utf8")).toBe('{"theme":"jsonc"}\n');
+  });
+
+  it("rejects malformed OpenCode config before changing an existing single-host install", async () => {
+    const fixture = await fixtureEnvironment("kit-opencode-malformed-update-");
+    const options = baseOptions("opencode", "user", fixture);
+    await installHost(options);
+    const paths = await resolveHostPaths("opencode", "user", undefined, fixture.context);
+    const instructionBefore = await readFile(paths.instruction, "utf8");
+    const agent = path.join(paths.agents, "reviewer.md");
+    const agentBefore = await readFile(agent, "utf8");
+    await writeFile(paths.config!, '{"default_agent":\n', "utf8");
+
+    await expect(installHost(options)).rejects.toThrow(/malformed JSONC/i);
+
+    expect(await readFile(paths.config!, "utf8")).toBe('{"default_agent":\n');
+    expect(await readFile(paths.instruction, "utf8")).toBe(instructionBefore);
+    expect(await readFile(agent, "utf8")).toBe(agentBefore);
+  }, 30_000);
+
+  it("replaces malformed OpenCode config during an explicit global reset", async () => {
+    const fixture = await fixtureEnvironment("kit-opencode-malformed-reset-");
+    const options = baseOptions("opencode", "user", fixture);
+    const paths = await resolveHostPaths("opencode", "user", undefined, fixture.context);
+    await mkdir(path.dirname(paths.config!), { recursive: true });
+    await writeFile(paths.config!, '{"default_agent":\n', "utf8");
+
+    await installHost({ ...options, clearGlobalConfig: true, yes: true });
+
+    expect(parseJsonc(await readFile(paths.config!, "utf8"))).toEqual({ default_agent: "agentic-kit" });
+  }, 30_000);
+
+  it("rejects an OpenCode project config directory before creating managed project files", async () => {
+    const fixture = await fixtureEnvironment("kit-opencode-directory-project-");
+    const config = path.join(fixture.repo, "opencode.json");
+    await mkdir(config, { recursive: true });
+
+    await expect(installHost(baseOptions("opencode", "project", fixture))).rejects.toThrow(/regular file.*symlink/i);
+
+    await expect(readFile(path.join(fixture.repo, "AGENTS.md"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readdir(path.join(fixture.repo, ".opencode"))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readdir(config)).resolves.toEqual([]);
+  });
+
+  it("preserves a pre-existing agentic-kit OpenCode default across install and uninstall", async () => {
+    const fixture = await fixtureEnvironment("kit-opencode-existing-default-");
+    const options = baseOptions("opencode", "user", fixture);
+    const paths = await resolveHostPaths("opencode", "user", undefined, fixture.context);
+    await mkdir(path.dirname(paths.config!), { recursive: true });
+    await writeFile(paths.config!, '{\n  // user selected this before installing the kit\n  "default_agent": "agentic-kit"\n}\n', "utf8");
+
+    const result = await installHost(options);
+    const manifest = JSON.parse(await readFile(result.manifestPath, "utf8")) as {
+      configChanges: Array<{ previousExists: boolean; previousValue: unknown }>;
+    };
+    expect(manifest.configChanges).toContainEqual(expect.objectContaining({ previousExists: true, previousValue: "agentic-kit" }));
+
+    await uninstallHost(options);
+    const restored = await readFile(paths.config!, "utf8");
+    expect(restored).toContain("// user selected this before installing the kit");
+    expect(parseJsonc(restored)).toHaveProperty("default_agent", "agentic-kit");
+  }, 30_000);
+
   it("dry-run writes nothing and malformed blocks require force", async () => {
     const fixture = await fixtureEnvironment("kit-dry-run-");
     const options = baseOptions("codex", "project", fixture);
@@ -172,6 +315,6 @@ async function fixtureEnvironment(prefix: string): Promise<{ home: string; repo:
   await mkdir(home, { recursive: true });
   await mkdir(repo, { recursive: true });
   await execFile("git", ["init", "--quiet"], { cwd: repo });
-  const env = { ...process.env, CODEX_HOME: path.join(home, "codex"), CLAUDE_CONFIG_DIR: path.join(home, "claude"), OPENCODE_CONFIG_DIR: path.join(home, "opencode"), COPILOT_HOME: path.join(home, "copilot") };
+  const env = { ...process.env, CODEX_HOME: path.join(home, "codex"), CLAUDE_CONFIG_DIR: path.join(home, "claude"), OPENCODE_CONFIG_DIR: path.join(home, "opencode"), OPENCODE_CONFIG: undefined, COPILOT_HOME: path.join(home, "copilot") };
   return { home, repo, context: { home, platform: process.platform, env } };
 }

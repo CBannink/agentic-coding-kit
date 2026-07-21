@@ -1,10 +1,8 @@
 ---
 name: threat-model
 description: >-
-  Threat-model a feature, component, system, or current change by mapping
-  assets, actors, data flows, trust boundaries, existing controls, and concrete
-  attack paths. Use focused, full, or incremental analysis and independently
-  challenge material findings without changing implementation.
+  Threat-model a feature, system, or change through assets, trust boundaries,
+  controls, and concrete attack paths without changing implementation.
 ---
 
 # Threat Model

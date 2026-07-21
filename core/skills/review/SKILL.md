@@ -1,10 +1,8 @@
 ---
 name: review
 description: >-
-  Independently review a working tree, commit range, branch, contract and
-  implementation, design, test-only delta, subsystem, or migration plan using
-  evidence-backed findings and dynamically selected correctness, architecture,
-  testing, failure, compatibility, migration, performance, or security lenses.
+  Independently review a diff, branch, contract, design, test delta, subsystem,
+  or migration plan with evidence-backed findings.
 ---
 
 # Review
