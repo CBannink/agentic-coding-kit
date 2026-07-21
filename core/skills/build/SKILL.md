@@ -1,89 +1,70 @@
 ---
 name: build
 description: >-
-  Orchestrate repository implementation, fixes, refactors, migrations, UI,
-  configuration, API, data, documentation-linked changes, and strict
-  test-first requests through selective discovery, a compact Build Contract,
-  implementation, fast checks, independent review, test hardening, and fresh
-  final verification.
+  Implement repository features, fixes, refactors, migrations, configuration,
+  UI, API, data, or code-linked documentation with proportionate proof.
 ---
 
 # Build
 
-Keep the main session as orchestrator. Infer intent, surfaces, assurance needs,
-and development style; expose only `--test-first`, which materially changes
-sequence. Maintain the Task Capsule in active context, not on disk.
+Use the primary's shared orchestration, preservation, handoff, evidence,
+repair, and completion policy. Infer affected behavior, ownership, callers,
+compatibility, and assurance needs. Select the smallest reliable playbook:
 
-Choose the smallest reliable loop. Do not spawn agents to satisfy a workflow
-ceremony. Direct inline inspection, editing, and verification are allowed for
-clear, low-risk, tightly bounded work (normally one or two files), including
-typos, mechanical refactors, deterministic metadata changes, and small
-test-only corrections. Delegate when uncertainty, independent judgment,
-permission boundaries, specialized tools, behavioral risk, or non-obvious
-callers make it materially more reliable than working inline.
+- `INLINE`: inspect, implement, and verify directly. Keep a one-sentence active
+  note naming the requested outcome and sufficient proof.
+- `STANDARD`: use a light contract: outcome, relevant criterion IDs, preserve,
+  implementation context, proof, and open facts. Add targeted discovery, one
+  coherent Coder assignment, or one independent gate only when valuable.
+- `DEEP`: maintain the full versioned Build Contract below; use focused
+  discovery as needed, one coherent Coder, cheap checks, normally independent
+  review, and only triggered hardening or specialists.
 
-Choose one adaptive playbook:
+Playbooks are adaptive, not mandatory pipelines. Before editing, inspect live
+instructions, Git state, relevant source/diffs, and unrelated changes. Verify
+ownership and generated boundaries. Implement the smallest coherent delta.
 
-- `INLINE`: the orchestrator inspects, implements, and verifies directly.
-- `STANDARD`: optional targeted Scout, coder, fast checks, and conditional
-  reviewer or independent test hardening before final verification.
-- `DEEP`: targeted discovery when useful, explicit Build Contract, coder, fast
-  gate, independent review and hardening, conditional specialists, and fresh
-  final verification.
+For a clear defect, capture a red-capable symptom before repair when practical.
+Trace affected public behavior and callers far enough to avoid local fixes that
+break compatibility. Keep configuration, migration, error, and rollback effects
+inside the contract when they are material. Edit canonical sources and use the
+repository renderer for generated outputs.
 
-Playbooks are not mandatory pipelines. Start with the smallest trustworthy one,
-reassess after every edit or handoff, and escalate when evidence reveals more
-risk or uncertainty. Skip any agent whose result would not materially affect
-the implementation or completion decision.
+Static inspection can establish non-behavioral work. Behavioral work requires
+executable behavior evidence; type, lint, or build alone is insufficient unless
+compilation or artifact generation is the requested behavior. If execution is
+infeasible, record why and the remaining risk. Tests are conditional durable
+evidence, not a required stage. A Test
+Engineer is useful only for a specific independent gap.
 
-Within the selected playbook:
+Full `DEEP` contract:
 
-1. Orient to request, Git/worktree state, instructions, direct evidence, and
-   unrelated edits.
-2. Read `.wiki/index.md` only when repository context helps, then exact relevant
-   sections.
-3. Use one `repo-scout` when ownership, callers, patterns, tests, or commands
-   are unclear; a second only for an independent axis. Give it exact questions,
-   the decision those answers unlock, starting paths/wiki sections, and a stop
-   condition. Its report returns to the orchestrator for curation.
-4. Create and version the Build Contract in current context.
-5. For meaningful production work, send one coherent change to `coder` and
-   require minimum behavior or regression tests. For eligible bounded work,
-   make the minimal inline change and run proportionate checks.
-6. Run cheap relevant machine checks, including behavior evidence when feasible.
-7. When independent review has real expected value, ask `reviewer` for `PASS`,
-   `REPAIR`, `RECONTRACT`, or `VERIFY_MORE`.
-8. Repair, re-scout, revise the contract, or gather evidence based on that route.
-9. After review stability, use `test-engineer` when meaningful behavior changes
-   have high-value independent hardening opportunities; record a brief reason
-   when skipping it for non-behavioral or already independently verified work.
-10. Run and independently review a material test-only delta.
-11. Use browser/UI/security specialists only on their actual triggers.
-12. Run final relevant verification after the last edit.
-13. Report `WIKI CHANGE: NONE`; only an explicit `wiki init` or `wiki reinit`
-    request may modify repository knowledge.
+```markdown
+# Build Contract rN
+## Request and outcome
+## Verbatim user requirements (U1...)
+## Derived proof/acceptance criteria (D1...; revisable, never broader than user intent)
+## Current behavior and evidence
+## Preserve and non-goals
+## Relevant implementation context
+## Proof plan
+### Useful tests, if any
+### Fast and final executable checks
+### Independent or visual evidence, if triggered
+## Assumptions and open facts
+```
 
-Hard invariants: all agents return to the orchestrator; one production writer
-by default; no self-review as sole review when independent review is warranted;
-read-only roles never write; Test Engineer never writes production;
-production/test edits invalidate affected evidence; repeated signatures route
-to diagnosis; missing evidence stays missing; handoffs index live evidence;
-at most two failed repaired results across code, tests, browser QA, and UI
-critique before user direction is required. Count only a completed repair whose
-next applicable gate still fails.
+Load only what the change needs:
 
-Load references only as needed:
+- [profiles.md](references/profiles.md) for assurance focus.
+- [testing.md](references/testing.md) for test selection or hardening.
+- [verification.md](references/verification.md) for evidence selection.
+- [failures.md](references/failures.md) for failure classification.
+- [handoffs.md](references/handoffs.md) for assignments and returns.
+- [context-efficiency.md](references/context-efficiency.md) only for broad,
+  long-running, or multi-agent work.
+- [skill-authoring.md](references/skill-authoring.md) only when editing skills,
+  agents, prompts, or their catalog metadata.
 
-- [profiles.md](references/profiles.md) for intent, surface, and assurance focus.
-- [testing.md](references/testing.md) for coder tests, independent hardening, or
-  strict test-first sequencing.
-- [verification.md](references/verification.md) to choose fast/final evidence.
-- [failures.md](references/failures.md) for repair limits and diagnosis routing.
-- [handoffs.md](references/handoffs.md) for contracts and return packets.
-
-Completion requires current contract coverage, independent review after the
-last production edit when review was warranted, fresh checks after the last
-relevant edit, no blocking finding, an explicit `WIKI CHANGE: NONE` result, and
-a proportionate stop decision. Treat user testing as valuable external evidence
-and route any reported failure, but do not wait for user testing when adequate
-fresh repository evidence is already available.
+After the last relevant edit, run focused and repository-required checks. A
+Coder reports `CONTRACT_GAP` rather than silently widening invalidated scope.

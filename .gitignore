@@ -13,8 +13,13 @@ inspiration/
 .kit/session-state/
 **/.kit/session-state/
 
-# Generated/installed kit artifacts (canonical source in bundle/)
+# Generated/installed kit artifacts (canonical source in core/ and packs/)
 .kit/
+!bundle/repo-template/.kit/
+bundle/repo-template/.kit/*
+!bundle/repo-template/.kit/context/
+bundle/repo-template/.kit/context/*
+!bundle/repo-template/.kit/context/patterns.md
 .wiki/
 bin/
 .github/agents/
@@ -23,7 +28,14 @@ bin/
 .github/hooks/
 
 # Test artifacts
+node_modules/
 .pytest_cache/
 .deepeval/
 testResults.xml
 __pycache__/
+benchmarks/agentic-work-bench/results/
+benchmarks/results/
+benchmarks/results-*.json
+benchmarks/**/results/
+benchmarks/**/results-*.json
+.agentic-kit-backup/

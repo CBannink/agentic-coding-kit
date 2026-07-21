@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { access, lstat, mkdir, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { atomicWriteContained, unlinkContained } from "./paths.js";
@@ -57,6 +57,9 @@ export async function installHost(options: InstallOptions): Promise<InstallResul
   if (options.clearGlobalConfig && options.scope !== "user") throw new Error("--clear-global-config is available only with --scope user");
   if (options.clearGlobalConfig && !options.yes) throw new Error("--clear-global-config requires --yes after reading the destructive-install warning");
   const paths = await resolveHostPaths(options.host, options.scope, options.repo, options.pathContext);
+  if (options.host === "opencode" && paths.config) {
+    await preflightOpenCodeConfig(paths.config, options.setDefaultAgent || Boolean(options.clearGlobalConfig), Boolean(options.clearGlobalConfig));
+  }
   const actions: string[] = [];
   const backupRoot = managedBackupRoot(paths, options.pathContext);
   if (options.clearGlobalConfig) await resetGlobalConfig(paths, options, actions);
@@ -67,6 +70,7 @@ export async function installHost(options: InstallOptions): Promise<InstallResul
   const rendered = await renderArtifacts(options.repoRoot, canonical, { installProfile: options.profile, commands });
   const desired = mapRenderedFiles(rendered, paths);
   const orchestrator = await readFile(path.join(options.repoRoot, canonical.instruction_fragments.orchestrator), "utf8");
+  if (options.host === "opencode") desired.push(primaryOpenCodeFile(paths));
   const warnings: string[] = [];
   const files: ManagedFile[] = [];
   const blocks: ManagedBlock[] = [];
@@ -111,17 +115,40 @@ export async function installHost(options: InstallOptions): Promise<InstallResul
     if (await ensureGitignoreLine(paths.root, ".claude/settings.local.json", options, actions)) managedLines.push({ path: path.join(paths.root, ".gitignore"), line: ".claude/settings.local.json" });
   } else if (options.memory === "wiki-only" && options.host !== "claude") warnings.push(`${options.host} has no managed auto-memory setting; preserved`);
 
-  if (options.host === "opencode" && options.setDefaultAgent && paths.config) {
-    const primary = primaryOpenCodeFile(paths, orchestrator);
-    await planAndWriteFile(primary.target, primary.content, primary.sourceId, previous?.files.find((item) => samePath(item.path, primary.target)), options, backupRoot, actions);
-    files.push({ path: primary.target, sha256: sha256(primary.content), ownership: "managed", sourceId: primary.sourceId });
-    configChanges.push(carryOriginalChange(await planJsoncChange(paths.config, ["default_agent"], "agentic-kit", options, actions), previous));
+  if (options.host === "opencode" && paths.config) {
+    const currentDefault = await readJsoncValue(paths.config, ["default_agent"], options);
+    const priorChange = previous?.configChanges.find((item) => samePath(item.path, paths.config!) && item.keyPath.join(".") === "default_agent");
+    if (options.setDefaultAgent || !currentDefault.exists || currentDefault.value === "agentic-kit") {
+      const change = await planJsoncChange(paths.config, ["default_agent"], "agentic-kit", options, actions);
+      configChanges.push(priorChange
+        ? carryOriginalChange(change, previous)
+        : change);
+    }
   }
 
   const output: InstallManifest = { schemaVersion: 1, kitVersion: canonical.kit_version, host: options.host, scope: options.scope, root: paths.root, files, managedBlocks: blocks, configChanges, managedLines, securityProfile: options.security, memoryProfile: options.memory };
   if (!options.dryRun) await writeAbsoluteAtomic(manifestPath, `${JSON.stringify(output, null, 2)}\n`);
   actions.push(`${options.dryRun ? "PLAN" : "WRITE"} ${manifestPath}`);
   return { host: options.host, scope: options.scope, actions, warnings, manifestPath };
+}
+
+async function preflightOpenCodeConfig(target: string, setDefaultAgent: boolean, replaceConfig: boolean): Promise<void> {
+  let state: Awaited<ReturnType<typeof lstat>> | undefined;
+  try { state = await lstat(target); } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+  if (state?.isSymbolicLink() || (state && !state.isFile())) {
+    throw new Error(`OpenCode configuration must be missing or a regular file and not a symlink/junction: ${target}`);
+  }
+  const source = state && !replaceConfig ? await readFile(target, "utf8") : "{}\n";
+  const current = getJsoncValue(source, ["default_agent"]);
+  if (setDefaultAgent || !current.exists || current.value === "agentic-kit") {
+    const planned = setJsoncValue(source, ["default_agent"], "agentic-kit");
+    const resolved = getJsoncValue(planned, ["default_agent"]);
+    if (!resolved.exists || resolved.value !== "agentic-kit") {
+      throw new Error(`Cannot safely plan OpenCode default_agent configuration mutation: ${target}`);
+    }
+  }
 }
 
 export async function uninstallHost(options: Pick<InstallOptions, "host" | "scope" | "repo" | "dryRun" | "force" | "repoRoot" | "pathContext">): Promise<InstallResult> {
@@ -211,6 +238,12 @@ async function planJsoncChange(target: string, keyPath: (string | number)[], val
   return { path: target, keyPath, value, previousExists: previous.exists, previousValue: previous.value };
 }
 
+async function readJsoncValue(target: string, keyPath: (string | number)[], options: Pick<InstallOptions, "dryRun" | "clearGlobalConfig">): Promise<{ exists: boolean; value: unknown }> {
+  if (options.clearGlobalConfig && options.dryRun) return { exists: false, value: undefined };
+  try { return getJsoncValue(await readFile(target, "utf8"), keyPath); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return { exists: false, value: undefined }; throw error; }
+}
+
 async function restoreJsoncChange(change: ConfigChange, dryRun: boolean, actions: string[]): Promise<void> {
   let existing: string;
   try { existing = await readFile(change.path, "utf8"); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return; throw error; }
@@ -239,9 +272,9 @@ function codexSecurityBody(security: SecurityProfile): string {
   return lines.join("\n");
 }
 
-function primaryOpenCodeFile(paths: HostPaths, orchestrator: string): { target: string; content: string; sourceId: string } {
+function primaryOpenCodeFile(paths: HostPaths): { target: string; content: string; sourceId: string } {
   const sourceId = "primary-profile:agentic-kit";
-  const content = `---\ndescription: Main Agentic Coding Kit orchestrator\nmode: primary\n---\n\n<!-- ${GENERATED_MARKER}; source=core/orchestrator.md; sourceId=${sourceId} -->\n${orchestrator.trim()}\n`;
+  const content = `---\ndescription: Main Agentic Coding Kit orchestrator\nmode: primary\n# ${GENERATED_MARKER}; source=core/orchestrator.md; sourceId=${sourceId}\n---\n`;
   return { target: path.join(paths.agents, "agentic-kit.md"), content, sourceId };
 }
 
@@ -323,6 +356,10 @@ function isAmbiguousManagedBlock(content: string, format: "markdown" | "toml"): 
 }
 
 async function resetGlobalConfig(paths: HostPaths, options: InstallOptions, actions: string[]): Promise<void> {
+  const hostRoot = path.resolve(paths.hostRoot);
+  const resetRoot = path.resolve(paths.root);
+  if (samePath(hostRoot, path.parse(hostRoot).root)) throw new Error(`Refusing filesystem-root host configuration: ${hostRoot}`);
+  if (samePath(resetRoot, path.parse(resetRoot).root)) throw new Error(`Refusing filesystem-root reset boundary: ${resetRoot}`);
   const targets = [
     { label: "instructions", target: paths.instruction },
     { label: "agents", target: paths.agents },
@@ -332,29 +369,99 @@ async function resetGlobalConfig(paths: HostPaths, options: InstallOptions, acti
     { label: "administration", target: paths.administrationRoot },
     ...additionalGlobalResetTargets(paths),
   ];
-  const seen = new Set<string>();
+  const directoryResetLabels = new Set(["agents", "skills", "commands", "administration", "legacy-skills", "rules", "prompts", "instructions-directory"]);
+  const directoryResetTargets = targets.filter((item) => directoryResetLabels.has(item.label)).map((item) => item.target);
+  const validated: Array<{ label: string; target: string; boundary: string; exists: boolean; isDirectory: boolean }> = [];
   for (const item of targets) {
     const resolved = path.resolve(item.target);
+    if (samePath(resolved, path.parse(resolved).root)) throw new Error(`Refusing global reset target at filesystem root: ${resolved}`);
+    const boundary = isSameOrAncestor(resetRoot, resolved)
+      ? resetRoot
+      : isSameOrAncestor(hostRoot, resolved)
+        ? hostRoot
+        : item.label === "config"
+          ? path.parse(resolved).root
+          : undefined;
+    if (!boundary) throw new Error(`Unsafe global reset target is outside validated host roots ${resetRoot} and ${hostRoot}: ${resolved}`);
+    let state: Awaited<ReturnType<typeof lstat>> | undefined;
+    try { state = await lstat(resolved); } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+    if (item.label === "config") {
+      if (targets.some((other) => other.label !== "config" && samePath(resolved, other.target))
+          || directoryResetTargets.some((root) => pathsOverlap(resolved, root))) {
+        throw new Error(`Unsafe global reset config target overlaps a managed reset directory: ${resolved}`);
+      }
+      if (state?.isSymbolicLink() || (state && !state.isFile())) {
+        throw new Error(`Unsafe global reset config target must be missing or a regular file: ${resolved}`);
+      }
+    }
+    if (state) await assertSafeResetAncestry(boundary, resolved);
+    if (paths.host === "codex" && path.basename(resolved).toLowerCase() === "skills" && state && !state.isDirectory()) {
+      throw new Error(`Unsafe Codex skills reset target must be a directory: ${resolved}`);
+    }
+    validated.push({ label: item.label, target: resolved, boundary, exists: Boolean(state), isDirectory: Boolean(state?.isDirectory()) });
+  }
+
+  const seen = new Set<string>();
+  for (const item of validated) {
+    const resolved = item.target;
     const key = process.platform === "win32" ? resolved.toLowerCase() : resolved;
     if (seen.has(key)) continue;
     seen.add(key);
-    try { await lstat(resolved); } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
-      throw error;
-    }
+    if (!item.exists) continue;
     if (paths.host === "codex" && path.basename(resolved).toLowerCase() === "skills") {
       actions.push(`${options.dryRun ? "PLAN RESET" : "RESET"} ${resolved} (preserve .system)`);
       if (options.dryRun) continue;
+      await assertSafeResetTarget(item.boundary, resolved, item);
       for (const entry of await readdir(resolved, { withFileTypes: true })) {
         if (entry.name === ".system") continue;
-        await rm(path.join(resolved, entry.name), { recursive: true, force: false });
+        const child = path.join(resolved, entry.name);
+        await assertSafeResetAncestry(item.boundary, child);
+        const childState = await lstat(child);
+        if (childState.isSymbolicLink()) throw new Error(`Refusing symlink or junction reset target: ${child}`);
+        await rm(child, { recursive: childState.isDirectory(), force: false });
       }
       continue;
     }
     actions.push(`${options.dryRun ? "PLAN RESET" : "RESET"} ${resolved}`);
     if (options.dryRun) continue;
-    await rm(resolved, { recursive: true, force: false });
+    await assertSafeResetTarget(item.boundary, resolved, item);
+    if (item.label === "config") await unlink(resolved);
+    else await rm(resolved, { recursive: item.isDirectory, force: false });
   }
+}
+
+async function assertSafeResetTarget(root: string, target: string, expected: { label: string; isDirectory: boolean }): Promise<void> {
+  await assertSafeResetAncestry(root, target);
+  const state = await lstat(target);
+  if (state.isSymbolicLink()) throw new Error(`Refusing symlink or junction reset target: ${target}`);
+  if (expected.label === "config" && !state.isFile()) throw new Error(`Reset config target is no longer a regular file: ${target}`);
+  if (expected.label !== "config" && state.isDirectory() !== expected.isDirectory) throw new Error(`Reset target type changed before deletion: ${target}`);
+}
+
+async function assertSafeResetAncestry(root: string, target: string): Promise<void> {
+  const resolvedRoot = path.resolve(root);
+  const resolvedTarget = path.resolve(target);
+  if (!isSameOrAncestor(resolvedRoot, resolvedTarget)) throw new Error(`Reset target escapes validated root ${resolvedRoot}: ${resolvedTarget}`);
+  let current = resolvedRoot;
+  const rootState = await lstat(current);
+  if (rootState.isSymbolicLink() || !rootState.isDirectory()) throw new Error(`Unsafe reset root ancestry: ${current}`);
+  for (const segment of path.relative(resolvedRoot, resolvedTarget).split(path.sep).filter(Boolean)) {
+    current = path.join(current, segment);
+    const state = await lstat(current);
+    if (state.isSymbolicLink()) throw new Error(`Symlink or junction in reset ancestry: ${current}`);
+  }
+}
+
+function isSameOrAncestor(candidate: string, target: string): boolean {
+  if (samePath(candidate, target)) return true;
+  const relative = path.relative(path.resolve(candidate), path.resolve(target));
+  return relative.length > 0 && relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+}
+
+function pathsOverlap(left: string, right: string): boolean {
+  return isSameOrAncestor(left, right) || isSameOrAncestor(right, left);
 }
 
 function additionalGlobalResetTargets(paths: HostPaths): Array<{ label: string; target: string }> {

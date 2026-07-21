@@ -7,13 +7,12 @@ Infer independent dimensions; never require a public mode catalog.
 intent: feature | fix | refactor | maintenance
 surfaces: [ui, api, data, config, cli, docs]
 assurance: [regression, migration, browser, security, compatibility]
-development_style: normal | test-first
 ```
 
 - Feature: map integration points, observable states, failure behavior, and
   consumer compatibility.
-- Fix: reproduce exactly, isolate root cause, preserve a regression test, and
-  inspect nearby variants.
+- Fix: reproduce exactly when practical, isolate root cause, add a durable
+  regression test when useful, and inspect nearby variants.
 - Refactor: characterize behavior, map interfaces/consumers, prevent semantic
   drift, and migrate all call sites.
 - Migration assurance: map producers/consumers, old/new compatibility, rollout,

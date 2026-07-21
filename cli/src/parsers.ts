@@ -28,9 +28,10 @@ export function serializeToml(value: TOML.JsonMap): string {
 }
 
 export function parseJsonc<T = unknown>(source: string): T {
+  const input = source.charCodeAt(0) === 0xfeff ? source.slice(1) : source;
   const errors: ParseError[] = [];
-  const value = parseJsoncText(source, errors, { allowTrailingComma: true, disallowComments: false });
-  if (errors.length > 0 || !parseTree(source, [], { allowTrailingComma: true, disallowComments: false })) {
+  const value = parseJsoncText(input, errors, { allowTrailingComma: true, disallowComments: false });
+  if (errors.length > 0 || !parseTree(input, [], { allowTrailingComma: true, disallowComments: false })) {
     const detail = errors.map((error) => `${printParseErrorCode(error.error)}@${error.offset}`).join(", ");
     throw new Error(`Invalid JSONC: ${detail || "no parse tree"}`);
   }

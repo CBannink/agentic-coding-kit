@@ -1,10 +1,8 @@
 ---
 name: analyze
 description: >-
-  Perform read-only explanation, comparison, diagnosis, architecture,
-  dependency, product, or performance analysis using current evidence, focused
-  repository scouting, explicit facts/inferences/uncertainty, and optional Sage
-  challenge without changing code or tests.
+  Analyze or diagnose repository behavior, architecture, dependencies, product,
+  or performance without changing code or tests.
 ---
 
 # Analyze

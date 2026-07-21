@@ -9,6 +9,22 @@ the main context.
 The kit is intentionally model-neutral. It does not force one provider's model
 names into another harness.
 
+## Current release highlights
+
+- One host-native primary orchestrator owns the outcome; specialists never
+  become nested orchestrators or dispatch successors.
+- `INLINE`, `STANDARD`, and `DEEP` are adaptive playbooks selected by risk and
+  uncertainty, not mandatory pipelines or file-count thresholds.
+- Agent returns use only `Result`, `Evidence`, and optional `Next`, keeping
+  handoffs compact and leaving validation with the active session.
+- Tests, independent review, browser QA, UI critique, and security review are
+  conditional evidence gates rather than ceremonial stages.
+- Agents load only the exact repository wiki sections supplied to them, verify
+  those claims against current source, report drift, and never edit `.wiki`.
+- Managed installation preserves explicit configuration where supported,
+  handles malformed or linked state safely, and keeps generated host adapters
+  deterministic across Codex, Claude Code, OpenCode, and Copilot CLI.
+
 ## Start here
 
 ### Requirements
@@ -114,18 +130,24 @@ clear, low-risk change.
 
 - `INLINE`: direct work for a clear, tightly bounded change. No ceremonial
   agent spawning.
-- `STANDARD`: targeted implementation with proportionate checks and independent
-  review or testing where it adds real value.
+- `STANDARD`: targeted implementation with proportionate checks and one
+  independent gate type at a time where it adds real value.
 - `DEEP`: explicit contract, focused discovery, independent implementation
-  review and test hardening, plus conditional UI/security evidence.
+  review normally included, plus conditional test, UI, or security evidence.
 
-The routes are prompt policy, not a rigid TypeScript workflow engine. Code
-enforces deterministic concerns such as safe installation, schema parsing,
-managed ownership, evidence files, and bounded retries. The main model decides
-which useful route comes next and when the requested outcome is sufficiently
-proven.
+Risk, uncertainty, compatibility, security, migration, and proof needs select
+the route; file counts do not. New tests and the
+Test Engineer are conditional: use them when they provide durable, observable
+evidence rather than as mandatory workflow stages.
 
-Design uses `INLINE DESIGN` or `REVIEWED DESIGN`. PR preparation uses
+The routes and retry policy are prompt policy, not a rigid TypeScript workflow
+engine. Tested structural helpers validate selected packet, freshness, and
+repair-budget shapes, but do not automatically route agents or enforce
+handoffs/retries at model runtime. The main model decides which useful route
+comes next and when the requested outcome is sufficiently proven.
+
+Design uses `INLINE DESIGN`, `REVIEWED DESIGN`, `PROTOTYPE`, or `GRILLING`;
+grilling is explicit-only, and prototype promotion returns through Build. PR preparation uses
 `INLINE`, `STANDARD`, or `DEEP`. Threat modeling uses `FOCUSED`, `FULL`, or
 `INCREMENTAL`. Failed coder/reviewer/test repair cycles stop after two
 unsuccessful rounds and return evidence to the user.
@@ -135,7 +157,7 @@ unsuccessful rounds and return evidence to the user.
 | Agent | Responsibility | Writes |
 |---|---|---|
 | `repo-scout` | Bounded repository discovery and evidence mapping. | No |
-| `coder` | Coherent production implementation and minimum behavior tests. | Production and tests |
+| `coder` | Coherent production implementation and useful durable behavior evidence. | Production and tests |
 | `reviewer` | Independent code, design, and test-delta judgment. | No |
 | `test-engineer` | Independent high-value test hardening. | Tests and fixtures only |
 | `diagnostician` | Discriminate repeated or ambiguous failures. | No |
@@ -147,9 +169,13 @@ The `full` profile additionally installs:
 - `browser-qa`: browser execution and evidence capture.
 - `ui-critic`: independent visual and UX critique.
 
-All handoffs return to the main orchestrator. Agents never dispatch their own
-successor. The orchestrator sends a bounded assignment and forwards only the
-facts needed by the next role, rather than copying transcripts.
+All agent returns go to the main orchestrator. Assignments carry only the
+role-relevant goal, constraints, workspace context, starting paths, and proof.
+Every return uses `Result`, `Evidence`, and optional `Next`: the direct outcome,
+its decisive support, and only any remaining blocker or route. The tool call
+already correlates the response, so handoffs have no IDs, role schemas, field
+validator, or evidence-count limit. The orchestrator checks live evidence and
+creates the next assignment. Transcripts are never forwarded.
 
 ## Repository wiki
 
@@ -202,11 +228,40 @@ Project scope uses `.codex/agents` plus `.agents/skills`, `.claude/agents` plus
 share one managed root `AGENTS.md` block; Claude uses one managed `CLAUDE.md`
 location.
 
+OpenCode additionally installs `agents/agentic-kit.md` as the managed
+`mode: primary` engineering agent. The other named agents are bounded
+`mode: subagent` specialists that return to that primary; they are not alternate
+orchestrators. On a clean install, or when OpenCode config has no explicit
+`default_agent`, the installer selects `agentic-kit`. An existing explicit
+non-kit default is preserved. Pass `--set-default-agent` only to override that
+existing choice. Updates keep the primary installed and retain kit-owned
+default restoration metadata; uninstall removes the primary and restores the
+previous custom default, or removes the kit-owned default when none existed.
+JSONC comments and unrelated settings are preserved. At each scope the installer
+uses the sole existing `opencode.json` or `opencode.jsonc`; if both exist at that
+scope it fails safely before writing and asks you to remove one or set
+`OPENCODE_CONFIG`. Project or managed OpenCode configuration with higher native
+precedence may override user-scope settings; the installer does not control
+every OpenCode configuration layer.
+
+The managed primary's Markdown body is intentionally empty. OpenCode supplies
+its native provider-specific base prompt, while the kit policy is supplied once
+through the managed `AGENTS.md` block. YAML-comment ownership metadata keeps the
+empty primary manageable without duplicating the orchestrator prompt. The
+primary frontmatter grants no permissions, so applicable user/project denials
+remain inherited.
+
+## Influences
+
+Selected debugging, codebase-design, prototyping, design-question, and skill-
+authoring disciplines are adapted in original wording from ideas shared by
+Matt Pocock. They refine the existing loops rather than add a competing
+workflow. This repository remains MIT licensed.
+
 Available logical invocations:
 
 ```text
 build <request>
-build --test-first <request>
 design <request>
 analyze <question>
 review <target>
@@ -236,7 +291,7 @@ maintainer's machine is:
 
 | Role | Local Codex model |
 |---|---|
-| Main orchestrator | `gpt-5.6-terra`, medium |
+| Main orchestrator | `gpt-5.6-sol`, medium; plan mode high |
 | Repo Scout | `gpt-5.6-luna`, medium |
 | Coder, Reviewer, Test Engineer | `gpt-5.6-terra`, medium |
 | Browser QA, UI Critic | `gpt-5.6-terra`, medium |
@@ -265,11 +320,21 @@ Verify the installed state:
 node cli/dist/kit.cjs doctor --host all --scope user
 ```
 
+Before a clean reset, save host-specific model routing from Codex
+`config.toml` and `agents/*.toml`, plus OpenCode `opencode.jsonc` and any
+provider fallback configuration. A normal managed update preserves clean Codex
+model-only overrides and does not own OpenCode fallback-plugin configuration.
+
 Update without overwriting local conflicts:
 
 ```powershell
-node cli/dist/kit.cjs update --host all --scope user
+node cli/dist/kit.cjs update --host all --scope user --profile full `
+  --security preserve --memory preserve
 ```
+
+After an update or reset, compare the saved routing values, reapply any missing
+host-local overrides, and run `doctor`. Portable repository prompts remain
+model-neutral; routing stays a host configuration concern.
 
 Uninstall removes only manifest-owned files, configuration keys, and managed
 instruction blocks:

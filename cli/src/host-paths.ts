@@ -16,6 +16,7 @@ export interface PathEnvironment {
 export interface HostPaths {
   host: Host;
   scope: InstallScope;
+  hostRoot: string;
   root: string;
   administrationRoot: string;
   instruction: string;
@@ -43,38 +44,42 @@ export async function resolveHostPaths(host: Host, scope: InstallScope, repo: st
   if (host === "codex") {
     const codexHome = path.resolve(context.env.CODEX_HOME || path.join(home, ".codex"));
     return scope === "user"
-      ? { host, scope, root: home, administrationRoot: path.join(codexHome, ".agentic-kit"), instruction: path.join(codexHome, "AGENTS.md"), agents: path.join(codexHome, "agents"), skills: path.join(home, ".agents", "skills"), config: path.join(codexHome, "config.toml") }
-      : { host, scope, root: projectRoot!, administrationRoot: path.join(projectRoot!, ".git", "agentic-kit"), instruction: path.join(projectRoot!, "AGENTS.md"), agents: path.join(projectRoot!, ".codex", "agents"), skills: path.join(projectRoot!, ".agents", "skills"), config: path.join(projectRoot!, ".codex", "config.toml") };
+      ? { host, scope, hostRoot: codexHome, root: home, administrationRoot: path.join(codexHome, ".agentic-kit"), instruction: path.join(codexHome, "AGENTS.md"), agents: path.join(codexHome, "agents"), skills: path.join(home, ".agents", "skills"), config: path.join(codexHome, "config.toml") }
+      : { host, scope, hostRoot: projectRoot!, root: projectRoot!, administrationRoot: path.join(projectRoot!, ".git", "agentic-kit"), instruction: path.join(projectRoot!, "AGENTS.md"), agents: path.join(projectRoot!, ".codex", "agents"), skills: path.join(projectRoot!, ".agents", "skills"), config: path.join(projectRoot!, ".codex", "config.toml") };
   }
   if (host === "claude") {
     const claudeHome = path.resolve(context.env.CLAUDE_CONFIG_DIR || path.join(home, ".claude"));
-    if (scope === "user") return { host, scope, root: claudeHome, administrationRoot: path.join(claudeHome, ".agentic-kit"), instruction: path.join(claudeHome, "CLAUDE.md"), agents: path.join(claudeHome, "agents"), skills: path.join(claudeHome, "skills"), config: path.join(claudeHome, "settings.json") };
+    if (scope === "user") return { host, scope, hostRoot: claudeHome, root: claudeHome, administrationRoot: path.join(claudeHome, ".agentic-kit"), instruction: path.join(claudeHome, "CLAUDE.md"), agents: path.join(claudeHome, "agents"), skills: path.join(claudeHome, "skills"), config: path.join(claudeHome, "settings.json") };
     const instruction = await chooseClaudeInstruction(projectRoot!);
-    return { host, scope, root: projectRoot!, administrationRoot: path.join(projectRoot!, ".git", "agentic-kit"), instruction, agents: path.join(projectRoot!, ".claude", "agents"), skills: path.join(projectRoot!, ".claude", "skills"), config: path.join(projectRoot!, ".claude", "settings.json"), localSettings: path.join(projectRoot!, ".claude", "settings.local.json") };
+    return { host, scope, hostRoot: projectRoot!, root: projectRoot!, administrationRoot: path.join(projectRoot!, ".git", "agentic-kit"), instruction, agents: path.join(projectRoot!, ".claude", "agents"), skills: path.join(projectRoot!, ".claude", "skills"), config: path.join(projectRoot!, ".claude", "settings.json"), localSettings: path.join(projectRoot!, ".claude", "settings.local.json") };
   }
   if (host === "opencode") {
     const configRoot = path.resolve(context.env.OPENCODE_CONFIG_DIR || path.join(home, ".config", "opencode"));
     const configuredFile = context.env.OPENCODE_CONFIG ? path.resolve(context.env.OPENCODE_CONFIG) : undefined;
-    const userConfig = configuredFile ?? await firstExisting([
-      path.join(configRoot, "opencode.json"),
-      path.join(configRoot, "opencode.jsonc"),
-    ]) ?? path.join(configRoot, "opencode.json");
+    const config = configuredFile ?? await chooseOpenCodeConfig(scope === "user" ? configRoot : projectRoot!);
     return scope === "user"
-      ? { host, scope, root: configRoot, administrationRoot: path.join(configRoot, ".agentic-kit"), instruction: path.join(configRoot, "AGENTS.md"), agents: path.join(configRoot, "agents"), skills: path.join(configRoot, "skills"), commands: path.join(configRoot, "commands"), config: userConfig }
-      : { host, scope, root: projectRoot!, administrationRoot: path.join(projectRoot!, ".git", "agentic-kit"), instruction: path.join(projectRoot!, "AGENTS.md"), agents: path.join(projectRoot!, ".opencode", "agents"), skills: path.join(projectRoot!, ".opencode", "skills"), commands: path.join(projectRoot!, ".opencode", "commands"), config: path.join(projectRoot!, "opencode.json") };
+      ? { host, scope, hostRoot: configRoot, root: configRoot, administrationRoot: path.join(configRoot, ".agentic-kit"), instruction: path.join(configRoot, "AGENTS.md"), agents: path.join(configRoot, "agents"), skills: path.join(configRoot, "skills"), commands: path.join(configRoot, "commands"), config }
+      : { host, scope, hostRoot: projectRoot!, root: projectRoot!, administrationRoot: path.join(projectRoot!, ".git", "agentic-kit"), instruction: path.join(projectRoot!, "AGENTS.md"), agents: path.join(projectRoot!, ".opencode", "agents"), skills: path.join(projectRoot!, ".opencode", "skills"), commands: path.join(projectRoot!, ".opencode", "commands"), config };
   }
   const copilotHome = path.resolve(context.env.COPILOT_HOME || path.join(home, ".copilot"));
   return scope === "user"
-    ? { host, scope, root: copilotHome, administrationRoot: path.join(copilotHome, ".agentic-kit"), instruction: path.join(copilotHome, "copilot-instructions.md"), agents: path.join(copilotHome, "agents"), skills: path.join(copilotHome, "skills"), config: path.join(copilotHome, "settings.json") }
-    : { host, scope, root: projectRoot!, administrationRoot: path.join(projectRoot!, ".git", "agentic-kit"), instruction: path.join(projectRoot!, "AGENTS.md"), hostInstruction: path.join(projectRoot!, ".github", "copilot-instructions.md"), agents: path.join(projectRoot!, ".github", "agents"), skills: path.join(projectRoot!, ".github", "skills") };
+    ? { host, scope, hostRoot: copilotHome, root: copilotHome, administrationRoot: path.join(copilotHome, ".agentic-kit"), instruction: path.join(copilotHome, "copilot-instructions.md"), agents: path.join(copilotHome, "agents"), skills: path.join(copilotHome, "skills"), config: path.join(copilotHome, "settings.json") }
+    : { host, scope, hostRoot: projectRoot!, root: projectRoot!, administrationRoot: path.join(projectRoot!, ".git", "agentic-kit"), instruction: path.join(projectRoot!, "AGENTS.md"), hostInstruction: path.join(projectRoot!, ".github", "copilot-instructions.md"), agents: path.join(projectRoot!, ".github", "agents"), skills: path.join(projectRoot!, ".github", "skills") };
 }
 
-async function firstExisting(candidates: string[]): Promise<string | undefined> {
-  const { access } = await import("node:fs/promises");
+async function chooseOpenCodeConfig(root: string): Promise<string> {
+  const { lstat } = await import("node:fs/promises");
+  const candidates = [path.join(root, "opencode.json"), path.join(root, "opencode.jsonc")];
+  const existing: string[] = [];
   for (const candidate of candidates) {
-    try { await access(candidate); return candidate; } catch { /* continue */ }
+    try { await lstat(candidate); existing.push(candidate); } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
   }
-  return undefined;
+  if (existing.length === 2) {
+    throw new Error(`Ambiguous OpenCode configuration: both ${existing[0]} and ${existing[1]} exist. Remove or rename one, or set OPENCODE_CONFIG explicitly before installing.`);
+  }
+  return existing[0] ?? candidates[0]!;
 }
 
 async function chooseClaudeInstruction(repo: string): Promise<string> {

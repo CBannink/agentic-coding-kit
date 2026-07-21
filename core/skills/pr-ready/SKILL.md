@@ -1,10 +1,8 @@
 ---
 name: pr-ready
 description: >-
-  Prepare a working-tree or commit-range diff for human pull-request review
-  through proportionate repository-aware review, repair, fresh verification,
-  and a concise PR package, optionally applying curated historical review
-  practices from the repository wiki.
+  Review, repair, verify, and package a working-tree or commit-range diff for a
+  human pull request.
 ---
 
 # PR Ready

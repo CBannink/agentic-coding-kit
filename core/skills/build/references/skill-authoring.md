@@ -1,0 +1,13 @@
+# Skill and Prompt Authoring
+
+Load this reference only when editing skills, agents, prompts, or catalog text.
+
+- Make the description a precise trigger; keep procedure in the body or a
+  progressively disclosed reference.
+- Keep one source of truth. Canonical, host-neutral content belongs under
+  `core/` or `packs/`; render host adapters rather than editing them.
+- State observable, checkable completion and permission boundaries.
+- Prune stale, duplicated, contradictory, or no-op instructions. Prefer a
+  short link to owned policy over repeating it in every role.
+- Load specialist detail only when its trigger applies, so catalogs and common
+  paths remain small.

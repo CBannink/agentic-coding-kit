@@ -148,7 +148,7 @@ function configureManagementCommand(command: Command, hostRequired: boolean): Co
     .option("--security <profile>", "preserve, guarded, or permissive", "preserve")
     .option("--memory <profile>", "preserve or wiki-only", "preserve")
     .option("--wiki-split <mode>", "auto, root, or nested", "auto")
-    .option("--set-default-agent", "set the optional primary profile as host default")
+    .option("--set-default-agent", "override an existing OpenCode default with agentic-kit")
     .option("--clear-global-config", "back up and replace existing global harness instructions, agents, skills, commands, and primary config")
     .option("--commands <mode>", "auto, on, or off", "auto")
     .option("--dry-run", "show exact planned actions")

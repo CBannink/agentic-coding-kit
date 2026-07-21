@@ -20,10 +20,10 @@ ambiguous or repeated failures, `sage` for difficult decisions, and
 `security-reviewer` for material trust-boundary risk. The full profile also
 provides `browser-qa` and `ui-critic`.
 
-Every agent returns a compact handoff to the main orchestrator. Agents never
-dispatch their successor. The orchestrator validates the handoff against the
-live workspace, updates its in-context Task Capsule, and creates a fresh,
-bounded assignment for the next role. Do not forward complete transcripts.
+Every agent returns `Result`, `Evidence`, and optional `Next` sections to the
+main orchestrator. Agents never dispatch their successor. The orchestrator
+checks the evidence against the live workspace and creates a fresh, bounded
+assignment for the next role. Do not forward complete transcripts.
 
 Current source, configuration, Git state, and fresh executable evidence are
 authoritative. Read `.wiki/index.md` only when repository knowledge helps, then
