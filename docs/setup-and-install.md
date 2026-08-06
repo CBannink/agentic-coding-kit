@@ -4,7 +4,7 @@
 
 - Windows or macOS.
 - Node.js 20 or newer.
-- Git for project installs and wiki initialization.
+- Git for project installs and source inspection.
 - At least one separately installed harness: Codex, Claude Code, OpenCode, or
   GitHub Copilot CLI.
 
@@ -70,22 +70,19 @@ for either host.
 
 ## Repository wiki
 
-Wiki creation is explicit:
+`wiki init` and `wiki reinit` are direct skill workflows. The active primary
+inspects current source and writes the seven repository-local pages with normal
+host file tools: `index.md`, `repository-map.md`, `engineering.md`, `coding.md`,
+`reviewing.md`, `testing.md`, and `security.md`. Init creates `.wiki` when absent
+or fills missing required pages while preserving existing work. Reinit reads
+existing content first, may refresh source-backed sections, and preserves
+unrelated or unclear human work unless the user approves a destructive change.
 
-```text
-node cli/dist/kit.cjs wiki init --repo <path> --synthesis <reviewed-json>
-node cli/dist/kit.cjs wiki audit --repo <path>
-```
-
-For an existing unmarked wiki, preview and then explicitly adopt it:
-
-```text
-node cli/dist/kit.cjs wiki reinit --repo <path> --adopt-existing --dry-run --synthesis <reviewed-json>
-node cli/dist/kit.cjs wiki reinit --repo <path> --adopt-existing --yes --synthesis <reviewed-json>
-```
-
-Adoption backs up the complete old wiki under
-`.git/agentic-kit/wiki-backups/`.
+`wiki audit` uses ordinary file and search tools, makes no writes, and reports
+missing required files or sections, broken index links, and missing cited paths.
+No executable, PATH installation, synthesis artifact, or temporary workflow
+state is required. The bundled CLI's wiki commands remain optional tooling for
+users who deliberately choose them; inspect their current `--help` before use.
 
 ## Verify this repository
 

@@ -183,29 +183,9 @@
       "sha256": "5826d73c8f65e235c4538b5c157d4c545b6d1561903ec733696176d803af9038"
     },
     {
-      "path": "adapters/claude/skills/wiki/references/audit.md",
-      "sourceId": "skill:wiki:references/audit.md",
-      "sha256": "ec74c4b09ca6f1bc9185690d10b928772b8ae4eba6a5baa8ce19eb5635e293d0"
-    },
-    {
-      "path": "adapters/claude/skills/wiki/references/init.md",
-      "sourceId": "skill:wiki:references/init.md",
-      "sha256": "8bcd68b55cefc5e86697066a4620a7ef20a2cb9559ade97926388f3ce01ff5c2"
-    },
-    {
-      "path": "adapters/claude/skills/wiki/references/pr-history.md",
-      "sourceId": "skill:wiki:references/pr-history.md",
-      "sha256": "11993468b740c9570103e103220e2aa0772c7fe3003a3e9328f4817cbb81236d"
-    },
-    {
-      "path": "adapters/claude/skills/wiki/references/templates.md",
-      "sourceId": "skill:wiki:references/templates.md",
-      "sha256": "a1f452a9fcdcfc49cfacf4fe49dc3a0f255df0b67e412eaf2fbf233bfc5ab2f2"
-    },
-    {
       "path": "adapters/claude/skills/wiki/SKILL.md",
       "sourceId": "skill:wiki:SKILL.md",
-      "sha256": "2a5bdae196fb452fdc8dba2c6492914e0cb3e36fca9bfe03de756d0234a9d2d7"
+      "sha256": "53391b4a859f77242e62c356e344046866c7a3b78d5a905dde0f603aad3e4d81"
     },
     {
       "path": "adapters/codex/agents/architect.toml",
@@ -388,29 +368,9 @@
       "sha256": "5826d73c8f65e235c4538b5c157d4c545b6d1561903ec733696176d803af9038"
     },
     {
-      "path": "adapters/codex/skills/wiki/references/audit.md",
-      "sourceId": "skill:wiki:references/audit.md",
-      "sha256": "ec74c4b09ca6f1bc9185690d10b928772b8ae4eba6a5baa8ce19eb5635e293d0"
-    },
-    {
-      "path": "adapters/codex/skills/wiki/references/init.md",
-      "sourceId": "skill:wiki:references/init.md",
-      "sha256": "8bcd68b55cefc5e86697066a4620a7ef20a2cb9559ade97926388f3ce01ff5c2"
-    },
-    {
-      "path": "adapters/codex/skills/wiki/references/pr-history.md",
-      "sourceId": "skill:wiki:references/pr-history.md",
-      "sha256": "11993468b740c9570103e103220e2aa0772c7fe3003a3e9328f4817cbb81236d"
-    },
-    {
-      "path": "adapters/codex/skills/wiki/references/templates.md",
-      "sourceId": "skill:wiki:references/templates.md",
-      "sha256": "a1f452a9fcdcfc49cfacf4fe49dc3a0f255df0b67e412eaf2fbf233bfc5ab2f2"
-    },
-    {
       "path": "adapters/codex/skills/wiki/SKILL.md",
       "sourceId": "skill:wiki:SKILL.md",
-      "sha256": "2a5bdae196fb452fdc8dba2c6492914e0cb3e36fca9bfe03de756d0234a9d2d7"
+      "sha256": "53391b4a859f77242e62c356e344046866c7a3b78d5a905dde0f603aad3e4d81"
     },
     {
       "path": "adapters/copilot/agents/architect.agent.md",
@@ -593,29 +553,9 @@
       "sha256": "5826d73c8f65e235c4538b5c157d4c545b6d1561903ec733696176d803af9038"
     },
     {
-      "path": "adapters/copilot/skills/wiki/references/audit.md",
-      "sourceId": "skill:wiki:references/audit.md",
-      "sha256": "ec74c4b09ca6f1bc9185690d10b928772b8ae4eba6a5baa8ce19eb5635e293d0"
-    },
-    {
-      "path": "adapters/copilot/skills/wiki/references/init.md",
-      "sourceId": "skill:wiki:references/init.md",
-      "sha256": "8bcd68b55cefc5e86697066a4620a7ef20a2cb9559ade97926388f3ce01ff5c2"
-    },
-    {
-      "path": "adapters/copilot/skills/wiki/references/pr-history.md",
-      "sourceId": "skill:wiki:references/pr-history.md",
-      "sha256": "11993468b740c9570103e103220e2aa0772c7fe3003a3e9328f4817cbb81236d"
-    },
-    {
-      "path": "adapters/copilot/skills/wiki/references/templates.md",
-      "sourceId": "skill:wiki:references/templates.md",
-      "sha256": "a1f452a9fcdcfc49cfacf4fe49dc3a0f255df0b67e412eaf2fbf233bfc5ab2f2"
-    },
-    {
       "path": "adapters/copilot/skills/wiki/SKILL.md",
       "sourceId": "skill:wiki:SKILL.md",
-      "sha256": "2a5bdae196fb452fdc8dba2c6492914e0cb3e36fca9bfe03de756d0234a9d2d7"
+      "sha256": "53391b4a859f77242e62c356e344046866c7a3b78d5a905dde0f603aad3e4d81"
     },
     {
       "path": "adapters/opencode/agents/architect.md",
@@ -848,29 +788,9 @@
       "sha256": "5826d73c8f65e235c4538b5c157d4c545b6d1561903ec733696176d803af9038"
     },
     {
-      "path": "adapters/opencode/skills/wiki/references/audit.md",
-      "sourceId": "skill:wiki:references/audit.md",
-      "sha256": "ec74c4b09ca6f1bc9185690d10b928772b8ae4eba6a5baa8ce19eb5635e293d0"
-    },
-    {
-      "path": "adapters/opencode/skills/wiki/references/init.md",
-      "sourceId": "skill:wiki:references/init.md",
-      "sha256": "8bcd68b55cefc5e86697066a4620a7ef20a2cb9559ade97926388f3ce01ff5c2"
-    },
-    {
-      "path": "adapters/opencode/skills/wiki/references/pr-history.md",
-      "sourceId": "skill:wiki:references/pr-history.md",
-      "sha256": "11993468b740c9570103e103220e2aa0772c7fe3003a3e9328f4817cbb81236d"
-    },
-    {
-      "path": "adapters/opencode/skills/wiki/references/templates.md",
-      "sourceId": "skill:wiki:references/templates.md",
-      "sha256": "a1f452a9fcdcfc49cfacf4fe49dc3a0f255df0b67e412eaf2fbf233bfc5ab2f2"
-    },
-    {
       "path": "adapters/opencode/skills/wiki/SKILL.md",
       "sourceId": "skill:wiki:SKILL.md",
-      "sha256": "2a5bdae196fb452fdc8dba2c6492914e0cb3e36fca9bfe03de756d0234a9d2d7"
+      "sha256": "53391b4a859f77242e62c356e344046866c7a3b78d5a905dde0f603aad3e4d81"
     }
   ]
 }

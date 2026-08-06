@@ -38,7 +38,7 @@ names into another harness.
   standalone native executable.
 - At least one supported harness installed separately: `codex`, `claude`,
   `opencode`, or `copilot`.
-- Git for project-scope installation and wiki initialization.
+- Git for project-scope installation and source inspection.
 
 Build the management CLI once from the repository root. Use these exact
 commands; the repository root itself has no `package.json`:
@@ -208,47 +208,25 @@ Each generated wiki root has these required pages:
 .wiki/security.md
 ```
 
-Initialization and reinitialization run deterministic inventory, one Orientation
-Scout, focused evidence discovery for every content page, primary synthesis,
-one fresh independent review of every draft, and at most one correction Scout.
-The primary generates the index last, then supplies the reviewed schema-v2
-synthesis to the deterministic CLI writer. Each section has a stable anchor,
-claim type, activation signals, and exact canonical source/symbol evidence;
-conventions need an authoritative source or two independent current-code
-examples.
+For `wiki init` or `wiki reinit`, the active primary inspects current source and
+writes these pages directly with normal host file tools. Claims stay concise,
+source-backed, and linked to repository paths; the index is written last. At
+most one optional Reviewer checks only that required files and sections exist,
+index links resolve, and cited paths exist. The primary owns understanding and
+any corrections.
 
-The CLI validates and hashes that evidence but does not launch agents or run the
-final audit. After every successful `init` or `reinit`, the primary separately
-runs read-only `kit wiki audit` and completes only when it passes. Audit checks
-required pages, citations, links, commands, budgets, managed boundaries, and
-canonical/generated drift. Normal work never edits `.wiki`.
+`wiki audit` is direct and read-only. It uses ordinary file and search tools to
+report missing required files or sections, broken index links, and missing cited
+paths. It requires no `kit` executable, PATH installation, synthesis artifact,
+or temporary workflow state. Normal work never edits `.wiki`.
 
-An existing unmarked or legacy wiki is never overwritten implicitly. Preview
-and explicitly adopt it when replacement is intended:
-
-```text
-kit wiki reinit --adopt-existing --dry-run --synthesis <reviewed-json>
-kit wiki reinit --adopt-existing --yes --synthesis <reviewed-json>
-```
-
-Adoption backs up the complete previous `.wiki` under
-`.git/agentic-kit/wiki-backups/` before installing the reviewed map.
-
-Optional PR-history learning is a two-pass operation available only during
-wiki initialization or reinitialization:
-
-```text
-kit wiki collect-pr-history
-bounded history Scout -> candidate lessons and PR/thread IDs
-current-source validation and independent review
-kit wiki reinit --synthesis <reviewed-json>
-```
-
-It supports authenticated GitHub/GitHub Enterprise and Azure DevOps tooling,
-examines at most 120 days, 100 merged PRs, and 1,000 human threads, and stores
-raw evidence only under `.git/agentic-kit/pr-history/`. Only repeated,
-accepted, current-source-backed lessons may enter
-`.wiki/review-practices.md`, which is capped at 20,000 characters.
+Initialization creates `.wiki` when absent or fills any missing required pages
+when it exists, without replacing existing work. Reinitialization reads existing
+wiki files first, may refresh source-backed sections, and preserves unrelated or
+unclear human files and content. Destructive replacements require confirmation.
+The management CLI's wiki commands remain available as optional tooling for
+users who specifically choose that interface; they are not part of the normal
+skill workflow.
 
 ## Native harness locations and invocation
 

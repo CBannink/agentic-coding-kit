@@ -5,52 +5,67 @@ description: Initialize, reinitialize, or audit curated repository engineering k
 
 # Wiki
 
-Support only `init`, `reinit`, and read-only `audit`. Current source and
-executable behavior remain authoritative. Normal work never edits `.wiki`.
+Support only `init`, `reinit`, and read-only `audit`. The active primary performs
+the workflow with ordinary repository read, search, and write tools. Do not
+require an executable, PATH setup, synthesis artifact, or temporary workflow
+state under `.kit` or `.git`.
 
-The wiki is compact, progressively disclosed repository navigation, not memory,
-reflection, task history, handoff state, hidden instructions, a feature
-inventory, or standalone proof. Follow its citations into live source.
+Current source, configuration, repository instructions, and executable behavior
+are authoritative. The wiki is concise navigation, not memory, reflection,
+task history, hidden instructions, or standalone proof. Normal work never edits
+`.wiki`; only an explicit `wiki init` or `wiki reinit` may do so.
 
-For init or reinit:
+## Init and reinit
 
-```text
-deterministic inventory
--> one Orientation Scout
--> focused page discovery for repository map, engineering, coding, reviewing,
-   testing, and security
--> primary synthesis
--> one fresh independent evidence Reviewer over every page draft
--> at most one focused correction Scout
--> final index synthesis from reviewed summaries and routes
--> deterministic managed write with `kit wiki init --synthesis` or
-   `kit wiki reinit --synthesis`
--> primary separately runs mandatory `kit wiki audit`
-```
+The primary inspects the current tree, instructions, manifests, entry points,
+module boundaries, representative flows, tests, CI, commands, and
+canonical/generated boundaries. It follows enough callers and consumers to
+understand the repository, omits unsupported guidance, and cites current paths
+for material claims. Conventions need an authoritative source or two
+independent current-code examples.
 
-Every material claim cites tracked canonical source and symbols. A convention
-needs an authoritative repository source or two independent current-code
-examples. Unsupported patterns are omitted. Source wins on conflict.
+Write these files directly:
 
-Every wiki root has exactly these standard pages: `index.md`,
-`repository-map.md`, `engineering.md`, `coding.md`, `reviewing.md`, `testing.md`,
-and `security.md`. Architecture belongs in `engineering.md`; there is no
-standard `architecture.md`. Evidence-justified workspace or area pages and
-consented PR-history guidance are optional. Generate the minimal index last; it
-states source authority and routes task signals to exact sections.
+- `index.md`: **Source authority** and **Task routes**.
+- `repository-map.md`: **Purpose**, **Layout**, and **Change routes**.
+- `engineering.md`: **Architecture**, **Flows**, and **Operations**.
+- `coding.md`: **Practices** and **Boundaries**.
+- `reviewing.md`: **Review checks** and **Risks**.
+- `testing.md`: **Test layout** and **Commands**.
+- `security.md`: **Trust boundaries** and **Controls**.
 
-PR history is optional and consented only during init/reinit. Never install
-tools or request/store credentials. Reinitializing an unmarked legacy wiki
-requires explicit `--adopt-existing`, backup, and confirmation.
+Use normal Markdown headings and repository-relative links or backticked paths.
+Architecture belongs in `engineering.md`; do not create a standard
+`architecture.md`. Write the index last, state that source wins on conflict,
+and link task signals to useful page sections.
 
-Write-mode `kit wiki init` and `kit wiki reinit` require the reviewed
-`--synthesis` artifact from this flow, covering all six content pages in every
-generated wiki root. A no-synthesis `--dry-run` remains available only for
-deterministic inventory and preview; it never creates scaffold pages.
-Init/reinit does not perform the final audit. After the managed write succeeds,
-the primary must invoke `kit wiki audit` as a separate read-only command and
-must not complete the workflow until that audit passes.
+For `init`, create `.wiki` when absent. When it already exists, read and preserve
+its files, create every missing required page without asking, and continue; the
+directory's existence is not a reason to stop or switch workflows. Augment an
+existing required page only where a required section is missing or needs
+source-supported guidance. Preserve unrelated human files and content.
 
-Load [init.md](references/init.md), [templates.md](references/templates.md), and
-[audit.md](references/audit.md) as applicable. Load
-[pr-history.md](references/pr-history.md) only when consented history is used.
+For `reinit`, read every existing wiki file first, then refresh source-backed
+sections where useful and create any missing required pages. Preserve unrelated
+or unclear human files and content. Both workflows finish with all seven
+required files present. Ask only before a genuinely destructive replacement;
+never ask before creating a missing required file. The primary owns all
+repository interpretation and corrections.
+
+Optionally use one Reviewer, once, after drafting. Its scope is completeness
+only: verify the seven files and basic sections above exist, index links resolve,
+and cited paths exist. It must not judge conventions, optimize or rewrite prose,
+or request a correction/re-review loop. The primary applies any corrections
+directly and performs the same completeness checks before finishing.
+
+Keep complete files below these ceilings: index 250 words, repository map 400,
+engineering 500, and coding, reviewing, testing, and security 400 each. These
+are ceilings, not targets; brief pages are correct when evidence is sparse.
+
+## Audit
+
+Use ordinary read and search tools and make no writes. Check each required file
+and basic section, every local index link and anchor, and every repository path
+cited in backticks or links. Report missing files or sections, broken index
+links, and cited paths that do not exist. Report source conflicts when evident,
+but do not repair them during audit. No command installation is required.

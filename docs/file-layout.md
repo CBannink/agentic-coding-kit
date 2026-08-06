@@ -49,14 +49,16 @@ Explicit wiki init/reinit creates:
 .wiki/
   index.md
   repository-map.md
-  architecture.md
   engineering.md
-  testing.md            # when justified
-  <area>.md             # when justified
-.git/agentic-kit/
-  wiki-generated.json
-  wiki-backups/
+  coding.md
+  reviewing.md
+  testing.md
+  security.md
 ```
 
 `.wiki` is source-backed repository navigation and coding guidance. It is not
-session state, reflection, task history, or a feature-memory database.
+session state, reflection, task history, or a feature-memory database. The
+primary writes these pages directly with ordinary host file tools; no CLI or
+temporary `.kit`/`.git` workflow state is required. Reinitialization preserves
+unrelated or unclear human files and content, while initialization fills missing
+required pages without replacing existing work.
