@@ -21,12 +21,17 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: cli/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - run: npm ci --prefix cli
       - run: npm run typecheck --prefix cli
       - run: npm test --prefix cli
       - run: npm run validate --prefix cli
       - run: npm run check:drift --prefix cli
       - run: npm run bundle --prefix cli
+      - run: python benchmarks/agentic-work-bench/agentic_work_bench.py validate
+      - run: python -m unittest benchmarks/test_benchmark_safety.py
       - name: Windows launcher smoke
         if: runner.os == 'Windows'
         shell: pwsh

@@ -1,4 +1,4 @@
-# Agentic Coding Kit v6
+# Agentic Coding Kit v6.3
 
 A native, development-focused workflow kit for long-horizon coding work in
 Codex, Claude Code, OpenCode, and GitHub Copilot CLI. The active harness session
@@ -13,8 +13,8 @@ names into another harness.
 
 - One host-native primary orchestrator owns the outcome; specialists never
   become nested orchestrators or dispatch successors.
-- `INLINE`, `STANDARD`, and `DEEP` are adaptive playbooks selected by risk and
-  uncertainty, not mandatory pipelines or file-count thresholds.
+- `INLINE` handles clear bounded work; `LOOP` keeps one strong primary in
+  control of Anchor, Plan, Dispatch, Integrate, Verify, and bounded repair.
 - Agent returns use only `Result`, `Evidence`, and optional `Next`, keeping
   handoffs compact and leaving validation with the active session.
 - Tests, independent review, browser QA, UI critique, and security review are
@@ -79,7 +79,7 @@ bash scripts/install-all.sh \
 For one harness, use `install-codex`, `install-claude`, `install-opencode`, or
 `install-copilot` with the platform's `.ps1` or `.sh` suffix.
 
-`core` installs every coding loop and all seven core agents. Use `full` only
+`core` installs every coding loop and all eight core agents. Use `full` only
 when browser execution and visual UI critique are useful.
 
 For a non-interactive install with Codex explicitly configured for unrestricted
@@ -99,10 +99,10 @@ bash scripts/install-all.sh --scope user --profile full \
   --yes
 ```
 
-`permissive` currently emits a validated Codex configuration with
-`approval_policy = "never"` and `sandbox_mode = "danger-full-access"`. Other
-harnesses retain their native permission semantics; the kit does not invent
-unsupported parity fields.
+`permissive` emits Codex `approval_policy = "never"` and
+`sandbox_mode = "danger-full-access"`, plus managed OpenCode global and
+per-agent `allow` permissions. Other harnesses retain their native permission
+semantics; the kit does not invent unsupported parity fields.
 
 An all-host install performs a complete dry-run preflight before changing any
 host. Files are then installed sequentially. Project-scope installation does
@@ -110,35 +110,39 @@ not clear user-global harness configuration.
 
 ## What gets installed
 
-### Seven core skills
+### Ten core skills
 
 | Skill | Purpose |
 |---|---|
 | `build` | Implement features, fixes, refactors, migrations, UI, API, data, configuration, and code-linked documentation. |
-| `design` | Produce a feature, architecture, or UI design before implementation. |
+| `design` | Produce a feature, product, prototype, or UI design before implementation. |
+| `architecture` | Assess or design repository boundaries, ownership, dependencies, and maintainability. |
+| `grill` | Run an explicitly requested one-question-at-a-time decision interview. |
 | `analyze` | Read-only diagnosis, explanation, comparison, architecture, dependency, and performance analysis. |
 | `review` | Independent review of a diff, branch, contract, design, subsystem, or test delta. |
 | `pr-ready` | Repair and package a diff for efficient human PR review. |
 | `threat-model` | Read-only trust-boundary, attack-path, control, and mitigation analysis. |
 | `wiki` | Initialize, reinitialize, or audit curated repository engineering knowledge. |
+| `experiment` | Compare prompts, agents, models, algorithms, benchmarks, or harness variants under a frozen evaluation. |
 
-These are general development workflows. They are not seven mandatory stages.
+These are general development workflows. They are not ten mandatory stages.
 The orchestrator chooses the smallest useful loop and may work inline for a
 clear, low-risk change.
 
-### Adaptive coding loops
+### Two execution modes
 
-- `INLINE`: direct work for a clear, tightly bounded change. No ceremonial
-  agent spawning.
-- `STANDARD`: targeted implementation with proportionate checks and one
-  independent gate type at a time where it adds real value.
-- `DEEP`: explicit contract, focused discovery, independent implementation
-  review normally included, plus conditional test, UI, or security evidence.
+- `INLINE`: direct work only for a minimal task whose implementation context,
+  behavioral contract, and proof are already present before routing.
+- `LOOP`: used when discovery or implementation would consume substantial
+  primary context, the change spans distinct responsibilities or contracts, or
+  fresh judgment should improve correctness. The primary keeps the goal and
+  plan, dispatches one coherent Coder by default or a few path-isolated Coders
+  when safely partitioned, integrates and verifies the result, sends it to a
+  fresh combined Reviewer, and bounds repair.
 
-Risk, uncertainty, compatibility, security, migration, and proof needs select
-the route; file counts do not. New tests and the
-Test Engineer are conditional: use them when they provide durable, observable
-evidence rather than as mandatory workflow stages.
+File count is only a hint. The model chooses the route; no agent is spawned for
+ceremony. New tests and the Test Engineer remain conditional evidence rather
+than mandatory stages.
 
 The routes and retry policy are prompt policy, not a rigid TypeScript workflow
 engine. Tested structural helpers validate selected packet, freshness, and
@@ -146,16 +150,17 @@ repair-budget shapes, but do not automatically route agents or enforce
 handoffs/retries at model runtime. The main model decides which useful route
 comes next and when the requested outcome is sufficiently proven.
 
-Design uses `INLINE DESIGN`, `REVIEWED DESIGN`, `PROTOTYPE`, or `GRILLING`;
-grilling is explicit-only, and prototype promotion returns through Build. PR preparation uses
-`INLINE`, `STANDARD`, or `DEEP`. Threat modeling uses `FOCUSED`, `FULL`, or
-`INCREMENTAL`. Failed coder/reviewer/test repair cycles stop after two
-unsuccessful rounds and return evidence to the user.
+Design uses `INLINE DESIGN`, `DESIGN LOOP`, or `UI STUDIO`; comparative
+prototypes route through Experiment and production promotion returns through
+Build. PR preparation uses `INLINE` or `LOOP`. Threat modeling keeps its
+focused domain playbooks. Failed repair cycles stop after four unsuccessful
+rounds and return evidence to the user.
 
-### Seven core agents
+### Eight core agents
 
 | Agent | Responsibility | Writes |
 |---|---|---|
+| `architect` | Repository-grounded architecture and change-boundary decisions. | No |
 | `repo-scout` | Bounded repository discovery and evidence mapping. | No |
 | `coder` | Coherent production implementation and useful durable behavior evidence. | Production and tests |
 | `reviewer` | Independent code, design, and test-delta judgment. | No |
@@ -169,20 +174,20 @@ The `full` profile additionally installs:
 - `browser-qa`: browser execution and evidence capture.
 - `ui-critic`: independent visual and UX critique.
 
-All agent returns go to the main orchestrator. Assignments carry only the
-role-relevant goal, constraints, workspace context, starting paths, and proof.
-Every return uses `Result`, `Evidence`, and optional `Next`: the direct outcome,
-its decisive support, and only any remaining blocker or route. The tool call
-already correlates the response, so handoffs have no IDs, role schemas, field
-validator, or evidence-count limit. The orchestrator checks live evidence and
-creates the next assignment. Transcripts are never forwarded.
+All agent returns go to the main orchestrator. Assignments carry the goal and
+acceptance criteria, plan decision, workspace baseline, starting paths, exact
+wiki sections or `NONE`, boundaries, and stop condition. Writer returns include
+status, summary, exact changed paths, evidence, and only a remaining blocker or
+route. The orchestrator checks the live diff, scope, and freshness before
+creating the next fresh assignment. Completed specialists are never
+reactivated, and transcripts are never forwarded.
 
 ## Repository wiki
 
 `wiki init` and `wiki reinit` build an architect-grade map of how the repository
-actually works: entry points, control/data flow, module boundaries, APIs,
-authentication, IPC, integrations, jobs, error/configuration conventions,
-tests, CI, release practice, and workspace-specific differences where present.
+actually works: entry points, vertical control/data flows, module boundaries,
+APIs, integrations, branching and error conventions, code organization,
+canonical examples, tests, CI, and workspace-specific differences.
 
 The required pages are:
 
@@ -195,7 +200,25 @@ The required pages are:
 
 Initialization uses deterministic inventory, one Orientation Scout, one to
 three targeted evidence scans, orchestrator synthesis, independent review, and
-a parser-backed writer/audit. Normal build sessions never update the wiki.
+a parser-backed writer/audit. Schema-v2 synthesis gives every page a concise
+summary and activation signals, and every section a stable anchor, claim type,
+and exact source or symbol evidence. The index routes task signals directly to
+those sections so agents can start from a narrow, verified context packet
+instead of rediscovering the whole repository. Convention claims require an
+authoritative repository source or two independent current-code examples.
+Evidence hashes make later source drift visible to `wiki audit`. Normal build
+sessions never update the wiki.
+
+An existing unmarked or legacy wiki is never overwritten implicitly. Preview
+and explicitly adopt it when replacement is intended:
+
+```text
+kit wiki reinit --adopt-existing --dry-run --synthesis <reviewed-json>
+kit wiki reinit --adopt-existing --yes --synthesis <reviewed-json>
+```
+
+Adoption backs up the complete previous `.wiki` under
+`.git/agentic-kit/wiki-backups/` before installing the reviewed map.
 
 Optional PR-history learning is a two-pass operation available only during
 wiki initialization or reinitialization:
@@ -224,9 +247,12 @@ accepted, current-source-backed lessons may enter
 
 Project scope uses `.codex/agents` plus `.agents/skills`, `.claude/agents` plus
 `.claude/skills`, `.opencode/agents` plus `.opencode/skills`, and
-`.github/agents` plus `.github/skills` respectively. Codex/OpenCode/Copilot
-share one managed root `AGENTS.md` block; Claude uses one managed `CLAUDE.md`
-location.
+`.github/agents` plus `.github/skills` respectively. ACK does not write its
+primary policy into `AGENTS.md` for Codex or OpenCode. Codex receives it through
+the root `developer_instructions` setting in `config.toml`; OpenCode receives it
+only in the managed `agentic-kit` primary. Existing repository instructions
+remain host-native repository context, not ACK's orchestration channel. Claude
+and Copilot use their managed native instruction files.
 
 OpenCode additionally installs `agents/agentic-kit.md` as the managed
 `mode: primary` engineering agent. The other named agents are bounded
@@ -244,12 +270,11 @@ scope it fails safely before writing and asks you to remove one or set
 precedence may override user-scope settings; the installer does not control
 every OpenCode configuration layer.
 
-The managed primary's Markdown body is intentionally empty. OpenCode supplies
-its native provider-specific base prompt, while the kit policy is supplied once
-through the managed `AGENTS.md` block. YAML-comment ownership metadata keeps the
-empty primary manageable without duplicating the orchestrator prompt. The
-primary frontmatter grants no permissions, so applicable user/project denials
-remain inherited.
+The managed primary contains the canonical ACK orchestrator plus a very small
+OpenCode runtime note. OpenCode specialists deny skill loading and successor
+dispatch, so they receive only their role prompt and the primary's bounded
+assignment. The primary itself retains native task and skill access. Applicable
+user and project permission layers still apply.
 
 ## Influences
 

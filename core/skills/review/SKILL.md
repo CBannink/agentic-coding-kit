@@ -9,10 +9,19 @@ description: >-
 
 Establish target and base. Read applicable instructions and exact wiki
 invariants, inspect the target independently, and run cheap read-only checks
-when useful. Select only relevant lenses. Return failure-mode findings with
-locations, evidence, affected contract/invariant, minimum correction, severity,
-and confidence. Separate blocking/important defects from optional improvements;
-explicitly state when none exist.
+when useful.
+
+- `COMBINED`: verify goal and acceptance first; inspect quality only after pass.
+- `GOAL`: check requested outcome, preservation, and proof.
+- `QUALITY`: check concrete correctness and maintainability risks.
+
+Map each acceptance criterion to observable evidence or its implementation path,
+and inspect the full diff for accidental dependency or generated-file churn.
+
+Return at most three material failure-mode findings with location, evidence,
+affected contract/invariant, minimum correction, severity, and confidence.
+Reject speculative requirements, implausible edge cases, and style preference.
+State `PASS` when no material finding exists. Select only relevant lenses.
 
 Available lenses: [correctness](lenses/correctness.md),
 [architecture](lenses/architecture.md), [test quality](lenses/test-quality.md),

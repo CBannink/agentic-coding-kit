@@ -1,70 +1,74 @@
 ---
 name: build
 description: >-
-  Implement repository features, fixes, refactors, migrations, configuration,
-  UI, API, data, or code-linked documentation with proportionate proof.
+  Primary-led orchestration for implementing repository changes with focused
+  exploration, coherent implementation, fresh proof, review, and bounded repair.
 ---
 
 # Build
 
-Use the primary's shared orchestration, preservation, handoff, evidence,
-repair, and completion policy. Infer affected behavior, ownership, callers,
-compatibility, and assurance needs. Select the smallest reliable playbook:
+Use only in the primary session. The primary owns request interpretation,
+repository exploration, planning, dispatch, verification, and completion.
+Specialists do not orchestrate or load this skill.
 
-- `INLINE`: inspect, implement, and verify directly. Keep a one-sentence active
-  note naming the requested outcome and sufficient proof.
-- `STANDARD`: use a light contract: outcome, relevant criterion IDs, preserve,
-  implementation context, proof, and open facts. Add targeted discovery, one
-  coherent Coder assignment, or one independent gate only when valuable.
-- `DEEP`: maintain the full versioned Build Contract below; use focused
-  discovery as needed, one coherent Coder, cheap checks, normally independent
-  review, and only triggered hardening or specialists.
+## Prepare
 
-Playbooks are adaptive, not mandatory pipelines. Before editing, inspect live
-instructions, Git state, relevant source/diffs, and unrelated changes. Verify
-ownership and generated boundaries. Implement the smallest coherent delta.
+Understand the user request, inspect Git state and relevant live source, and
+preserve unrelated work. Explore the ownership, current behavior, repository
+patterns, likely tests, and generated boundaries needed for a reliable plan.
+Optionally dispatch one focused Repo Scout when isolated discovery adds value;
+it reports those repository facts without designing the solution.
 
-For a clear defect, capture a red-capable symptom before repair when practical.
-Trace affected public behavior and callers far enough to avoid local fixes that
-break compatibility. Keep configuration, migration, error, and rollback effects
-inside the contract when they are material. Edit canonical sources and use the
-repository renderer for generated outputs.
+Before implementation, the primary writes exactly three shared objects:
 
-Static inspection can establish non-behavioral work. Behavioral work requires
-executable behavior evidence; type, lint, or build alone is insufficient unless
-compilation or artifact generation is the requested behavior. If execution is
-infeasible, record why and the remaining risk. Tests are conditional durable
-evidence, not a required stage. A Test
-Engineer is useful only for a specific independent gap.
+```text
+GOAL
+One clear outcome and purpose.
 
-Full `DEEP` contract:
+ACCEPTANCE
+1. Numbered, observable criterion.
 
-```markdown
-# Build Contract rN
-## Request and outcome
-## Verbatim user requirements (U1...)
-## Derived proof/acceptance criteria (D1...; revisable, never broader than user intent)
-## Current behavior and evidence
-## Preserve and non-goals
-## Relevant implementation context
-## Proof plan
-### Useful tests, if any
-### Fast and final executable checks
-### Independent or visual evidence, if triggered
-## Assumptions and open facts
+PLAN
+Complete repository-grounded implementation and verification approach.
 ```
 
-Load only what the change needs:
+These are the sole shared assignment objects. Do not add separate shared
+sections for paths, decisions, proof, Scout facts, constraints, or repository
+summaries. Keep GOAL, ACCEPTANCE, and PLAN unchanged through implementation,
+testing, review, and repair.
 
-- [profiles.md](references/profiles.md) for assurance focus.
-- [testing.md](references/testing.md) for test selection or hardening.
-- [verification.md](references/verification.md) for evidence selection.
-- [failures.md](references/failures.md) for failure classification.
-- [handoffs.md](references/handoffs.md) for assignments and returns.
-- [context-efficiency.md](references/context-efficiency.md) only for broad,
-  long-running, or multi-agent work.
-- [skill-authoring.md](references/skill-authoring.md) only when editing skills,
-  agents, prompts, or their catalog metadata.
+## Implement and verify
 
-After the last relevant edit, run focused and repository-required checks. A
-Coder reports `CONTRACT_GAP` rather than silently widening invalidated scope.
+Dispatch one Coder with only the unchanged GOAL, ACCEPTANCE, and PLAN. The Coder
+may inspect any relevant live source and adapt implementation details. It must
+not change GOAL or ACCEPTANCE and must report any material PLAN departure.
+
+After the Coder returns, the primary inspects the stable live diff and complete
+changed files, checks scope and generated boundaries, and runs fresh focused and
+repository-required proof. Relevant failures block unless reproduced on the
+untouched base or equivalently isolated.
+
+Use a Test Engineer only when an important acceptance criterion lacks convincing
+durable proof. Give it the same unchanged three objects. It adds only the minimum
+valuable behavioral tests for that criterion or a demonstrated risk—never a
+broad matrix, incidental-wording checks, duplicated coverage, or reinterpreted
+requirements. It supplements rather than replaces primary verification and the
+Reviewer.
+
+Dispatch a fresh Reviewer with the unchanged three objects after verification.
+It independently reads the live diff and complete changed files and records
+PASS or BLOCKED for every acceptance criterion. Missing decisive evidence for
+important changed behavior is BLOCKED.
+
+## Repair
+
+The primary validates findings and rejects preferences, speculative edges,
+optional cleanup, invented stronger requirements, and scope-expanding fixes.
+Send supported concise blocking evidence to a repair Coder with the same
+unchanged GOAL, ACCEPTANCE, and PLAN. Rerun affected proof after repair. Then
+dispatch a fresh Reviewer with the unchanged three objects to recheck the
+complete GOAL and every ACCEPTANCE criterion, not only prior findings.
+
+Bound repair to two unsuccessful attempts for the same material failure. Stop
+and report the evidence when the bound is reached. Complete only after fresh
+primary proof and a fresh full-review PASS.

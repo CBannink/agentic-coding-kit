@@ -1,87 +1,95 @@
 # Wiki Initialization and Reinitialization
 
-Use this sequence:
+Run deterministic shallow inventory, exactly one Orientation Scout, focused
+page discovery, primary synthesis, one fresh independent evidence review, at
+most one focused correction Scout, final index generation, deterministic
+managed write, then a separate read-only audit invoked by the primary. Scouts
+discover and never write `.wiki`; the CLI validates artifacts and never
+launches agents.
 
-```text
-deterministic shallow inventory
--> exactly one Orientation Scout
--> optional consented PR-history collection
--> focused user questions only for consequential unresolved facts
--> one to three targeted Repository Scouts
--> orchestrator synthesis
--> independent evidence review
--> at most one focused correction scan
--> safe managed-section write
--> read-only audit
-```
+Inventory owns tracked/noise-filtered paths, languages, manifests, workspaces,
+commands, CI, entry points, tests, and explicit canonical/generated
+relationships. It never infers coding conventions.
 
-The Orientation Scout reads high-signal repository instructions, maintained
-documentation, manifests/workspaces, entry points, CI/release configuration,
-test roots, and obvious API/auth/data/IPC/tunnel/job/integration surfaces. It
-returns only: what the repository appears to do, major runtimes/workspaces,
-important starting paths, critical engineering surfaces, suggested independent
-scan axes, and material unknowns. This is temporary context, never a persisted
-profile.
+Orientation identifies repository shape, boundaries, likely vertical slices,
+useful horizontal and vertical scan axes, and consequential unknowns. Then
+assign focused discovery responsibilities for: repository purpose/map and
+change routes; architecture plus operational engineering; coding conventions;
+review invariants and risks; test practice; and demonstrated security
+boundaries. A Scout may cover multiple responsibilities in a small repository,
+but each page receives focused evidence. Scouts stop when decisions are
+supported and omit unsupported guidance.
 
-Ask the user only when a fact materially changes interpretation and source
-cannot establish it, such as whether an experimental application is supported
-in production or an undocumented compatibility promise exists.
-
-Choose targeted Scout missions from the orientation evidence. Cover only
-applicable axes: runtime/control/data flow and dependency direction; public and
-internal interfaces; API clients and external integrations; auth and trust
-boundaries; IPC/native bridges/tunnels; jobs, retries, loops and partial
-failure; coding/error/configuration/logging conventions; tests/fixtures;
-PR/CI/release/deployment practice; and workspace-specific differences. Use one
-full scan for a small repository, two independent scans for a medium repository,
-and at most three for a large or structurally complex repository.
-
-Every material wiki claim must cite current paths, symbols, manifests, CI,
-tests, or verified commands. Source and fresh execution outrank the wiki.
-
-After synthesis and review, write a temporary JSON input under
-`.git/agentic-kit/` and pass it to the deterministic helper with
-`kit wiki init --synthesis <path>` or `kit wiki reinit --synthesis <path>`:
+Synthesis schema v2:
 
 ```json
 {
-  "schemaVersion": 1,
-  "pages": [
-    {
-      "page": "architecture.md",
-      "sections": [
-        {
-          "heading": "Runtime control flow",
-          "body": "A concise reviewed claim about the current repository.",
-          "evidence": [
-            { "path": "src/main.ts", "symbols": ["main"] }
-          ]
-        }
+  "schemaVersion": 2,
+  "pages": [{
+    "page": "coding.md",
+    "summary": "Repository-specific implementation practices.",
+    "useWhen": ["implementation", "api client"],
+    "sections": [{
+      "id": "branching-and-errors",
+      "heading": "Branching and errors",
+      "useWhen": ["conditional logic", "provider error"],
+      "claimType": "convention",
+      "body": "Use boundary guard clauses and translate provider errors in the shared client.",
+      "evidence": [
+        { "path": "src/api/client.ts", "symbols": ["requestApi"] },
+        { "path": "src/api/errors.ts", "symbols": ["translateProviderError"] }
       ]
-    }
-  ]
+    }]
+  }]
 }
 ```
 
-The CLI validates page names, tracked evidence paths, referenced symbols,
-managed boundaries, links, and page budgets. It appends exact evidence
-references itself. It inventories, validates, merges, backs up, and audits; it
-does not launch Scouts, reviewers, models, or host sessions.
+Page summaries and `useWhen` signals generate exact index routes only after all
+content drafts are synthesized and reviewed. Section IDs are stable kebab-case
+anchors. Claim types are `fact`, `flow`, `convention`, or `verification`.
+Evidence paths must be tracked canonical source; symbols must exist. A coding
+convention requires an authoritative repository source or two independent
+current-code examples, selected with horizontal or vertical scanning as
+appropriate. `coding.md` has at most ten practice sections.
 
-When PR history is enabled, first run `kit wiki collect-pr-history`, then load
-[pr-history.md](pr-history.md) and prepare the synthesis in a separate pass. Historical
-lessons use `reviewEvidence` entries containing `provider`, `pullRequest`, and
-`threadId`. The CLI verifies those references against the local collection
-cache and enforces the acceptance threshold and 20,000-character page budget.
+The primary combines ownership, dependency direction, representative flows,
+external boundaries, invariants, commands, generation, and verification in
+`engineering.md`. It keeps review guidance distinct from coding rules and keeps
+security brief when few trust boundaries are demonstrated. The fresh Reviewer
+checks every claim and citation across all drafts. Only one focused correction
+Scout may resolve material evidence gaps. The primary then creates the index
+from reviewed page summaries/routes.
 
-Exclude dependency, vendor, build, coverage, cache, generated output, binary,
-and large fixture noise. Profile size by structural complexity, not one magic
-threshold. Always create a root wiki. For sufficiently independent workspaces,
-non-interactive `auto` uses root plus `.wiki/workspaces/<workspace>.md`; nested
-wikis require explicit selection. Root owns shared facts and workspace pages
-own local commands/conventions without duplication.
+Write temporary synthesis below `.git/agentic-kit/` and call:
 
-`reinit` repeats orientation, refreshes only kit-managed sections, preserves
-human-authored material outside those sections, backs up replaced managed
-content under Git metadata, reports conflicts, and removes stale kit-owned
-claims/pages only when current evidence no longer justifies them.
+```text
+kit wiki init --synthesis <path>
+kit wiki reinit --synthesis <path>
+```
+
+Write mode requires this reviewed artifact to cover repository map,
+engineering, coding, reviewing, testing, and security in every generated wiki
+root. The CLI rejects init/reinit writes without it rather than persisting
+generic scaffolds. A no-synthesis `--dry-run` is available for deterministic
+inventory and preview only. The CLI validates, stamps revision and evidence
+hashes, merges owned pages, and backs up replacements. It never launches agents
+or automatically runs the final audit.
+
+After init/reinit succeeds, the primary must run this separate mandatory final
+command and require it to pass before reporting completion:
+
+```text
+kit wiki audit
+```
+
+For an unmarked existing wiki first preview and then explicitly adopt:
+
+```text
+kit wiki reinit --adopt-existing --dry-run --synthesis <path>
+kit wiki reinit --adopt-existing --yes --synthesis <path>
+```
+
+Adoption backs up the complete old wiki under Git metadata and never merges
+stale legacy prose into new managed sections. Normal reinit preserves
+human-authored suffixes outside managed boundaries and removes stale owned pages
+only when safe.

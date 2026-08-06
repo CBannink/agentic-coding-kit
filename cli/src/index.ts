@@ -24,8 +24,8 @@ export const repoRoot = process.env.AGENTIC_KIT_ROOT
 
 const program = new Command()
   .name("kit")
-  .description("Agentic Coding Kit v6 management CLI")
-  .version("6.0.0")
+  .description("Agentic Coding Kit v6.3 management CLI")
+  .version("6.3.0")
   .addHelpText("after", "\nSecurity: do not run elevated against attacker-writable roots. Portable Node APIs cannot eliminate the final filesystem-operation race after ancestry validation.\n");
 
 program.command("render")
@@ -105,11 +105,24 @@ wiki.command("reinit")
   .option("--dry-run", "report planned files without writing")
   .option("--synthesis <path>", "validated architect synthesis JSON inside the repository")
   .option("--pr-history <mode>", "optional PR history: auto, on, or off", "auto")
+  .option("--adopt-existing", "back up and replace an unmarked legacy wiki")
   .option("--yes", "accept non-interactive defaults")
-  .action(async (options: { repo: string; wikiSplit: WikiSplit; dryRun?: boolean; synthesis?: string; prHistory: PrHistoryMode; yes?: boolean }) => {
+  .action(async (options: { repo: string; wikiSplit: WikiSplit; dryRun?: boolean; synthesis?: string; prHistory: PrHistoryMode; adoptExisting?: boolean; yes?: boolean }) => {
     assertChoice(options.wikiSplit, ["auto", "root", "nested"]);
     assertChoice(options.prHistory, ["auto", "on", "off"]);
-    printWikiResult(await reinitWiki({ repo: options.repo, wikiSplit: options.wikiSplit, dryRun: Boolean(options.dryRun), synthesis: options.synthesis, prHistory: options.prHistory, prHistoryConsented: options.prHistory === "on", interactive: Boolean(process.stdin.isTTY && process.stdout.isTTY) }));
+    let confirmed = Boolean(options.yes);
+    if (options.adoptExisting && !options.dryRun && !confirmed) confirmed = await confirmWikiAdoption(options.repo);
+    printWikiResult(await reinitWiki({
+      repo: options.repo,
+      wikiSplit: options.wikiSplit,
+      dryRun: Boolean(options.dryRun),
+      synthesis: options.synthesis,
+      prHistory: options.prHistory,
+      prHistoryConsented: options.prHistory === "on",
+      interactive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
+      adoptExisting: Boolean(options.adoptExisting),
+      confirmed,
+    }));
   });
 
 wiki.command("audit")
@@ -131,6 +144,17 @@ function printWikiResult(result: { status: string; files: string[]; findings?: A
   console.log(result.status);
   for (const file of result.files) console.log(file);
   for (const finding of result.findings ?? []) console.log(`${finding.code} ${finding.page}: ${finding.detail}`);
+}
+
+async function confirmWikiAdoption(repo: string): Promise<boolean> {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error("Legacy wiki adoption requires interactive confirmation or --yes");
+  const prompt = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = (await prompt.question(`Back up and replace the unmarked wiki in ${path.resolve(repo)}? [y/N] `)).trim().toLowerCase();
+    return answer === "y" || answer === "yes";
+  } finally {
+    prompt.close();
+  }
 }
 
 interface ManagementCliOptions {

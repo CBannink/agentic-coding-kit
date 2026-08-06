@@ -35,7 +35,7 @@ export interface Manifest {
   skills: SkillDefinition[];
   agents: AgentDefinition[];
   packs: Record<string, PackDefinition>;
-  instruction_fragments: { orchestrator: string };
+  instruction_fragments: { orchestrator: string; opencode_primary: string };
 }
 
 export interface GeneratedFile {

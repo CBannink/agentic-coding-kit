@@ -8,7 +8,7 @@ dependencies, migrations, or architecture that the experiment does not need.
 
 Run only enough of the artifact to answer the question. Record the observed
 result and remaining uncertainty, then delete the prototype or retain it only in
-an explicitly approved experimental location. Convert the learning into a
-design decision; never let prototype code become production by momentum. Any
-production implementation or promotion returns through Build with a fresh
-contract, normal preservation rules, and production verification.
+an explicitly approved experimental location. Use Experiment when choosing
+among multiple variants. Never let prototype code become production by
+momentum. Any production implementation or promotion returns through Build
+with fresh acceptance, preservation, and production proof.

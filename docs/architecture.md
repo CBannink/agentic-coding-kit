@@ -1,85 +1,88 @@
 # Architecture
 
-## Core idea
+Agentic Coding Kit is a portable engineering control layer for Codex, Claude
+Code, OpenCode, and GitHub Copilot CLI. The harness supplies the agent runtime,
+tools, permissions, context window, and native subagents. ACK supplies concise
+operating policy, progressively loaded procedures, specialist judgment, safe
+installation, and repository knowledge.
 
-This system is a **workflow operating layer** for coding agents.
+## Runtime model
 
-It combines:
-1. global workflow skills
-2. repo-local context indexes
-3. session-private artifacts
-4. hook-ready lifecycle helpers
-5. explicit verification evidence
+The active host session is the only primary orchestrator. It owns the user's
+goal, acceptance criteria, plan, context, integration, proof, and final answer.
+ACK has two adaptive modes:
 
-The result is a system that can be:
-- lightweight on small changes
-- aggressive on risky changes
-- consistent across sessions
+```text
+INLINE: Minimal task with bounded context present before routing -> Change or answer -> Verify -> Stop
 
-## Layers
+LOOP:   Anchor -> Partition -> Dispatch -> Integrate/Verify -> fresh Reviewer
+                         ^                                   |
+                         +---------- fresh repair -----------+
+```
 
-| Layer | Location | Purpose |
+LOOP is a dynamic execution map, not a TypeScript workflow engine. One
+production writer is the default; up to three Coders may run when contracts are
+fixed and write sets are disjoint. Every specialist invocation is terminal;
+repair and re-review use fresh contexts. Subagents
+return compact `Result`, `Evidence`, and optional `Next` packets and never
+dispatch successors.
+
+## Product layers
+
+| Layer | Location | Owns |
 |---|---|---|
-| Global workflow logic | `~/.agents\skills\` | reusable workflow behavior across repos |
-| Global helper scripts | `~/.agents\tools\` | state init, evidence capture, run packet, lifecycle helpers |
-| Global protocols | `~/.agents\context\` | writeback, reflection, repo-specialist-memory, evidence schemas |
-| Optional imported skills | `~/.agents/skills/` | normalized lazy skills from external sources |
-| Repo-local context | `.kit/context/` | compact patterns, conventions, and workflow briefs |
-| Repo-local workflow overrides | `.kit/workflows/` | repo-specific constraints or additions |
-| Repo-local docs/wiki | `.wiki\` | user-visible feature catalog and machine manifest |
-| Session artifacts | `.kit/session-state/{SESSION_ID}/` | plan, handoff body, workflow evidence, run packet, hook events |
+| Canonical product | `core/` | Orchestrator, skills, agents, manifest, schemas |
+| Optional capability packs | `packs/` | Browser QA and UI critique |
+| Management implementation | `cli/src/` | Validation, rendering, installation, wiki, safety |
+| Generated host adapters | `adapters/` | Checked-in renderer output; never edit as source |
+| Repository knowledge | `.wiki/` | Explicitly generated, source-backed navigation and conventions |
 
-## Why the split matters
+The canonical-to-host flow is:
 
-### Global
-Use global files for things that should help in many repos:
-- workflow structure
-- tool scripts
-- universal coding/review patterns
+```text
+core/manifest.yaml + canonical prompts
+-> schema and semantic validation
+-> deterministic rendering
+-> adapters/<host>
+-> conflict-aware native installation
+-> ownership manifest for update and uninstall
+```
 
-### Repo-local
-Use repo-local files for things that only make sense inside one codebase:
-- architecture facts
-- feature catalogs
-- conventions
-- repo context patterns
-- legacy role-specific repo memory only as read-only compatibility
+OpenCode receives the canonical orchestrator in a managed `mode: primary`
+agent because its built-in Build primary is not the desired ACK experience.
+Codex receives the same policy through root `developer_instructions` in its
+native configuration. ACK does not put either policy in `AGENTS.md`, because
+that repository instruction surface is inherited by specialists. Claude and
+Copilot use their native managed instruction files.
 
-### Session-private
-Use session artifacts for:
-- current task state
-- scratch findings
-- compact recovery packets
-- workflow evidence
+Specialists receive their small role prompt plus a pointer-based Assignment:
+goal, acceptance criteria, plan, exact paths, and compact facts that cannot be
+recovered from those paths. They do not receive pasted source, diffs, wiki
+pages, logs, transcripts, or complete prior returns. Codex specialist configs
+disable nested agents and ACK skills; OpenCode specialist permissions deny
+skills and task dispatch.
 
-That separation is what prevents memory pollution.
+## Skills and agents
 
-## Lifecycle helpers
+Skills own procedures: Build, Design, Architecture, Grill, Analyze, Review, PR
+Ready, Threat Model, Wiki, and Experiment. They load only when useful. Agents
+own bounded fresh contexts or distinct permissions: Architect, Scout, Coder,
+Reviewer, Test Engineer, Diagnostician, Sage, and Security Reviewer. Browser QA
+and UI Critic are optional.
 
-These scripts are **hook-ready**, meaning they can be called:
-- by a harness
-- by explicit workflow steps
-- by a future host callback system
+The kit deliberately has no nested orchestrator, session-state runtime,
+reflection store, goal daemon, graph database, or persistent task DAG. The
+useful graph concept is the primary's compact execution map; the useful
+repository graph is a future measurable retrieval experiment, not a core
+dependency.
 
-| Script | Purpose |
-|---|---|
-| `session-start-hook.ps1` | session start event |
-| `precompact-hook.ps1` | compact-friendly snapshot before context pressure |
-| `subagent-stop-hook.ps1` | normalize subagent result events |
-| `session-end-hook.ps1` | session close snapshot |
-| `run-packet.ps1` | maintain compact execution packet |
-| `specialist-memory-resolver.ps1` | resolve repo context patterns and optional legacy role memory into injectable prompt text |
-| `agent-trust-scorer.ps1` | trust scoring and calibration prompt injection for noisy agents |
+## Evidence and state
 
-## What makes it strong
+The primary keeps only active in-context state: goal, decisions, changed paths,
+evidence, findings, and failure signatures. Fresh source and executable checks
+remain authoritative. `.wiki` is repository navigation, not task memory.
 
-This stack is not just "many agents".
-
-It is:
-- **plan-first**
-- **verification-first**
-- **context-indexed**
-- **session-aware**
-- **single-reviewer by default**
-
-That combination matters more than raw swarm size.
+Deterministic tooling enforces prompt budgets, model neutrality, path
+containment, managed ownership, adapter drift, evidence freshness, and
+recoverable installation. Prompt policy guides judgment; it does not pretend to
+mechanically guarantee model behavior.

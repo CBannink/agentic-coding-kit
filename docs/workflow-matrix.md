@@ -1,65 +1,46 @@
 # Workflow Matrix
 
-## When to use which workflow
+## Execution modes
 
-| Workflow | Use when | Main output |
+| Mode | Use when | Shape |
 |---|---|---|
-| `/goal` | you want autonomous goal achievement with iteration | goal verdict + handoff |
-| `/plan` | you need an approval-ready implementation plan before coding | `plan.md` + `run-packet.json` |
-| `/build` | you want code changed, tested, and reviewed | diff + verification evidence + reviewer outcome |
-| `/review` | you want quality audit / code review | findings with false-positive-checked evidence |
-| `/test-gen` | the expected test set is clear but coverage is missing | tests + build-verified iteration output |
-| `/analyze` | you want research or architectural judgment | synthesis + optional build brief |
-| `/investigate` | cause is unknown and must be proven | root-cause evidence + optional build brief |
-| `/refactor` | you want structural improvement without behavior change | implementation + behavior-equivalence review |
+| `INLINE` | A minimal task whose implementation context, behavioral contract, and direct proof are already present before routing | Inspect → Change/Answer → Verify → Stop |
+| `LOOP` | Discovery or implementation would consume substantial primary context, spans distinct responsibilities or contracts, or benefits from fresh judgment | Anchor → Partition → dispatch before production edits → Integrate/Verify → fresh Reviewer → bounded fresh repair |
 
-## Default Engineering Loop
+The active host session is the only orchestrator. LOOP nodes are conditional and
+form a compact execution map, not a mandatory workflow engine. One production
+writer is the default; up to three Coders are allowed only for fixed contracts
+and disjoint write sets. Children never dispatch successors or get reactivated
+after completion.
 
-Normal code workflows use the same lean loop:
+## Skills
 
-1. Load minimal indexed context only when needed.
-2. Define the expected test set.
-3. Implement with the needed tests.
-4. Run fresh verification.
-5. Spawn one `code-quality-reviewer`.
-6. Spawn `security-reviewer` only for trust-boundary risk.
-7. Repair BLOCKING findings and repeat, max 3 repair cycles.
+| Skill | Use when | Main output |
+|---|---|---|
+| `build` | Production repository change | coherent diff and fresh proof |
+| `design` | Product, prototype, or UI decision | validated design or Build handoff |
+| `architecture` | Boundary, ownership, dependency, or maintainability decision | repository-grounded design and Build handoff |
+| `grill` | Explicit request for an intensive decision interview | agreed contract and open decisions |
+| `analyze` | Read-only explanation, diagnosis, or decision | evidence-backed conclusion |
+| `review` | Independent judgment | material findings or pass |
+| `pr-ready` | Human PR preparation | repaired, verified PR packet |
+| `threat-model` | Material trust boundary | attack paths, controls, residual risk |
+| `wiki` | Explicit repository knowledge init/reinit/audit | source-backed repository index |
+| `experiment` | Controlled comparison of variants | `A`, `B`, or `INCONCLUSIVE` |
 
-Trust-boundary risk means auth/authz, secrets, crypto, permissions, untrusted
-input, external HTTP, DB writes, filesystem paths, command execution, payments,
-or sensitive data exposure.
+## Default LOOP realization
 
-The orchestrator owns test strategy and fresh verification evidence directly.
-For behavior changes, the expected test set should include relevant
-unit/integration coverage and E2E for user-visible flows when the repo can run
-it. Use mock data or fixtures for external systems and edge cases. If E2E is
-infeasible, record why and use the nearest integration, contract, or workflow
-test. Legacy reviewer and verifier agents remain installed for compatibility
-or explicit manual use, not normal routing.
+```text
+Explore when needed
+→ primary plan
+→ one coherent writer, or a few safely partitioned writers
+→ targeted executable proof
+→ combined goal-first review
+→ bounded repair and fresh proof
+```
 
-## Scope And Tier
-
-| Scope | Meaning |
-|---|---|
-| `ISOLATED` | local change, low blast radius |
-| `SHARED` | shared interfaces, multiple modules, some integration risk |
-| `CRITICAL` | auth, schema, public API, dangerous contracts, broad blast radius |
-
-| Tier | Meaning |
-|---|---|
-| `INLINE` | direct answer or obvious mechanical edit |
-| `TARGETED` | implementer + unified reviewer, plus explorer if unfamiliar |
-| `FULL` | same loop with broader context and conditional security review |
-
-## Goal Flow
-
-`/goal` owns success criteria, scope, expected test set, E2E feasibility,
-verification command, loop state, and blockers. It routes into the right
-workflow and stops when criteria are met, the meaningful test set exists where
-feasible, verification is green, and no BLOCKING unified-review finding remains.
-
-Caps:
-
-- max 3 repair cycles for the same blocker/task
-- soft cap 6 total iterations
-- hard cap 12 total iterations
+For consequential work, split a fresh Goal review from a fresh Quality review.
+Architect, Browser QA, UI Critic, Test Engineer, Security Reviewer,
+Diagnostician, and Sage remain conditional. Every repair and review gets a fresh
+agent. A failed repair counts only when a completed correction still fails its
+next applicable gate; stop after four materially similar failed repairs.

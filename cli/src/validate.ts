@@ -3,9 +3,17 @@ import path from "node:path";
 import { parseFrontmatter, parseToml } from "./parsers.js";
 import type { GeneratedFile, Manifest } from "./types.js";
 
+const PROMPT_BUDGETS = {
+  orchestrator: { words: 850, bytes: 6 * 1024 },
+  opencodePrimary: { words: 120, bytes: 2 * 1024 },
+  skill: { words: 650 },
+  agent: { words: 300 },
+} as const;
+
 export async function validateCanonicalPrompts(repoRoot: string, manifest: Manifest): Promise<void> {
   const promptPaths = [
     manifest.instruction_fragments.orchestrator,
+    manifest.instruction_fragments.opencode_primary,
     ...manifest.agents.map((agent) => agent.source),
     ...Object.values(manifest.packs).flatMap((pack) => pack.agents.map((agent) => agent.source)),
     ...manifest.skills.map((skill) => skill.source),
@@ -20,8 +28,29 @@ export async function validateCanonicalPrompts(repoRoot: string, manifest: Manif
   for (const sourcePath of promptPaths) {
     const content = await readFile(path.join(repoRoot, sourcePath), "utf8");
     if (content.charCodeAt(0) === 0xfeff) throw new Error(`UTF-8 BOM in ${sourcePath}`);
+    assertPromptBudget(sourcePath, content, manifest);
     for (const [pattern, label] of forbidden) {
       if (pattern.test(content)) throw new Error(`${sourcePath} contains forbidden ${label}`);
+    }
+  }
+}
+
+function assertPromptBudget(sourcePath: string, content: string, manifest: Manifest): void {
+  const budget = sourcePath === manifest.instruction_fragments.orchestrator
+    ? PROMPT_BUDGETS.orchestrator
+    : sourcePath === manifest.instruction_fragments.opencode_primary
+      ? PROMPT_BUDGETS.opencodePrimary
+      : /(?:^|\/)SKILL\.md$/.test(sourcePath.replaceAll("\\", "/"))
+        ? PROMPT_BUDGETS.skill
+        : PROMPT_BUDGETS.agent;
+  const words = content.match(/\S+/g)?.length ?? 0;
+  if (words > budget.words) {
+    throw new Error(`${sourcePath} exceeds prompt budget: ${words} words > ${budget.words}`);
+  }
+  if ("bytes" in budget) {
+    const bytes = Buffer.byteLength(content, "utf8");
+    if (bytes > budget.bytes) {
+      throw new Error(`${sourcePath} exceeds prompt budget: ${bytes} bytes > ${budget.bytes}`);
     }
   }
 }
