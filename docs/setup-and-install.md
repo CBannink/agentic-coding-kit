@@ -70,12 +70,15 @@ for either host.
 
 ## Repository wiki
 
-`wiki init` and `wiki reinit` are direct skill workflows. The active primary
-inspects current source and writes the seven repository-local pages with normal
-host file tools: `index.md`, `repository-map.md`, `engineering.md`, `coding.md`,
-`reviewing.md`, `testing.md`, and `security.md`. Init creates `.wiki` when absent
-or fills missing required pages while preserving existing work. Reinit reads
-existing content first, may refresh source-backed sections, and preserves
+`wiki init` and `wiki reinit` are direct skill workflows. After snapshotting
+existing human content, the active primary assigns one fresh write-capable Wiki
+Page Scout to research and write each repository-local page with normal host
+tools: `repository-map.md`, `engineering.md`, `coding.md`, `reviewing.md`,
+`testing.md`, and `security.md`, followed by an index Scout that reads those six
+pages and writes `index.md`. One optional completeness Reviewer may then check
+files/sections, links/anchors, cited paths, and token ceilings without rewriting.
+Ceilings are maxima: 500 tokens for the index and 800 tokens for every other
+required page. Init creates `.wiki` or fills missing pages; reinit preserves
 unrelated or unclear human work unless the user approves a destructive change.
 
 `wiki audit` uses ordinary file and search tools, makes no writes, and reports

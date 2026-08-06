@@ -57,8 +57,11 @@ Explicit wiki init/reinit creates:
 ```
 
 `.wiki` is source-backed repository navigation and coding guidance. It is not
-session state, reflection, task history, or a feature-memory database. The
-primary writes these pages directly with ordinary host file tools; no CLI or
-temporary `.kit`/`.git` workflow state is required. Reinitialization preserves
-unrelated or unclear human files and content, while initialization fills missing
-required pages without replacing existing work.
+session state, reflection, task history, or a feature-memory database. One fresh
+write-capable Wiki Page Scout researches and writes each page directly with
+ordinary host tools; the six content Scouts have disjoint ownership, and the
+index Scout runs last. One optional completeness Reviewer may check the result.
+Token ceilings are maxima: 500 for the index and 800 for every other required
+page. No CLI or temporary `.kit`/`.git` workflow state is required. Reinit
+preserves unrelated or unclear human content; init fills missing pages without
+replacing existing work.

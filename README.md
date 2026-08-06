@@ -208,12 +208,17 @@ Each generated wiki root has these required pages:
 .wiki/security.md
 ```
 
-For `wiki init` or `wiki reinit`, the active primary inspects current source and
-writes these pages directly with normal host file tools. Claims stay concise,
-source-backed, and linked to repository paths; the index is written last. At
-most one optional Reviewer checks only that required files and sections exist,
-index links resolve, and cited paths exist. The primary owns understanding and
-any corrections.
+For `wiki init` or `wiki reinit`, the active primary snapshots existing human
+content, then assigns one fresh write-capable Wiki Page Scout to research and
+write each page with normal host file tools. The six content pages have disjoint
+ownership and may run independently; the index Scout runs last and routes tasks
+to exact sections in the completed pages. At most one optional completeness
+Reviewer checks required files/sections, links and anchors, cited paths, and token
+ceilings; it does not rewrite or judge the prose.
+
+Page ceilings are maxima: 500 tokens for the index and 800 tokens for every
+other required page. Claims stay concise, source-backed, and linked to
+repository paths.
 
 `wiki audit` is direct and read-only. It uses ordinary file and search tools to
 report missing required files or sections, broken index links, and missing cited
