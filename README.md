@@ -13,12 +13,16 @@ names into another harness.
 
 - One host-native primary orchestrator owns the outcome; specialists never
   become nested orchestrators or dispatch successors.
-- `INLINE` handles clear bounded work; `LOOP` keeps one strong primary in
-  control of Anchor, Plan, Dispatch, Integrate, Verify, and bounded repair.
+- The primary chooses a direct `INLINE` route where a skill permits it, or owns
+  a delegated `LOOP`; specialists never choose the route or inherit ownership.
+- Implementation loops share only a compact `GOAL`, numbered `ACCEPTANCE`, and
+  repository-grounded `PLAN`, then use one Coder, fresh primary proof, one
+  combined Reviewer, and at most two unsuccessful repairs for the same failure.
 - Agent returns use only `Result`, `Evidence`, and optional `Next`, keeping
   handoffs compact and leaving validation with the active session.
-- Tests, independent review, browser QA, UI critique, and security review are
-  conditional evidence gates rather than ceremonial stages.
+- Extra test hardening, browser QA, UI critique, and security review are
+  conditional evidence gates rather than ceremonial stages; Build's fresh
+  combined Reviewer remains part of its loop.
 - Agents load only the exact repository wiki sections supplied to them, verify
   those claims against current source, report drift, and never edit `.wiki`.
 - Managed installation preserves explicit configuration where supported,
@@ -129,20 +133,21 @@ These are general development workflows. They are not ten mandatory stages.
 The orchestrator chooses the smallest useful loop and may work inline for a
 clear, low-risk change.
 
-### Two execution modes
+### Primary-owned routing
 
-- `INLINE`: direct work only for a minimal task whose implementation context,
-  behavioral contract, and proof are already present before routing.
-- `LOOP`: used when discovery or implementation would consume substantial
-  primary context, the change spans distinct responsibilities or contracts, or
-  fresh judgment should improve correctness. The primary keeps the goal and
-  plan, dispatches one coherent Coder by default or a few path-isolated Coders
-  when safely partitioned, integrates and verifies the result, sends it to a
-  fresh combined Reviewer, and bounds repair.
+- `INLINE` is direct primary work for a small, clear task when the selected
+  skill supports a direct route.
+- `LOOP` keeps interpretation, exploration, planning, integration, verification,
+  and completion in the primary session. For implementation, the primary
+  prepares the compact shared `GOAL`, numbered `ACCEPTANCE`, and `PLAN`, sends
+  them unchanged to one Coder, verifies the live result, and sends the same
+  assignment to one fresh Reviewer for a combined goal-first review.
 
-File count is only a hint. The model chooses the route; no agent is spawned for
-ceremony. New tests and the Test Engineer remain conditional evidence rather
-than mandatory stages.
+File count is only a hint. No agent is spawned for ceremony. A focused Repo
+Scout, Test Engineer, Architect, Diagnostician, Sage, Security Reviewer, Browser
+QA, or UI Critic is added only for a concrete discovery need, risk, or proof
+gap. Specialists receive bounded assignments, return evidence to the primary,
+and never dispatch successors.
 
 The routes and retry policy are prompt policy, not a rigid TypeScript workflow
 engine. Tested structural helpers validate selected packet, freshness, and
@@ -152,9 +157,11 @@ comes next and when the requested outcome is sufficiently proven.
 
 Design uses `INLINE DESIGN`, `DESIGN LOOP`, or `UI STUDIO`; comparative
 prototypes route through Experiment and production promotion returns through
-Build. PR preparation uses `INLINE` or `LOOP`. Threat modeling keeps its
-focused domain playbooks. Failed repair cycles stop after four unsuccessful
-rounds and return evidence to the user.
+Build. Architecture, analysis, and PR preparation likewise choose their
+smallest supported direct or loop route. In Build, supported Reviewer blocks go
+to a repair Coder with the unchanged assignment, followed by fresh proof and a
+new full review. Two unsuccessful repairs for the same material failure stop
+the loop and return the blocker.
 
 ### Eight core agents
 
@@ -174,13 +181,13 @@ The `full` profile additionally installs:
 - `browser-qa`: browser execution and evidence capture.
 - `ui-critic`: independent visual and UX critique.
 
-All agent returns go to the main orchestrator. Assignments carry the goal and
-acceptance criteria, plan decision, workspace baseline, starting paths, exact
-wiki sections or `NONE`, boundaries, and stop condition. Writer returns include
-status, summary, exact changed paths, evidence, and only a remaining blocker or
-route. The orchestrator checks the live diff, scope, and freshness before
-creating the next fresh assignment. Completed specialists are never
-reactivated, and transcripts are never forwarded.
+All agent returns go to the primary. Build assignments consist only of the same
+unchanged `GOAL`, numbered `ACCEPTANCE`, and `PLAN`; concise supported repair
+evidence may accompany a repair dispatch. Agents inspect the live repository
+within their role and return only `Result`, `Evidence`, and optional `Next`.
+The primary checks the live diff, boundaries, and fresh proof before each new
+dispatch. Completed specialists are not reactivated and transcripts are not
+forwarded.
 
 ## Repository wiki
 
@@ -189,25 +196,32 @@ actually works: entry points, vertical control/data flows, module boundaries,
 APIs, integrations, branching and error conventions, code organization,
 canonical examples, tests, CI, and workspace-specific differences.
 
-The required pages are:
+Each generated wiki root has these required pages:
 
 ```text
 .wiki/index.md
 .wiki/repository-map.md
-.wiki/architecture.md
 .wiki/engineering.md
+.wiki/coding.md
+.wiki/reviewing.md
+.wiki/testing.md
+.wiki/security.md
 ```
 
-Initialization uses deterministic inventory, one Orientation Scout, one to
-three targeted evidence scans, orchestrator synthesis, independent review, and
-a parser-backed writer/audit. Schema-v2 synthesis gives every page a concise
-summary and activation signals, and every section a stable anchor, claim type,
-and exact source or symbol evidence. The index routes task signals directly to
-those sections so agents can start from a narrow, verified context packet
-instead of rediscovering the whole repository. Convention claims require an
-authoritative repository source or two independent current-code examples.
-Evidence hashes make later source drift visible to `wiki audit`. Normal build
-sessions never update the wiki.
+Initialization and reinitialization run deterministic inventory, one Orientation
+Scout, focused evidence discovery for every content page, primary synthesis,
+one fresh independent review of every draft, and at most one correction Scout.
+The primary generates the index last, then supplies the reviewed schema-v2
+synthesis to the deterministic CLI writer. Each section has a stable anchor,
+claim type, activation signals, and exact canonical source/symbol evidence;
+conventions need an authoritative source or two independent current-code
+examples.
+
+The CLI validates and hashes that evidence but does not launch agents or run the
+final audit. After every successful `init` or `reinit`, the primary separately
+runs read-only `kit wiki audit` and completes only when it passes. Audit checks
+required pages, citations, links, commands, budgets, managed boundaries, and
+canonical/generated drift. Normal work never edits `.wiki`.
 
 An existing unmarked or legacy wiki is never overwritten implicitly. Preview
 and explicitly adopt it when replacement is intended:
@@ -376,7 +390,7 @@ copy.
 
 ## Verification and smoke testing
 
-Repository validation:
+Local repository validation:
 
 ```powershell
 npm run typecheck --prefix cli
@@ -385,10 +399,6 @@ npm run validate --prefix cli
 npm run check:drift --prefix cli
 npm run bundle --prefix cli
 ```
-
-Windows and macOS are release-blocking in CI. Both run the complete v6 suite,
-generated drift validation, bundle generation, and an all-host project launcher
-smoke test under a path containing spaces and non-ASCII text.
 
 Create a disposable behavior fixture for a fresh harness session:
 
@@ -409,8 +419,8 @@ proportionate delegation, fresh tests, and avoidance of legacy memory files.
 | Path | Purpose |
 |---|---|
 | `core/` | Canonical manifest, schemas, orchestrator, agents, and skills. |
-| `packs/` | Optional UI specialists. |
-| `adapters/` | Generated host-native artifacts. |
+| `packs/` | Canonical optional specialist sources. |
+| `adapters/` | Generated host-native artifacts; edit canonical sources instead. |
 | `cli/` | Cross-platform renderer, installer, doctor, migration, wiki, and tests. |
 | `scripts/` | Thin Windows and macOS launchers. |
 
