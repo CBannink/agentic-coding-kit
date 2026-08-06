@@ -185,7 +185,7 @@
     {
       "path": "adapters/claude/skills/wiki/SKILL.md",
       "sourceId": "skill:wiki:SKILL.md",
-      "sha256": "53391b4a859f77242e62c356e344046866c7a3b78d5a905dde0f603aad3e4d81"
+      "sha256": "aab000768f55dbeac75ad672885d46c144c2f412c11fdfcd6bdd6fa32632c512"
     },
     {
       "path": "adapters/codex/agents/architect.toml",
@@ -370,7 +370,7 @@
     {
       "path": "adapters/codex/skills/wiki/SKILL.md",
       "sourceId": "skill:wiki:SKILL.md",
-      "sha256": "53391b4a859f77242e62c356e344046866c7a3b78d5a905dde0f603aad3e4d81"
+      "sha256": "aab000768f55dbeac75ad672885d46c144c2f412c11fdfcd6bdd6fa32632c512"
     },
     {
       "path": "adapters/copilot/agents/architect.agent.md",
@@ -555,7 +555,7 @@
     {
       "path": "adapters/copilot/skills/wiki/SKILL.md",
       "sourceId": "skill:wiki:SKILL.md",
-      "sha256": "53391b4a859f77242e62c356e344046866c7a3b78d5a905dde0f603aad3e4d81"
+      "sha256": "aab000768f55dbeac75ad672885d46c144c2f412c11fdfcd6bdd6fa32632c512"
     },
     {
       "path": "adapters/opencode/agents/architect.md",
@@ -790,7 +790,7 @@
     {
       "path": "adapters/opencode/skills/wiki/SKILL.md",
       "sourceId": "skill:wiki:SKILL.md",
-      "sha256": "53391b4a859f77242e62c356e344046866c7a3b78d5a905dde0f603aad3e4d81"
+      "sha256": "aab000768f55dbeac75ad672885d46c144c2f412c11fdfcd6bdd6fa32632c512"
     }
   ]
 }

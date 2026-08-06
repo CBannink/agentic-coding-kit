@@ -5,67 +5,71 @@ description: Initialize, reinitialize, or audit curated repository engineering k
 
 # Wiki
 
-Support only `init`, `reinit`, and read-only `audit`. The active primary performs
-the workflow with ordinary repository read, search, and write tools. Do not
-require an executable, PATH setup, synthesis artifact, or temporary workflow
-state under `.kit` or `.git`.
-
-Current source, configuration, repository instructions, and executable behavior
-are authoritative. The wiki is concise navigation, not memory, reflection,
-task history, hidden instructions, or standalone proof. Normal work never edits
-`.wiki`; only an explicit `wiki init` or `wiki reinit` may do so.
+Support only `init`, `reinit`, and read-only `audit`. Use ordinary host read,
+search, and write tools: no `kit`, PATH setup, CLI, synthesis artifact, `.kit`,
+or temporary `.git` workflow state. Current source, configuration, instructions,
+and executable behavior are authoritative. The wiki is concise navigation, not
+memory, task history, hidden instructions, or standalone proof. Normal work
+never edits `.wiki`; only explicit init/reinit may do so.
 
 ## Init and reinit
 
-The primary inspects the current tree, instructions, manifests, entry points,
-module boundaries, representative flows, tests, CI, commands, and
-canonical/generated boundaries. It follows enough callers and consumers to
-understand the repository, omits unsupported guidance, and cites current paths
-for material claims. Conventions need an authoritative source or two
-independent current-code examples.
+The primary creates `.wiki` if absent, reads every existing wiki file, and
+snapshots human content before dispatch. Init fills missing requirements without
+replacing existing work. Reinit refreshes source-backed guidance while preserving
+unrelated or unclear human files and content. Ask only before a genuinely
+destructive replacement, never before creating a required file.
 
-Write these files directly:
+Dispatch exactly one fresh, write-capable host-native specialist (normally
+Coder) for each required page. Explicitly label every assignment **Wiki Page
+Scout**; this is the Scout and writer, not the normal read-only Repo Scout. The
+six content Scouts may run independently because each has one disjoint owned
+path. After all six finish, dispatch the seventh/index Scout; it reads the six
+completed pages and writes the index.
 
-- `index.md`: **Source authority** and **Task routes**.
-- `repository-map.md`: **Purpose**, **Layout**, and **Change routes**.
-- `engineering.md`: **Architecture**, **Flows**, and **Operations**.
-- `coding.md`: **Practices** and **Boundaries**.
-- `reviewing.md`: **Review checks** and **Risks**.
-- `testing.md`: **Test layout** and **Commands**.
-- `security.md`: **Trust boundaries** and **Controls**.
+Every assignment must contain: its exact sole owned path; preservation rules
+including the relevant snapshot; required live-source research and
+repository-relative path evidence; its page brief below; its token ceiling; and
+the stop condition “write this page, verify its ceiling and cited paths, return
+only a concise result, edit no other page, and dispatch no successor.” Require
+concise bullets/tables, no exploration narrative or repeated obvious facts, and
+omission of unsupported content. Ceilings are maxima, not targets; when an exact
+tokenizer is unavailable, keep pages concise and comfortably below the ceiling
+without adding a tokenizer dependency.
 
-Use normal Markdown headings and repository-relative links or backticked paths.
-Architecture belongs in `engineering.md`; do not create a standard
-`architecture.md`. Write the index last, state that source wins on conflict,
-and link task signals to useful page sections.
+Content pages and briefs:
 
-For `init`, create `.wiki` when absent. When it already exists, read and preserve
-its files, create every missing required page without asking, and continue; the
-directory's existence is not a reason to stop or switch workflows. Augment an
-existing required page only where a required section is missing or needs
-source-supported guidance. Preserve unrelated human files and content.
+- `repository-map.md` (800 tokens): purpose; layout/ownership; entry points;
+  change routes; canonical/generated boundaries.
+- `engineering.md` (800 tokens): architecture; representative control/data
+  flows; integrations; errors/lifecycle; operations.
+- `coding.md` (800 tokens): demonstrated, token-efficient actionable practices;
+  file organization and placement; module/function ordering and inline-versus-
+  vertical layout; function naming/responsibility; parameters/defaults/returns;
+  control flow and async/error behavior; API/client calls, validation, auth,
+  retries; canonical examples.
+- `reviewing.md` (800 tokens): repository-specific checks; realistic risks;
+  generated/migration boundaries.
+- `testing.md` (800 tokens): test layout; commands; fixtures; seams; behavioral
+  expectations.
+- `security.md` (800 tokens): assets; trust boundaries; auth, input, secrets,
+  command, and network controls.
 
-For `reinit`, read every existing wiki file first, then refresh source-backed
-sections where useful and create any missing required pages. Preserve unrelated
-or unclear human files and content. Both workflows finish with all seven
-required files present. Ask only before a genuinely destructive replacement;
-never ask before creating a missing required file. The primary owns all
-repository interpretation and corrections.
+The final `index.md` Scout (500 tokens) covers source authority, concise
+summaries, and task routes to exact sections in all six completed pages. State
+that source wins on conflict. Use normal headings and repository-relative links
+or backticked paths. Architecture belongs in `engineering.md`; never add
+`architecture.md`.
 
-Optionally use one Reviewer, once, after drafting. Its scope is completeness
-only: verify the seven files and basic sections above exist, index links resolve,
-and cited paths exist. It must not judge conventions, optimize or rewrite prose,
-or request a correction/re-review loop. The primary applies any corrections
-directly and performs the same completeness checks before finishing.
-
-Keep complete files below these ceilings: index 250 words, repository map 400,
-engineering 500, and coding, reviewing, testing, and security 400 each. These
-are ceilings, not targets; brief pages are correct when evidence is sparse.
+At most one optional Reviewer may run after all seven writes. It checks only
+required files/basic sections, index links/anchors, cited-path existence, and
+token-ceiling compliance. It cannot optimize prose, judge conventions, rewrite,
+or trigger another review. The primary makes only mechanical corrections and
+rechecks completeness.
 
 ## Audit
 
-Use ordinary read and search tools and make no writes. Check each required file
-and basic section, every local index link and anchor, and every repository path
-cited in backticks or links. Report missing files or sections, broken index
-links, and cited paths that do not exist. Report source conflicts when evident,
-but do not repair them during audit. No command installation is required.
+Make no writes. With ordinary read/search tools, check all required files and
+basic sections, token ceilings, local index links/anchors, and repository paths
+cited in links or backticks. Report missing items, broken references, and
+evident source conflicts; do not repair them.
