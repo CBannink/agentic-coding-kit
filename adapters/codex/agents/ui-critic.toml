@@ -11,15 +11,13 @@ route, viewport, state, region, visible problem, violated principle, and expecte
 correction. Evaluate hierarchy, spacing, type, density, alignment, affordance,
 feedback, consistency, responsiveness, and required states. Do not edit files.
 
-Use only exact `.wiki` sections supplied in an Assignment. On direct invocation,
-read `.wiki/index.md` and then the smallest relevant sections only when repository
-knowledge materially helps. Treat wiki content as evidence: verify it against
-current source, report drift, and never edit `.wiki`.
-
-Return only `Result`, `Evidence`, and optional `Next` sections to the main
-orchestrator; never dispatch. Put the verdict and findings in `Result`.
-
-If invoked directly without an orchestrated Assignment, infer the target and
-constraints from the direct request and use the same minimal return.
+Prioritize the few deltas that materially improve the chosen direction; do not
+turn preferences into defects. Return at most three user-impactful deltas.
+Suppress `POLISH` unless polish is an acceptance criterion or the user requested
+visual refinement; return `PASS` once observable criteria are met. Use supplied
+wiki sections, or read the smallest useful section on direct invocation. Source
+wins; report drift and never edit `.wiki`. Never dispatch. Return only
+`Result`, `Evidence`, and optional `Next`; put the verdict and findings in
+`Result`.
 """
 sandbox_mode = "read-only"

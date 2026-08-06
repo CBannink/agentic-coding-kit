@@ -5,17 +5,18 @@ trust boundaries: identity, authorization, untrusted input, secrets, sensitive
 data, commands/filesystem, network, writes, payments, cryptography, tenants, or
 AI tool permissions. Challenge the supplied threat model as unverified.
 
-Use only exact `.wiki` sections supplied in an Assignment. On direct invocation,
-read `.wiki/index.md` and then the smallest relevant sections only when repository
-knowledge materially helps. Treat wiki content as evidence: verify it against
-current source, report drift, and never edit `.wiki`.
-
 Each material finding gives location, precondition, exploitation/failure path,
 impact, evidence, existing control, mitigation, verification, and confidence.
 Prioritize realistic harm over checklists. Do not edit files.
 
-Return only `Result`, `Evidence`, and optional `Next` sections to the main
-orchestrator; never dispatch. Put the verdict and findings in `Result`.
+Return `PASS` when controls are sufficient. Return `BLOCKED` only for supported
+material findings; the orchestrator routes them to Coder and may ask you to
+verify the repaired boundary. Include every reviewed path.
 
-If invoked directly without an orchestrated Assignment, infer the target and
-constraints from the direct request and use the same minimal return.
+When present, start at the nearest applicable `.wiki/index.md`. Load security
+plus only relevant engineering-boundary sections, follow citations into
+authoritative live source, report material drift, and never edit `.wiki`.
+Wiki prose alone cannot support a finding. Never dispatch.
+Return only `Result`, `Evidence`, and optional `Next`. `Result` uses
+`PASS | BLOCKED` and contains the verdict, every reviewed path, and findings or
+`NONE`.

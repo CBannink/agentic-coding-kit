@@ -8,10 +8,10 @@
     "schema_version": { "const": 1 },
     "kit_version": { "type": "string", "pattern": "^6\\." },
     "model_tiers": { "type": "object", "required": ["fast", "standard", "deep", "premium"], "properties": { "fast": { "$ref": "#/$defs/model_tier" }, "standard": { "$ref": "#/$defs/model_tier" }, "deep": { "$ref": "#/$defs/model_tier" }, "premium": { "$ref": "#/$defs/model_tier" } }, "additionalProperties": false },
-    "skills": { "type": "array", "minItems": 7, "maxItems": 7, "items": { "$ref": "#/$defs/skill" } },
-    "agents": { "type": "array", "minItems": 7, "maxItems": 7, "items": { "$ref": "#/$defs/agent" } },
+    "skills": { "type": "array", "minItems": 10, "maxItems": 10, "items": { "$ref": "#/$defs/skill" } },
+    "agents": { "type": "array", "minItems": 8, "maxItems": 8, "items": { "$ref": "#/$defs/agent" } },
     "packs": { "type": "object", "required": ["ui"], "properties": { "ui": { "$ref": "#/$defs/pack" } }, "additionalProperties": false },
-    "instruction_fragments": { "type": "object", "required": ["orchestrator"], "properties": { "orchestrator": { "type": "string" } }, "additionalProperties": false }
+    "instruction_fragments": { "type": "object", "required": ["orchestrator", "opencode_primary"], "properties": { "orchestrator": { "type": "string" }, "opencode_primary": { "type": "string" } }, "additionalProperties": false }
   },
   "$defs": {
     "model_tier": { "type": "object", "required": ["purpose"], "properties": { "purpose": { "type": "string" } }, "additionalProperties": false },

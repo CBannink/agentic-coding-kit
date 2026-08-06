@@ -1,5 +1,5 @@
 schema_version: 1
-kit_version: 6.0.0
+kit_version: 6.3.0
 
 model_tiers:
   fast:
@@ -14,13 +14,26 @@ model_tiers:
 skills:
   - { id: build, source: core/skills/build/SKILL.md, default: true }
   - { id: design, source: core/skills/design/SKILL.md, default: true }
+  - { id: architecture, source: core/skills/architecture/SKILL.md, default: true }
+  - { id: grill, source: core/skills/grill/SKILL.md, default: true }
   - { id: analyze, source: core/skills/analyze/SKILL.md, default: true }
   - { id: review, source: core/skills/review/SKILL.md, default: true }
   - { id: pr-ready, source: core/skills/pr-ready/SKILL.md, default: true }
   - { id: threat-model, source: core/skills/threat-model/SKILL.md, default: true }
   - { id: wiki, source: core/skills/wiki/SKILL.md, default: true }
+  - { id: experiment, source: core/skills/experiment/SKILL.md, default: true }
 
 agents:
+  - id: architect
+    description: Read-only repository architecture and change-boundary specialist.
+    source: core/agents/architect.md
+    kind: subagent
+    permission_class: read-only
+    model_tier: deep
+    conditional: true
+    default: true
+    hosts: [codex, claude, opencode, copilot]
+    return_packet: architecture-decision
   - id: repo-scout
     description: Read-only repository discovery for bounded local codebase questions.
     source: core/agents/repo-scout.md
@@ -113,3 +126,4 @@ packs:
         return_packet: ui-critique
 instruction_fragments:
   orchestrator: core/orchestrator.md
+  opencode_primary: core/opencode-primary.md

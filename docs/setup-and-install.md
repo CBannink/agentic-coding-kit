@@ -1,143 +1,99 @@
-# Setup and Install Guide
+# Setup and Installation
 
-This is the shortest reliable path to get the kit working across all supported
-CLI adapters.
+## Prerequisites
 
-## 1. Machine install
+- Windows or macOS.
+- Node.js 20 or newer.
+- Git for project installs and wiki initialization.
+- At least one separately installed harness: Codex, Claude Code, OpenCode, or
+  GitHub Copilot CLI.
 
-From the kit repo, install for your preferred CLI:
+Build the management CLI from the repository root:
+
+```text
+npm ci --prefix cli
+npm run bundle --prefix cli
+```
+
+## Install
+
+A user-scope install replaces the selected harness's managed global
+instructions, agents, skills, commands, and supported primary configuration.
+The installer shows a warning and asks for confirmation; use `--yes` only for a
+deliberate non-interactive install.
+
+Windows:
 
 ```powershell
-# Claude Code (recommended — fullest hook integration)
-pwsh ./scripts/install-claude.ps1
-
-# GitHub Copilot CLI
-pwsh ./scripts/install-copilot.ps1
-
-# OpenCode
-pwsh ./scripts/install-opencode.ps1
-
-# Codex
-pwsh ./scripts/install-codex.ps1
-
-# Multiple CLIs at once
-pwsh ./scripts/install.ps1 -For "claude,copilot"
-
-# All supported CLIs
-pwsh ./scripts/install.ps1 -For all
-
-# Verify
-pwsh ./scripts/doctor.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-all.ps1 `
+  --scope user --profile core --security preserve --memory preserve
 ```
 
-## 2. Reinstall safely
+macOS:
 
-If you want a clean refresh after updating this repo:
-
-```powershell
-pwsh ./scripts/install-copilot.ps1 -Force
-pwsh ./scripts/doctor.ps1
+```bash
+bash scripts/install-all.sh \
+  --scope user --profile core --security preserve --memory preserve
 ```
 
-Normal reinstalls preserve:
-- session state
-- reflections / handoffs
-- accumulated cross-repo skill memory
+Use `install-codex`, `install-claude`, `install-opencode`, or
+`install-copilot` for one host. `core` installs the ten skills and eight core
+agents; `full` adds Browser QA and UI Critic. Use `--dry-run` to preview.
 
-## 3. Per-repo setup
+Project scope writes native repository-local surfaces without clearing
+user-global configuration:
 
-### New repo or repo that is not bootstrapped yet
-
-```powershell
-pwsh ~/.agents/bin/copilot/kit-bootstrap.ps1 "C:\path\to\repo"
+```text
+node cli/dist/kit.cjs install --host all --scope project --repo <path> --profile core --dry-run
 ```
 
-That one command handles:
-- scaffold
-- git-archaeology
-- kit-init
-- wiki-init
+## Use
 
-### Existing repo that already has agent rules
+- Codex: `$build`, `$design`, `$architecture`, `$grill`, `$review`,
+  `$experiment`.
+- Claude Code: `/build`, `/design`, `/architecture`, `/grill`, `/review`,
+  `/experiment`.
+- OpenCode: `/build` or the native installed skills. ACK installs a managed
+  `agentic-kit` primary and preserves an unrelated configured primary unless
+  explicit takeover is requested.
+- Copilot CLI: ask it to use the installed skill; inspect skills with `/skills`
+  and agents with `/agent`.
 
-1. Do the machine install first.
-2. Install the repo-local Copilot surface:
+The primary selects INLINE or LOOP. There is no `/goal` workflow, session-state
+bootstrap, lifecycle-hook runtime, or `.kit` memory requirement.
 
-```powershell
-pwsh ./scripts/install-copilot.ps1 -TargetRepo C:\path\to\repo -InstallRepoTemplate
+Codex stores the ACK primary in `developer_instructions` while keeping custom
+specialists isolated from that policy. OpenCode stores the policy only in the
+`agentic-kit` primary; its specialists cannot load workflow skills or dispatch
+successors. ACK does not use repository `AGENTS.md` as its global control plane
+for either host.
+
+## Repository wiki
+
+Wiki creation is explicit:
+
+```text
+node cli/dist/kit.cjs wiki init --repo <path> --synthesis <reviewed-json>
+node cli/dist/kit.cjs wiki audit --repo <path>
 ```
 
-3. Open the repo in your preferred host.
-4. Run `/kit-migrate` if the repo already has a competing pipeline.
+For an existing unmarked wiki, preview and then explicitly adopt it:
 
-## 4. Daily usage
-
-### Claude Code
-
-```
-/build "add JWT auth"
-/review
-/goal "achieve this autonomously: ..."
+```text
+node cli/dist/kit.cjs wiki reinit --repo <path> --adopt-existing --dry-run --synthesis <reviewed-json>
+node cli/dist/kit.cjs wiki reinit --repo <path> --adopt-existing --yes --synthesis <reviewed-json>
 ```
 
-### GitHub Copilot CLI
+Adoption backs up the complete old wiki under
+`.git/agentic-kit/wiki-backups/`.
 
-```powershell
-pwsh ~/.agents/bin/copilot/kit-build.ps1 "add JWT auth"
-pwsh ~/.agents/bin/copilot/kit-plan.ps1 "<request>"
-pwsh ~/.agents/bin/copilot/kit-review.ps1 "<request>"
-pwsh ~/.agents/bin/copilot/kit-goal.ps1 "achieve this autonomously: ..."
+## Verify this repository
+
+```text
+npm run typecheck --prefix cli
+npm test --prefix cli
+npm run validate --prefix cli
+npm run check:drift --prefix cli
 ```
 
-On current Copilot CLI builds, the same install also exposes inherited skills
-from `~/.agents/skills/`. That means `/skills` can list `goal`, `build`,
-`investigate`, `analyze`, `gstack-*`, `test-strategy`,
-`silent-failure-hunter`, `verification-before-completion`, `skill-import`, and
-similar kit skills directly. The Copilot-specific slash entry skills are
-installed to keep orchestration inline in the main session and only spawn leaf
-agents; the wrapper commands above remain the explicit fallback path.
-
-If the repo has a per-repo Copilot adapter installed, prefer:
-
-```powershell
-pwsh .github\copilot-bin\kit-build.ps1 "<request>"
-```
-
-### OpenCode
-
-```
-/build "add JWT auth"
-/review
-/goal "achieve this autonomously: ..."
-```
-
-OpenCode receives host-native skills at `~/.config/opencode/skills/`. Slash
-commands map to those installed global skill files.
-
-## 5. Quick repo checklist
-
-For a repo to be fully ready, expect:
-
-- `.kit/context/patterns.md`
-- `.kit/context/conventions.md`
-- `.wiki/index.md`
-- `.wiki/features.md`
-- `.github/copilot-instructions.md` (optional but recommended for repo-specific override)
-- `.github/agents/` and `.github/hooks/` when the Copilot adapter is installed per repo
-
-> **Note**: The `.kit/` directory is the canonical location for all kit
-> artifacts. Do not use `.codex/` — that path is no longer supported.
-
-## 6. If something looks off
-
-Run:
-
-```powershell
-pwsh ./scripts/doctor.ps1
-Invoke-Pester ./tests/Pester/
-```
-
-Then check:
-- is `~/.agents/bin/copilot/` populated?
-- did `~/.copilot/copilot-instructions.md` get rewritten?
-- is the repo actually bootstrapped, or only globally installed?
+Use `node cli/dist/kit.cjs doctor ...` to inspect a managed host installation.

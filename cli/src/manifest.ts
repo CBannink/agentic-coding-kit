@@ -5,8 +5,8 @@ import { parseYaml } from "./parsers.js";
 import { resolveExistingContainedPath } from "./paths.js";
 import type { AgentDefinition, Manifest } from "./types.js";
 
-const CORE_SKILLS = ["analyze", "build", "design", "pr-ready", "review", "threat-model", "wiki"];
-const CORE_AGENTS = ["coder", "diagnostician", "repo-scout", "reviewer", "sage", "security-reviewer", "test-engineer"];
+const CORE_SKILLS = ["analyze", "architecture", "build", "design", "experiment", "grill", "pr-ready", "review", "threat-model", "wiki"];
+const CORE_AGENTS = ["architect", "coder", "diagnostician", "repo-scout", "reviewer", "sage", "security-reviewer", "test-engineer"];
 const UI_AGENTS = ["browser-qa", "ui-critic"];
 
 export async function loadManifest(repoRoot: string): Promise<Manifest> {
@@ -41,6 +41,7 @@ export async function validateManifestSemantics(repoRoot: string, manifest: Mani
   for (const agent of manifest.agents) assertCanonicalSource(agent.source, `core/agents/${agent.id}.md`, `agent:${agent.id}`);
   for (const agent of manifest.packs.ui.agents) assertCanonicalSource(agent.source, `packs/ui/agents/${agent.id}.md`, `agent:${agent.id}`);
   assertCanonicalSource(manifest.instruction_fragments.orchestrator, "core/orchestrator.md", "orchestrator");
+  assertCanonicalSource(manifest.instruction_fragments.opencode_primary, "core/opencode-primary.md", "OpenCode primary");
 
   const testEngineer = manifest.agents.find((agent) => agent.id === "test-engineer");
   if (!testEngineer || testEngineer.permission_class !== "test-write") {
@@ -57,6 +58,7 @@ export async function validateManifestSemantics(repoRoot: string, manifest: Mani
 
   const sourcePaths = [
     manifest.instruction_fragments.orchestrator,
+    manifest.instruction_fragments.opencode_primary,
     ...manifest.skills.map((skill) => skill.source),
     ...allAgents(manifest).map((agent) => agent.source),
   ];

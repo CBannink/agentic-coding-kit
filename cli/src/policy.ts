@@ -1,5 +1,5 @@
-export type BuildPlaybook = "INLINE" | "STANDARD" | "DEEP";
-export type DesignPlaybook = "INLINE_DESIGN" | "REVIEWED_DESIGN" | "PROTOTYPE" | "GRILLING";
+export type BuildPlaybook = "INLINE" | "LOOP";
+export type DesignPlaybook = "INLINE_DESIGN" | "DESIGN_LOOP" | "UI_STUDIO";
 
 export interface FailureSignatureInput {
   scenario: string;

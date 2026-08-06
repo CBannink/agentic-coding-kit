@@ -111,6 +111,8 @@ function renderAgent(host: Host, agent: AgentDefinition, prompt: string): Genera
         bash: readOnly
           ? { "*": "ask", "git status*": "allow", "git diff*": "allow", "git show*": "allow", "git grep*": "allow" }
           : { "*": "ask" },
+        skill: "deny",
+        task: "deny",
       },
     };
     return generated(`adapters/opencode/agents/${agent.id}.md`, serializeFrontmatter(data, `${marker(agent.source, sourceId)}\n${prompt}`), sourceId);
@@ -136,9 +138,9 @@ function renderInstruction(host: Host, sourcePath: string, orchestrator: string)
   const hostNote = host === "copilot"
     ? "For Copilot, request the skill in natural language, inspect skills with `/skills`, and select custom agents with `/agent`."
     : host === "codex"
-      ? "Use native skill selection or `$build`, `$design`, `$analyze`, `$review`, `$pr-ready`, `$threat-model`, and `$wiki`."
+      ? "Use native skill selection or `$build`, `$design`, `$architecture`, `$grill`, `$analyze`, `$review`, `$pr-ready`, `$threat-model`, `$wiki`, and `$experiment`. Invoke a named specialist with its `agent_type` and `fork_turns: \"none\"`; never retry a rejected named-agent dispatch as an untyped full-history fork."
       : host === "claude"
-        ? "Use the native `/build`, `/design`, `/analyze`, `/review`, `/pr-ready`, `/threat-model`, and `/wiki` skills."
+        ? "Use the native `/build`, `/design`, `/architecture`, `/grill`, `/analyze`, `/review`, `/pr-ready`, `/threat-model`, `/wiki`, and `/experiment` skills."
         : "Use native skills or the optional thin slash-command forwarders.";
   const content = [
     marker(sourcePath, "instruction:orchestrator"),

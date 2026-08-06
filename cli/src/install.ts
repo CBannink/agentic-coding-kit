@@ -4,8 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import { atomicWriteContained, unlinkContained } from "./paths.js";
 import { mergeManagedBlock, removeManagedBlock } from "./managed-block.js";
-import { getJsoncValue, mergeTomlManagedBlock, removeTomlManagedBlock, setJsoncValue } from "./config-merge.js";
+import { getJsoncValue, getTomlRootString, mergeTomlManagedBlock, removeTomlManagedBlock, setJsoncValue, setTomlRootString } from "./config-merge.js";
 import { loadManifest } from "./manifest.js";
+import { parseFrontmatter, serializeFrontmatter } from "./parsers.js";
 import { renderArtifacts, GENERATED_MARKER } from "./render.js";
 import { resolveHostPaths, type HostPaths, type InstallScope, type PathEnvironment } from "./host-paths.js";
 import type { GeneratedFile, Host, InstallProfile } from "./types.js";
@@ -13,6 +14,16 @@ import type { GeneratedFile, Host, InstallProfile } from "./types.js";
 export type SecurityProfile = "preserve" | "guarded" | "permissive";
 export type MemoryProfile = "preserve" | "wiki-only";
 export type CommandsMode = "auto" | "on" | "off";
+
+export const OPENCODE_PERMISSIVE_PERMISSIONS = {
+  "*": "allow",
+  bash: "allow",
+  edit: "allow",
+  external_directory: "allow",
+  skill: "allow",
+  task: "allow",
+  webfetch: "allow",
+} as const;
 
 export interface InstallOptions {
   repoRoot: string;
@@ -34,7 +45,7 @@ export interface InstallOptions {
 
 interface ManagedFile { path: string; sha256: string; ownership: "managed"; sourceId: string }
 interface ManagedBlock { path: string; id: string; bodyHash: string; format: "markdown" | "toml" }
-interface ConfigChange { path: string; keyPath: (string | number)[]; value: unknown; previousExists: boolean; previousValue: unknown }
+interface ConfigChange { path: string; keyPath: (string | number)[]; value: unknown; previousExists: boolean; previousValue: unknown; format?: "jsonc" | "toml" }
 interface ManagedLine { path: string; line: string }
 export interface InstallManifest {
   schemaVersion: 1; kitVersion: string; host: Host; scope: InstallScope; root: string;
@@ -70,7 +81,26 @@ export async function installHost(options: InstallOptions): Promise<InstallResul
   const rendered = await renderArtifacts(options.repoRoot, canonical, { installProfile: options.profile, commands });
   const desired = mapRenderedFiles(rendered, paths);
   const orchestrator = await readFile(path.join(options.repoRoot, canonical.instruction_fragments.orchestrator), "utf8");
-  if (options.host === "opencode") desired.push(primaryOpenCodeFile(paths));
+  if (options.host === "opencode") {
+    const supplement = await readFile(path.join(options.repoRoot, canonical.instruction_fragments.opencode_primary), "utf8");
+    desired.push(primaryOpenCodeFile(paths, orchestrator, supplement, canonical.instruction_fragments.orchestrator));
+  }
+  if (options.host === "codex") {
+    const skillPaths = canonical.skills.map((skill) => path.join(paths.skills, skill.id, "SKILL.md"));
+    for (const file of desired.filter((item) => samePath(path.dirname(item.target), paths.agents) && path.extname(item.target) === ".toml")) {
+      file.content = isolateCodexSpecialist(file.content, skillPaths);
+    }
+  }
+  if (options.host === "opencode" && options.security === "permissive") {
+    for (const file of desired.filter((item) => samePath(path.dirname(item.target), paths.agents))) {
+      file.content = permissiveOpenCodeAgent(file.content);
+    }
+  }
+  if (options.host === "codex" && options.security === "permissive") {
+    for (const file of desired.filter((item) => samePath(path.dirname(item.target), paths.agents) && path.extname(item.target) === ".toml")) {
+      file.content = permissiveCodexAgent(file.content);
+    }
+  }
   const warnings: string[] = [];
   const files: ManagedFile[] = [];
   const blocks: ManagedBlock[] = [];
@@ -95,10 +125,12 @@ export async function installHost(options: InstallOptions): Promise<InstallResul
   }
 
   const instructionBody = `${orchestrator.trim()}\n\n${invocationNote(options.host)}`;
-  await planAndMergeBlock(paths.instruction, instructionBody, "agentic-coding-kit", "markdown", options, backupRoot, actions);
-  blocks.push({ path: paths.instruction, id: "agentic-coding-kit", bodyHash: sha256(instructionBody), format: "markdown" });
+  if (options.host === "claude" || options.host === "copilot") {
+    await planAndMergeBlock(paths.instruction, instructionBody, "agentic-coding-kit", "markdown", options, backupRoot, actions);
+    blocks.push({ path: paths.instruction, id: "agentic-coding-kit", bodyHash: sha256(instructionBody), format: "markdown" });
+  }
   if (paths.hostInstruction) {
-    const hostBody = "For GitHub Copilot CLI, request kit skills in natural language, inspect available skills with `/skills`, and select custom agents with `/agent` or supported `--agent` invocation. Shared orchestration rules are owned by the root `AGENTS.md` block.";
+    const hostBody = "For GitHub Copilot CLI, request kit skills in natural language, inspect available skills with `/skills`, and select custom agents with `/agent` or supported `--agent` invocation. Shared orchestration rules are owned by the installed Copilot instruction file.";
     await planAndMergeBlock(paths.hostInstruction, hostBody, "agentic-coding-kit-copilot", "markdown", options, backupRoot, actions);
     blocks.push({ path: paths.hostInstruction, id: "agentic-coding-kit-copilot", bodyHash: sha256(hostBody), format: "markdown" });
   }
@@ -107,7 +139,21 @@ export async function installHost(options: InstallOptions): Promise<InstallResul
     const body = codexSecurityBody(options.security);
     await planAndMergeBlock(paths.config, body, "agentic-coding-kit-profile", "toml", options, backupRoot, actions);
     blocks.push({ path: paths.config, id: "agentic-coding-kit-profile", bodyHash: sha256(body), format: "toml" });
-  } else if (options.security !== "preserve") warnings.push(`${options.host} security profile preserved: no validated managed setting is emitted for this host`);
+  } else if (options.security !== "preserve" && !(options.host === "opencode" && options.security === "permissive")) {
+    warnings.push(`${options.host} security profile preserved: no validated managed setting is emitted for this host`);
+  }
+
+  if (options.host === "codex" && paths.config) {
+    const prior = previous?.configChanges.find((item) => samePath(item.path, paths.config!) && item.keyPath.join(".") === "developer_instructions");
+    const current = await readTomlStringValue(paths.config, "developer_instructions", options);
+    const original = prior
+      ? { exists: prior.previousExists, value: prior.previousValue }
+      : current;
+    if (original.exists && typeof original.value !== "string") throw new Error("Codex developer_instructions must be a string");
+    const primary = [original.exists ? String(original.value).trim() : "", instructionBody].filter(Boolean).join("\n\n");
+    const change = await planTomlStringChange(paths.config, "developer_instructions", primary, options, actions);
+    configChanges.push(carryOriginalChange(change, previous));
+  }
 
   if (options.host === "claude" && options.scope === "project" && options.memory === "wiki-only" && paths.localSettings) {
     const change = carryOriginalChange(await planJsoncChange(paths.localSettings, ["autoMemoryEnabled"], false, options, actions), previous);
@@ -124,7 +170,26 @@ export async function installHost(options: InstallOptions): Promise<InstallResul
         ? carryOriginalChange(change, previous)
         : change);
     }
+    if (options.security === "permissive") {
+      const permissionChanges: Array<{ keyPath: (string | number)[]; value: typeof OPENCODE_PERMISSIVE_PERMISSIONS | Record<string, string> }> = [
+        { keyPath: ["permission"], value: OPENCODE_PERMISSIVE_PERMISSIONS },
+        ...desired
+          .filter((file) => samePath(path.dirname(file.target), paths.agents) && path.extname(file.target) === ".md")
+          .map((file) => ({
+            keyPath: ["agent", path.basename(file.target, ".md"), "permission"],
+            value: parseFrontmatter(file.content).data.mode === "subagent"
+              ? { ...OPENCODE_PERMISSIVE_PERMISSIONS, skill: "deny", task: "deny" }
+              : OPENCODE_PERMISSIVE_PERMISSIONS,
+          })),
+      ];
+      for (const { keyPath, value } of permissionChanges) {
+        const change = await planJsoncChange(paths.config, keyPath, value, options, actions);
+        configChanges.push(carryOriginalChange(change, previous));
+      }
+    }
   }
+
+  await retireStaleManagedBlocks(paths, manifestPath, previous, blocks, options, actions);
 
   const output: InstallManifest = { schemaVersion: 1, kitVersion: canonical.kit_version, host: options.host, scope: options.scope, root: paths.root, files, managedBlocks: blocks, configChanges, managedLines, securityProfile: options.security, memoryProfile: options.memory };
   if (!options.dryRun) await writeAbsoluteAtomic(manifestPath, `${JSON.stringify(output, null, 2)}\n`);
@@ -177,7 +242,7 @@ export async function uninstallHost(options: Pick<InstallOptions, "host" | "scop
     if (!options.dryRun) await writeAbsoluteAtomic(block.path, next);
     actions.push(`${options.dryRun ? "PLAN BLOCK REMOVE" : "BLOCK REMOVE"} ${block.path}`);
   }
-  for (const change of manifest.configChanges) await restoreJsoncChange(change, options.dryRun, actions);
+  for (const change of manifest.configChanges) await restoreConfigChange(change, options.dryRun, actions);
   for (const managedLine of manifest.managedLines ?? []) await removeManagedLine(managedLine, options.dryRun, actions);
   if (!options.dryRun) await unlink(manifestPath);
   actions.push(`${options.dryRun ? "PLAN REMOVE" : "REMOVE"} ${manifestPath}`);
@@ -203,7 +268,7 @@ async function planAndWriteFile(target: string, content: string, sourceId: strin
   }
   const effectiveContent = existing ? preserveLocalCodexModelOverride(target, existing, content, previous) : content;
   if (existing !== undefined && existing !== effectiveContent) {
-    const trusted = previous && previous.sourceId === sourceId && sha256(existing) === previous.sha256 && hasGeneratedHeader(existing, sourceId);
+    const trusted = previous && previous.sourceId === sourceId && sha256(existing) === previous.sha256;
     const legacyKitOwned = !previous && isLegacyKitOwned(existing);
     if (!trusted && !legacyKitOwned && !options.force) throw new Error(`Managed file conflict: ${target}`);
     if (!trusted && (legacyKitOwned || options.force)) await backupFile(target, existing, options.dryRun, backupRoot, actions);
@@ -235,7 +300,19 @@ async function planJsoncChange(target: string, keyPath: (string | number)[], val
   const next = setJsoncValue(existing, keyPath, value);
   if (!options.dryRun && next !== existing) await writeAbsoluteAtomic(target, next);
   actions.push(`${options.dryRun ? "PLAN CONFIG" : "CONFIG"} ${target}:${keyPath.join(".")}`);
-  return { path: target, keyPath, value, previousExists: previous.exists, previousValue: previous.value };
+  return { path: target, keyPath, value, previousExists: previous.exists, previousValue: previous.value, format: "jsonc" };
+}
+
+async function planTomlStringChange(target: string, key: string, value: string, options: Pick<InstallOptions, "dryRun" | "clearGlobalConfig">, actions: string[]): Promise<ConfigChange> {
+  let existing = "";
+  if (!(options.clearGlobalConfig && options.dryRun)) {
+    try { existing = await readFile(target, "utf8"); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  }
+  const previous = getTomlRootString(existing, key);
+  const next = setTomlRootString(existing, key, value);
+  if (!options.dryRun && next !== existing) await writeAbsoluteAtomic(target, next);
+  actions.push(`${options.dryRun ? "PLAN CONFIG" : "CONFIG"} ${target}:${key}`);
+  return { path: target, keyPath: [key], value, previousExists: previous.exists, previousValue: previous.value, format: "toml" };
 }
 
 async function readJsoncValue(target: string, keyPath: (string | number)[], options: Pick<InstallOptions, "dryRun" | "clearGlobalConfig">): Promise<{ exists: boolean; value: unknown }> {
@@ -244,9 +321,25 @@ async function readJsoncValue(target: string, keyPath: (string | number)[], opti
   catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return { exists: false, value: undefined }; throw error; }
 }
 
-async function restoreJsoncChange(change: ConfigChange, dryRun: boolean, actions: string[]): Promise<void> {
+async function readTomlStringValue(target: string, key: string, options: Pick<InstallOptions, "dryRun" | "clearGlobalConfig">): Promise<{ exists: boolean; value: unknown }> {
+  if (options.clearGlobalConfig && options.dryRun) return { exists: false, value: undefined };
+  try { return getTomlRootString(await readFile(target, "utf8"), key); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return { exists: false, value: undefined }; throw error; }
+}
+
+async function restoreConfigChange(change: ConfigChange, dryRun: boolean, actions: string[]): Promise<void> {
   let existing: string;
   try { existing = await readFile(change.path, "utf8"); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return; throw error; }
+  if (change.format === "toml") {
+    if (change.keyPath.length !== 1 || typeof change.keyPath[0] !== "string") throw new Error("Managed TOML changes support one root string key");
+    const key = change.keyPath[0];
+    const current = getTomlRootString(existing, key);
+    if (current.value !== change.value) return;
+    const next = setTomlRootString(existing, key, change.previousExists ? String(change.previousValue) : undefined);
+    if (!dryRun) await writeAbsoluteAtomic(change.path, next);
+    actions.push(`${dryRun ? "PLAN CONFIG RESTORE" : "CONFIG RESTORE"} ${change.path}:${key}`);
+    return;
+  }
   const current = getJsoncValue(existing, change.keyPath);
   if (JSON.stringify(current.value) !== JSON.stringify(change.value)) return;
   const next = setJsoncValue(existing, change.keyPath, change.previousExists ? change.previousValue : undefined);
@@ -272,15 +365,48 @@ function codexSecurityBody(security: SecurityProfile): string {
   return lines.join("\n");
 }
 
-function primaryOpenCodeFile(paths: HostPaths): { target: string; content: string; sourceId: string } {
+function permissiveOpenCodeAgent(content: string): string {
+  const parsed = parseFrontmatter(content);
+  const specialist = parsed.data.mode === "subagent";
+  return serializeFrontmatter(
+    {
+      ...parsed.data,
+      permission: specialist
+        ? { ...OPENCODE_PERMISSIVE_PERMISSIONS, skill: "deny", task: "deny" }
+        : OPENCODE_PERMISSIVE_PERMISSIONS,
+    },
+    parsed.content,
+  );
+}
+
+function isolateCodexSpecialist(content: string, skillPaths: string[]): string {
+  const entries = skillPaths.map((skillPath) => [
+    "[[skills.config]]",
+    `path = ${JSON.stringify(skillPath)}`,
+    "enabled = false",
+  ].join("\n"));
+  return `${content.replace(/\s+$/, "")}\n\n[agents]\nenabled = false\n\n${entries.join("\n\n")}\n`;
+}
+
+function permissiveCodexAgent(content: string): string {
+  const sandboxLines = content.match(/^sandbox_mode = "[^"\r\n]+"\r?$/gm) ?? [];
+  if (sandboxLines.length !== 1) throw new Error("Codex agent must contain exactly one sandbox_mode setting");
+  return content.replace(/^sandbox_mode = "[^"\r\n]+"\r?$/m, 'sandbox_mode = "danger-full-access"');
+}
+
+function primaryOpenCodeFile(paths: HostPaths, orchestrator: string, supplement: string, sourcePath: string): { target: string; content: string; sourceId: string } {
   const sourceId = "primary-profile:agentic-kit";
-  const content = `---\ndescription: Main Agentic Coding Kit orchestrator\nmode: primary\n# ${GENERATED_MARKER}; source=core/orchestrator.md; sourceId=${sourceId}\n---\n`;
+  const prompt = [orchestrator.trim(), supplement.trim()].filter(Boolean).join("\n\n");
+  const content = `---\ndescription: Principal engineering orchestrator for end-to-end delivery\nmode: primary\n# ${GENERATED_MARKER}; source=${sourcePath}; sourceId=${sourceId}\n---\n\n${prompt.trim()}\n`;
   return { target: path.join(paths.agents, "agentic-kit.md"), content, sourceId };
 }
 
 function invocationNote(host: Host): string {
-  if (host === "codex") return "Use `$build`, `$design`, `$analyze`, `$review`, `$pr-ready`, `$threat-model`, and `$wiki`.";
-  if (host === "claude") return "Use `/build`, `/design`, `/analyze`, `/review`, `/pr-ready`, `/threat-model`, and `/wiki`.";
+  if (host === "codex") return [
+    "Use `$build`, `$design`, `$architecture`, `$grill`, `$analyze`, `$review`, `$pr-ready`, `$threat-model`, `$wiki`, and `$experiment`.",
+    "Codex delegation: invoke a named specialist with its `agent_type` and `fork_turns: \"none\"`; never retry a rejected named-agent dispatch as an untyped full-history fork.",
+  ].join("\n");
+  if (host === "claude") return "Use `/build`, `/design`, `/architecture`, `/grill`, `/analyze`, `/review`, `/pr-ready`, `/threat-model`, `/wiki`, and `/experiment`.";
   if (host === "opencode") return "Use native skills or installed thin commands; direct specialists use `@agent`.";
   return "Request a kit skill in natural language; use `/skills` for discovery and `/agent` for custom-agent selection.";
 }
@@ -301,7 +427,6 @@ function managedBackupRoot(paths: HostPaths, context?: PathEnvironment): string 
 }
 function sha256(content: string): string { return createHash("sha256").update(content, "utf8").digest("hex"); }
 function samePath(a: string, b: string): boolean { return path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase(); }
-function hasGeneratedHeader(content: string, sourceId: string): boolean { return content.includes(`${GENERATED_MARKER};`) && content.includes(`sourceId=${sourceId}`); }
 function isLegacyKitOwned(content: string): boolean {
   return /@generated by Agentic Coding Kit/i.test(content)
     || /agentic[- ]coding[- ]kit/i.test(content)
@@ -311,14 +436,27 @@ function isLegacyKitOwned(content: string): boolean {
 
 export function preserveLocalCodexModelOverride(target: string, existing: string, generated: string, previous?: ManagedFile): string {
   if (!target.endsWith(".toml")) return generated;
-  const normalizedExisting = existing.replace(/\r\n/g, "\n");
-  const match = normalizedExisting.match(/\nmodel = "([^"]+)"\nmodel_reasoning_effort = "([^"]+)"\n?$/);
-  if (!match) return generated;
-  const withoutOverride = normalizedExisting.slice(0, match.index! + 1);
-  const trustedModelOnlyChange = withoutOverride === generated.replace(/\r\n/g, "\n")
-    || Boolean(previous && previous.sourceId && (sha256(withoutOverride) === previous.sha256 || sha256(normalizedExisting) === previous.sha256));
-  if (!trustedModelOnlyChange) return generated;
-  return `${generated.replace(/\r\n/g, "\n").trimEnd()}\nmodel = "${match[1]}"\nmodel_reasoning_effort = "${match[2]}"\n`;
+  try {
+    const model = getTomlRootString(existing, "model");
+    const effort = getTomlRootString(existing, "model_reasoning_effort");
+    if (!model.exists || !model.value || !effort.exists || !effort.value) return generated;
+
+    const withoutModel = setTomlRootString(existing, "model", undefined);
+    const withoutOverrides = setTomlRootString(withoutModel, "model_reasoning_effort", undefined);
+    const normalizedBase = withoutOverrides.replace(/\r\n/g, "\n").trimEnd();
+    const normalizedGenerated = generated.replace(/\r\n/g, "\n").trimEnd();
+    const trustedModelOnlyChange = normalizedBase === normalizedGenerated
+      || Boolean(previous && previous.sourceId && [withoutOverrides, `${normalizedBase}\n`, normalizedBase].some((candidate) => sha256(candidate) === previous.sha256));
+    if (!trustedModelOnlyChange) return generated;
+
+    return setTomlRootString(
+      setTomlRootString(generated, "model", model.value),
+      "model_reasoning_effort",
+      effort.value,
+    );
+  } catch {
+    return generated;
+  }
 }
 
 async function anotherInstallOwnsBlock(paths: HostPaths, currentManifest: string, blockPath: string): Promise<boolean> {
@@ -331,6 +469,32 @@ async function anotherInstallOwnsBlock(paths: HostPaths, currentManifest: string
     if (manifest?.managedBlocks.some((block) => samePath(block.path, blockPath))) return true;
   }
   return false;
+}
+
+async function retireStaleManagedBlocks(
+  paths: HostPaths,
+  currentManifest: string,
+  previous: InstallManifest | undefined,
+  current: ManagedBlock[],
+  options: Pick<InstallOptions, "dryRun" | "force">,
+  actions: string[],
+): Promise<void> {
+  const currentKeys = new Set(current.map((block) => `${path.resolve(block.path).toLowerCase()}#${block.id}`));
+  const candidates = previous?.managedBlocks ?? (
+    paths.host === "codex" || paths.host === "opencode"
+      ? [{ path: paths.instruction, id: "agentic-coding-kit", bodyHash: "", format: "markdown" as const }]
+      : []
+  );
+  for (const block of candidates) {
+    if (currentKeys.has(`${path.resolve(block.path).toLowerCase()}#${block.id}`)) continue;
+    if (await anotherInstallOwnsBlock(paths, currentManifest, block.path)) continue;
+    let existing: string;
+    try { existing = await readFile(block.path, "utf8"); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") continue; throw error; }
+    if (!existing.includes("agentic-coding-kit:start")) continue;
+    const next = block.format === "toml" ? removeTomlManagedBlock(existing, options.force) : removeManagedBlock(existing, options.force);
+    if (!options.dryRun && next !== existing) await writeAbsoluteAtomic(block.path, next);
+    actions.push(`${options.dryRun ? "PLAN BLOCK RETIRE" : "BLOCK RETIRE"} ${block.path}#${block.id}`);
+  }
 }
 
 function carryOriginalChange(change: ConfigChange, previous: InstallManifest | undefined): ConfigChange {

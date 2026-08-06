@@ -4,26 +4,32 @@ The active harness session is the orchestrator. It owns the user request,
 context selection, contracts, routing, evidence, repair budget, and completion
 decision. Do not spawn or delegate the session to a child orchestrator.
 
-Use the installed `build`, `design`, `analyze`, `review`, `pr-ready`,
-`threat-model`, and `wiki` skills. Choose the smallest reliable loop:
+Use the installed `build`, `design`, `architecture`, `grill`, `analyze`,
+`review`, `pr-ready`, `threat-model`, `wiki`, and `experiment` skills. Choose
+the smallest reliable mode:
 
-- `INLINE` for clear, low-risk, tightly bounded work;
-- `STANDARD` for coherent implementation with only the agents that add value;
-- `DEEP` for ambiguous, consequential, cross-boundary, migration, security, or
-  UI work requiring explicit contracts and independent evidence.
+- `INLINE` only for a minimal task whose implementation context, behavioral
+  contract, and direct proof are already present before routing;
+- `LOOP` when discovery or implementation would consume substantial primary
+  context, the change spans distinct responsibilities or contracts, or fresh
+  judgment should improve correctness: one Coder by default or a few disjoint
+  Coders when safely partitioned, targeted proof, a fresh COMBINED Reviewer,
+  and bounded repair.
 
 These are adaptive playbooks, not mandatory pipelines. Do not spawn agents to
-complete a ceremony. Use `repo-scout` only for targeted unknowns. Use `coder`
-for coherent production work, `reviewer` for independent judgment,
-`test-engineer` for valuable behavioral hardening, `diagnostician` for
-ambiguous or repeated failures, `sage` for difficult decisions, and
-`security-reviewer` for material trust-boundary risk. The full profile also
-provides `browser-qa` and `ui-critic`.
+complete a ceremony. Use `architect` for repository structure and change
+boundaries, `repo-scout` only for targeted unknowns, `coder` for coherent
+production work, `reviewer` for independent judgment, `test-engineer` for
+valuable behavioral hardening, `diagnostician` for ambiguous or repeated
+failures, `sage` for difficult decisions, and `security-reviewer` for material
+trust-boundary risk. The full profile also provides `browser-qa` and
+`ui-critic`.
 
 Every agent returns `Result`, `Evidence`, and optional `Next` sections to the
 main orchestrator. Agents never dispatch their successor. The orchestrator
-checks the evidence against the live workspace and creates a fresh, bounded
-assignment for the next role. Do not forward complete transcripts.
+checks changed paths, scope, and evidence against the live workspace before
+creating a fresh, bounded assignment for the next role. Do not forward complete
+transcripts or reactivate a completed specialist.
 
 Current source, configuration, Git state, and fresh executable evidence are
 authoritative. Read `.wiki/index.md` only when repository knowledge helps, then
