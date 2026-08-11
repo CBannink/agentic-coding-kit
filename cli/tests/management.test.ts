@@ -8,7 +8,7 @@ import { doctorHost } from "../src/doctor.js";
 import { installHost, uninstallHost, type InstallOptions } from "../src/install.js";
 import { resolveHostPaths, type PathEnvironment } from "../src/host-paths.js";
 import { migrateLegacy } from "../src/migrate.js";
-import { parseFrontmatter, parseJsonc } from "../src/parsers.js";
+import { parseFrontmatter, parseJsonc, parseToml } from "../src/parsers.js";
 
 const execFile = promisify(execFileCallback);
 const sourceRoot = path.resolve(import.meta.dirname, "..", "..");
@@ -53,7 +53,9 @@ describe("management CLI infrastructure", () => {
     await expect(readFile(path.join(fixture.repo, ".kit", "context", "memory.md"), "utf8")).resolves.toBe("legacy fact\n");
     await expect(readFile(path.join(result.backupRoot, ".kit", "context", "memory.md"), "utf8")).resolves.toBe("legacy fact\n");
     expect(await readFile(path.join(fixture.repo, ".gitignore"), "utf8")).toContain(".agentic-kit-backup/");
-    expect(await readFile(path.join(fixture.repo, "AGENTS.md"), "utf8")).toContain("agentic-coding-kit:start");
+    await expect(readFile(path.join(fixture.repo, "AGENTS.md"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    const paths = await resolveHostPaths("codex", "project", fixture.repo, fixture.context);
+    expect(parseToml(await readFile(paths.config!, "utf8"))).toHaveProperty("developer_instructions", expect.stringContaining("Agentic Coding Kit Engineering Primary"));
   }, 30_000);
 
   it("rejects linked legacy migration state without creating a backup", async () => {
@@ -70,9 +72,11 @@ describe("management CLI infrastructure", () => {
 
   it("requires explicit consent for permissive mode and auto-selects the OpenCode primary", async () => {
     const fixture = await environment("kit-profiles-");
+    const canonicalPrimary = await readFile(path.join(sourceRoot, "core/opencode-primary.md"), "utf8");
     await expect(installHost({ ...baseOptions("codex", "user", fixture), security: "permissive" })).rejects.toThrow(/requires.*--yes/i);
     const opencode = baseOptions("opencode", "user", fixture);
     const paths = await resolveHostPaths("opencode", "user", undefined, fixture.context);
+    const orchestrator = await readFile(path.join(sourceRoot, "core/orchestrator.md"), "utf8");
     await mkdir(path.dirname(paths.config!), { recursive: true });
     await writeFile(paths.config!, '{\n  // retain\n  "provider": { "custom": true }\n}\n', "utf8");
     await installHost(opencode);
@@ -80,7 +84,7 @@ describe("management CLI infrastructure", () => {
     const primary = parseFrontmatter(await readFile(path.join(paths.agents, "agentic-kit.md"), "utf8"));
     expect(primary.data).toMatchObject({ mode: "primary" });
     expect(primary.data).not.toHaveProperty("permission");
-    expect(primary.content.trim()).toBe("");
+    expect(primary.content.trim()).toBe(`${orchestrator.trim()}\n\n${canonicalPrimary.trim()}`);
     await installHost({ ...opencode, setDefaultAgent: true });
     expect(parseJsonc(await readFile(paths.config!, "utf8"))).toMatchObject({ provider: { custom: true }, default_agent: "agentic-kit" });
     await uninstallHost({ ...opencode, setDefaultAgent: true });
@@ -113,14 +117,14 @@ describe("management CLI infrastructure", () => {
     await expect(installHost({ ...options, scope: "project", repo: fixture.repo, clearGlobalConfig: true, yes: true })).rejects.toThrow(/scope user/i);
     const result = await installHost({ ...options, clearGlobalConfig: true, yes: true });
 
-    expect(await readFile(paths.instruction, "utf8")).toContain("agentic-coding-kit:start");
+    await expect(readFile(paths.instruction, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    expect(parseToml(await readFile(paths.config!, "utf8"))).toHaveProperty("developer_instructions", expect.stringContaining("Agentic Coding Kit Engineering Primary"));
     await expect(readFile(path.join(paths.agents, "old-agent.toml"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
     await expect(readFile(path.join(paths.skills, "old-skill", "SKILL.md"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
     await expect(readFile(path.join(paths.skills, ".system", "host-owned.md"), "utf8")).resolves.toBe("host owned\n");
     await expect(readFile(path.join(codexCompatibilitySkills, ".system", "host-owned.md"), "utf8")).resolves.toBe("host owned\n");
     await expect(readFile(path.join(codexCompatibilitySkills, "old-compatibility-skill", "SKILL.md"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
     await expect(readFile(path.join(path.dirname(paths.agents), "rules", "old-rule", "rule.md"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
-    await expect(readFile(paths.config!, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
 
     expect(result.actions.some((action) => action.startsWith("RESET "))).toBe(true);
     await expect(readdir(path.join(fixture.home, ".agentic-kit-backup"))).rejects.toMatchObject({ code: "ENOENT" });

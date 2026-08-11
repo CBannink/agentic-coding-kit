@@ -26,6 +26,6 @@ For exact upstream license terms, see those repositories.
 
 Everything else in this repo — the lifecycle scripts, classifiers, validators,
 the self-improvement loop, the meta-pattern (harness-propose / harness-review),
-adapter system, installer, Docker setup, doctor, benchmark runner, and the
+adapter system, installer, Docker setup, doctor, comparison runner, and the
 overall architectural composition — is original work covered by the MIT
 license in `LICENSE`.

@@ -127,7 +127,7 @@ not clear user-global harness configuration.
 | `pr-ready` | Repair and package a diff for efficient human PR review. |
 | `threat-model` | Read-only trust-boundary, attack-path, control, and mitigation analysis. |
 | `wiki` | Initialize, reinitialize, or audit curated repository engineering knowledge. |
-| `experiment` | Compare prompts, agents, models, algorithms, benchmarks, or harness variants under a frozen evaluation. |
+| `experiment` | Compare prompts, agents, models, algorithms, or harness variants under a frozen evaluation. |
 
 These are general development workflows. They are not ten mandatory stages.
 The orchestrator chooses the smallest useful loop and may work inline for a
