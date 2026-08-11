@@ -95,7 +95,7 @@
     {
       "path": "adapters/claude/skills/experiment/SKILL.md",
       "sourceId": "skill:experiment:SKILL.md",
-      "sha256": "3e0c91919a1d92621fdeea708702fbce4cc3d082c096655b8c098218075b8d23"
+      "sha256": "d9fdeb8e7ae675d64ea24df4736d338238359f98078219fd2482015f6aca638f"
     },
     {
       "path": "adapters/claude/skills/grill/SKILL.md",
@@ -280,7 +280,7 @@
     {
       "path": "adapters/codex/skills/experiment/SKILL.md",
       "sourceId": "skill:experiment:SKILL.md",
-      "sha256": "3e0c91919a1d92621fdeea708702fbce4cc3d082c096655b8c098218075b8d23"
+      "sha256": "d9fdeb8e7ae675d64ea24df4736d338238359f98078219fd2482015f6aca638f"
     },
     {
       "path": "adapters/codex/skills/grill/SKILL.md",
@@ -465,7 +465,7 @@
     {
       "path": "adapters/copilot/skills/experiment/SKILL.md",
       "sourceId": "skill:experiment:SKILL.md",
-      "sha256": "3e0c91919a1d92621fdeea708702fbce4cc3d082c096655b8c098218075b8d23"
+      "sha256": "d9fdeb8e7ae675d64ea24df4736d338238359f98078219fd2482015f6aca638f"
     },
     {
       "path": "adapters/copilot/skills/grill/SKILL.md",
@@ -700,7 +700,7 @@
     {
       "path": "adapters/opencode/skills/experiment/SKILL.md",
       "sourceId": "skill:experiment:SKILL.md",
-      "sha256": "3e0c91919a1d92621fdeea708702fbce4cc3d082c096655b8c098218075b8d23"
+      "sha256": "d9fdeb8e7ae675d64ea24df4736d338238359f98078219fd2482015f6aca638f"
     },
     {
       "path": "adapters/opencode/skills/grill/SKILL.md",

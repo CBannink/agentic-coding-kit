@@ -2,7 +2,7 @@
 name: experiment
 description: >-
   Compare prompts, agents, harness configurations, models, algorithms,
-  benchmarks, or other variants under a controlled evaluation.
+  or other variants under a controlled evaluation.
 ---
 
 # Experiment
@@ -12,7 +12,7 @@ variants. Do not use for an obvious fix, ordinary feature, one design prototype,
 or subjective exploration without a defensible evaluation.
 
 ```text
-Charter -> Validate benchmark -> Freeze -> Compare
+Charter -> Validate evaluation -> Freeze -> Compare
 -> Challenge winner -> Decide A | B | INCONCLUSIVE
 ```
 
@@ -29,7 +29,7 @@ Budget: maximum runs, time, and cost
 Promotion: NONE; adoption returns through Build
 ```
 
-Validate that the benchmark can distinguish the declared outcome before
+Validate that the evaluation can distinguish the declared outcome before
 examining candidate results, then freeze fixtures, scorer, versions, budgets,
 and ordering protocol. Build the smallest meaningful variants in isolated
 workspaces or explicitly experimental paths. Keep every variable equal except
@@ -38,7 +38,7 @@ predeclared threshold.
 
 Report aggregate and task-level results, important failures, variance,
 maintainability, and cost. Challenge an apparent winner on held-out or repeated
-cases. A benchmark or scorer correction after results invalidates every arm.
+cases. An evaluation or scorer correction after results invalidates every arm.
 Choose `A`, `B`, or `INCONCLUSIVE`; never promote by momentum.
 
 ## Integrity
@@ -49,7 +49,7 @@ subjective review and do not use an unblinded author as the sole judge.
 
 Randomize arm order, include repeated runs when model variance matters, and
 report every attempt. Contamination, scorer changes, missing arms, unequal
-budgets, or an invalid benchmark make the affected comparison `INCONCLUSIVE`
+budgets, or an invalid evaluation make the affected comparison `INCONCLUSIVE`
 until it is rerun. Token or latency savings do not count as success when goal
 retention, behavior, maintainability, safety, or evidence quality violates a
 guardrail.

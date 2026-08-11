@@ -5,10 +5,49 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
-import { auditWiki, initWiki, inventoryRepository, reinitWiki } from "../src/wiki.js";
+import { auditWiki, initWiki as writeWiki, inventoryRepository, reinitWiki as rewriteWiki } from "../src/wiki.js";
 
 const execFile = promisify(execFileCallback);
 const cliRoot = path.resolve(import.meta.dirname, "..");
+type WikiWriteOptions = Parameters<typeof writeWiki>[0];
+
+async function initWiki(options: WikiWriteOptions) {
+  return writeWiki(await withCompleteSynthesis(options));
+}
+
+async function reinitWiki(options: WikiWriteOptions) {
+  return rewriteWiki(await withCompleteSynthesis(options));
+}
+
+async function withCompleteSynthesis(options: WikiWriteOptions): Promise<WikiWriteOptions> {
+  const synthesisPath = options.synthesis ?? ".git/agentic-kit/test-reviewed-synthesis.json";
+  const absolute = path.join(options.repo, synthesisPath);
+  let synthesis: { schemaVersion: 1 | 2; pages: Array<Record<string, unknown>> } = { schemaVersion: 2, pages: [] };
+  if (options.synthesis) synthesis = JSON.parse(await readFile(absolute, "utf8")) as typeof synthesis;
+  const profile = await inventoryRepository(options.repo);
+  const roots = [".wiki"];
+  if (options.wikiSplit === "nested" && profile.workspaces.length > 1) roots.push(...profile.workspaces.map((workspace) => `${workspace.path}/.wiki`));
+  const evidencePath = profile.manifests[0]!;
+  const standardPages = ["repository-map.md", "engineering.md", "coding.md", "reviewing.md", "testing.md", "security.md"];
+  const outputPath = (page: string): string => page.startsWith(".wiki/") || page.includes("/.wiki/") ? page : `.wiki/${page}`;
+  const existing = new Set(synthesis.pages.map((page) => outputPath(String(page.page))));
+  for (const root of roots) {
+    for (const page of standardPages) {
+      const fullPage = `${root}/${page}`;
+      if (existing.has(fullPage)) continue;
+      const id = `reviewed-${page.replace(".md", "")}`;
+      const section = synthesis.schemaVersion === 2
+        ? { id, heading: `Reviewed ${page.replace(".md", "")}`, useWhen: [page.replace(".md", "")], claimType: "fact", body: `The reviewed ${fullPage} guidance is grounded in the cited current manifest and remains subordinate to live source.`, evidence: [{ path: evidencePath }] }
+        : { heading: `Reviewed ${page.replace(".md", "")}`, body: `The reviewed ${fullPage} guidance is grounded in the cited current manifest and remains subordinate to live source.`, evidence: [{ path: evidencePath }] };
+      synthesis.pages.push(synthesis.schemaVersion === 2
+        ? { page: fullPage, summary: `Reviewed ${page.replace(".md", "-")} guidance.`, useWhen: [page.replace(".md", "")], sections: [section] }
+        : { page: fullPage, sections: [section] });
+    }
+  }
+  await mkdir(path.dirname(absolute), { recursive: true });
+  await writeFile(absolute, `${JSON.stringify(synthesis, null, 2)}\n`, "utf8");
+  return { ...options, synthesis: synthesisPath };
+}
 
 type Shape = keyof typeof shapes;
 const shapes = {
@@ -98,8 +137,14 @@ describe("wiki repository fixtures", () => {
         expect(profile.size).toBe("medium");
         expect(profile.workspaces.length).toBeGreaterThan(1);
       }
-      if (shape === "generated-vendor-heavy") expect(profile.meaningfulFiles).toEqual(expect.not.arrayContaining(["dist/generated.js", "vendor/library.js", "coverage/report.js"]));
-      if (shape === "legacy-kit") expect(profile.meaningfulFiles.some((file) => file.startsWith(".kit/"))).toBe(false);
+      if (shape === "generated-vendor-heavy") {
+        expect(profile.meaningfulFiles).toEqual(expect.not.arrayContaining(["dist/generated.js", "vendor/library.js", "coverage/report.js"]));
+        expect(profile.excludedRoots).toEqual(["coverage", "dist", "vendor"]);
+      }
+      if (shape === "legacy-kit") {
+        expect(profile.meaningfulFiles.some((file) => file.startsWith(".kit/"))).toBe(false);
+        expect(profile.excludedRoots).toEqual([".kit"]);
+      }
       if (shape === "small-ts") {
         expect(profile.packageManager).toBe("pnpm");
         expect(profile.commands.some((command) => command.command === "pnpm run test")).toBe(true);
@@ -117,16 +162,32 @@ describe("wiki repository fixtures", () => {
     }
   }, 30_000);
 
+  it("requires reviewed synthesis for writes while retaining no-synthesis preview", async () => {
+    const repo = await createFixture("small-ts");
+
+    await expect(writeWiki({ repo, wikiSplit: "root", dryRun: false })).rejects.toThrow(/requires reviewed --synthesis/i);
+    await expect(rewriteWiki({ repo, wikiSplit: "root", dryRun: false })).rejects.toThrow(/requires reviewed --synthesis/i);
+    expect((await writeWiki({ repo, wikiSplit: "root", dryRun: true })).status).toBe("DRY RUN");
+    await expect(readFile(path.join(repo, ".wiki/index.md"), "utf8")).rejects.toThrow();
+
+    const result = await initWiki({ repo, wikiSplit: "root", dryRun: false });
+    expect(result.status).toBe("WIKI INITIALIZED");
+    expect((await auditWiki({ repo })).findings).toEqual([]);
+  });
+
   it("initializes required pages and only evidence-justified optional pages", async () => {
     const small = await createFixture("small-ts");
     const result = await initWiki({ repo: small, wikiSplit: "auto", dryRun: false });
-    expect(result.files).toEqual(expect.arrayContaining([".wiki/index.md", ".wiki/repository-map.md", ".wiki/architecture.md", ".wiki/engineering.md", ".wiki/testing.md"]));
+    const required = ["index.md", "repository-map.md", "engineering.md", "coding.md", "reviewing.md", "testing.md", "security.md"];
+    expect(result.files.filter((file) => /^\.wiki\/[^/]+\.md$/.test(file))).toEqual(required.map((page) => `.wiki/${page}`).sort());
+    expect(result.files).not.toContain(".wiki/architecture.md");
     expect(result.files).not.toEqual(expect.arrayContaining([".wiki/frontend.md", ".wiki/backend.md", ".wiki/ai-ml.md", ".wiki/desktop.md"]));
     for (const page of result.files) expect((await readFile(path.join(small, page), "utf8")).split("\n").length).toBeLessThanOrEqual(page.endsWith("index.md") ? 100 : 220);
 
     const medium = await createFixture("medium-fe-be");
     const mediumResult = await initWiki({ repo: medium, wikiSplit: "auto", dryRun: false });
-    expect(mediumResult.files).toEqual(expect.arrayContaining([".wiki/architecture.md", ".wiki/frontend.md", ".wiki/backend.md", ".wiki/workspaces/web.md", ".wiki/workspaces/api.md"]));
+    expect(mediumResult.files).toEqual(expect.arrayContaining([".wiki/engineering.md", ".wiki/coding.md", ".wiki/reviewing.md", ".wiki/security.md", ".wiki/frontend.md", ".wiki/backend.md", ".wiki/workspaces/web.md", ".wiki/workspaces/api.md"]));
+    expect(mediumResult.files).not.toContain(".wiki/architecture.md");
     expect(mediumResult.files).not.toContain(".wiki/ai-ml.md");
     const frontend = await readFile(path.join(medium, ".wiki/frontend.md"), "utf8");
     const backend = await readFile(path.join(medium, ".wiki/backend.md"), "utf8");
@@ -151,7 +212,11 @@ describe("wiki repository fixtures", () => {
     expect((await initWiki({ repo: rootRepo, wikiSplit: "root", dryRun: false })).files.some((file) => file.includes("workspaces/"))).toBe(false);
     const nestedRepo = await createFixture("nested-workspaces");
     const nested = await initWiki({ repo: nestedRepo, wikiSplit: "nested", dryRun: false });
-    expect(nested.files).toEqual(expect.arrayContaining(["packages/a/.wiki/index.md", "packages/a/.wiki/repository-map.md", "packages/a/.wiki/engineering.md"]));
+    for (const workspace of ["a", "b"]) {
+      expect(nested.files).toEqual(expect.arrayContaining(["index.md", "repository-map.md", "engineering.md", "coding.md", "reviewing.md", "testing.md", "security.md"].map((page) => `packages/${workspace}/.wiki/${page}`)));
+    }
+    await rm(path.join(nestedRepo, "packages/a/.wiki/security.md"));
+    expect((await auditWiki({ repo: nestedRepo })).findings).toContainEqual(expect.objectContaining({ code: "MISSING_REQUIRED_PAGE", page: "packages/a/.wiki/security.md" }));
   }, 30_000);
 
   it("honors explicit workspace negations instead of re-including excluded manifests", async () => {
@@ -167,7 +232,7 @@ describe("wiki repository fixtures", () => {
     const profile = await inventoryRepository(repo);
     expect(profile.workspaces.map((workspace) => workspace.path)).toContain("packages/included");
     expect(profile.workspaces.map((workspace) => workspace.path)).not.toContain("packages/excluded");
-  });
+  }, 60_000);
 
   it("supports multi-level and brace workspace globs with nested negation precedence", async () => {
     const repo = await createRepository({
@@ -237,11 +302,23 @@ describe("wiki repository fixtures", () => {
     expect(await readFile(target, "utf8")).toContain("Keep this repository-specific review note.");
   });
 
+  it("rejects a preserved human suffix when the complete reinitialized page exceeds its ceiling", async () => {
+    const repo = await createFixture("small-ts");
+    await initWiki({ repo, wikiSplit: "root", dryRun: false });
+    const target = path.join(repo, ".wiki/engineering.md");
+    const oversized = `${await readFile(target, "utf8")}\n## Human notes\n\n${"curated ".repeat(500)}\n`;
+    await writeFile(target, oversized, "utf8");
+
+    await expect(reinitWiki({ repo, wikiSplit: "root", dryRun: false })).rejects.toThrow(/engineering\.md.*500-word|500-word.*engineering\.md/i);
+    expect(await readFile(target, "utf8")).toBe(oversized);
+  });
+
   it("persists reviewed architect synthesis with exact source and symbol evidence", async () => {
     const repo = await createRepository({
       "package.json": JSON.stringify({ name: "architect-app", scripts: { test: "vitest" } }),
       "src/main.ts": "export function bootstrap() { return createApiClient(); }\nfunction createApiClient() { return 'api'; }\n",
       "src/api/client.ts": "export function requestApi() { return '/v1'; }\n",
+      "src/api/errors.ts": "export function formatApiError() { return 'error'; }\n",
       "src/auth/session.ts": "export function requireSession() { return true; }\n",
       "src/ipc/bridge.ts": "export function invokeNative() { return 'ok'; }\n",
     }, "kit-wiki-synthesis-");
@@ -249,8 +326,8 @@ describe("wiki repository fixtures", () => {
     const synthesis = {
       schemaVersion: 1,
       pages: [
-        { page: "architecture.md", sections: [{ heading: "Runtime control flow", body: "Application startup constructs the API boundary before serving repository behavior.", evidence: [{ path: "src/main.ts", symbols: ["bootstrap", "createApiClient"] }] }] },
-        { page: "engineering.md", sections: [{ heading: "Code composition convention", body: "Repository modules expose named functions at explicit boundary files for callers to reuse.", evidence: [{ path: "src/api/client.ts", symbols: ["requestApi"] }] }] },
+        { page: "engineering.md", sections: [{ heading: "Runtime control flow", body: "Application startup constructs the API boundary before serving repository behavior.", evidence: [{ path: "src/main.ts", symbols: ["bootstrap", "createApiClient"] }] }] },
+        { page: "coding.md", sections: [{ heading: "Code composition convention", body: "Repository modules expose named functions at explicit boundary files for callers to reuse.", evidence: [{ path: "src/api/client.ts", symbols: ["requestApi"] }, { path: "src/api/errors.ts", symbols: ["formatApiError"] }] }] },
         { page: "api.md", sections: [{ heading: "Existing API access", body: "Outbound API work uses the existing request helper rather than introducing another client.", evidence: [{ path: "src/api/client.ts", symbols: ["requestApi"] }] }] },
         { page: "auth-security.md", sections: [{ heading: "Session boundary", body: "Protected behavior is expected to cross the established session guard boundary.", evidence: [{ path: "src/auth/session.ts", symbols: ["requireSession"] }] }] },
         { page: "ipc.md", sections: [{ heading: "Native invocation boundary", body: "Renderer-to-native requests pass through the tracked IPC bridge helper.", evidence: [{ path: "src/ipc/bridge.ts", symbols: ["invokeNative"] }] }] },
@@ -259,9 +336,10 @@ describe("wiki repository fixtures", () => {
     await mkdir(path.dirname(path.join(repo, synthesisPath)), { recursive: true });
     await writeFile(path.join(repo, synthesisPath), `${JSON.stringify(synthesis, null, 2)}\n`, "utf8");
     const result = await initWiki({ repo, wikiSplit: "root", dryRun: false, synthesis: synthesisPath });
-    expect(result.files).toEqual(expect.arrayContaining([".wiki/architecture.md", ".wiki/engineering.md", ".wiki/api.md", ".wiki/auth-security.md", ".wiki/ipc.md"]));
-    expect(await readFile(path.join(repo, ".wiki/architecture.md"), "utf8")).toContain("`src/main.ts#bootstrap`");
-    expect(await readFile(path.join(repo, ".wiki/engineering.md"), "utf8")).toContain("Code composition convention");
+    expect(result.files).toEqual(expect.arrayContaining([".wiki/engineering.md", ".wiki/coding.md", ".wiki/api.md", ".wiki/auth-security.md", ".wiki/ipc.md"]));
+    expect(result.files).not.toContain(".wiki/architecture.md");
+    expect(await readFile(path.join(repo, ".wiki/engineering.md"), "utf8")).toContain("`src/main.ts#bootstrap`");
+    expect(await readFile(path.join(repo, ".wiki/coding.md"), "utf8")).toContain("Code composition convention");
     expect(await readFile(path.join(repo, ".wiki/api.md"), "utf8")).toContain("Existing API access");
     expect(await readFile(path.join(repo, ".wiki/auth-security.md"), "utf8")).toContain("Session boundary");
     expect(await readFile(path.join(repo, ".wiki/ipc.md"), "utf8")).toContain("Native invocation boundary");
@@ -270,6 +348,173 @@ describe("wiki repository fixtures", () => {
     synthesis.pages[0]!.sections[0]!.evidence[0]!.symbols = ["missingSymbol"];
     await writeFile(path.join(repo, synthesisPath), `${JSON.stringify(synthesis, null, 2)}\n`, "utf8");
     await expect(reinitWiki({ repo, wikiSplit: "root", dryRun: false, synthesis: synthesisPath })).rejects.toThrow(/symbol not found/i);
+  });
+
+  it("routes schema-v2 coding patterns to exact sections and detects stale evidence", async () => {
+    const repo = await createRepository({
+      "package.json": JSON.stringify({ name: "patterns", scripts: { test: "vitest" } }),
+      "src/api/client.ts": "export function requestApi() { if (!ready()) return 'offline'; return '/v1'; }\nfunction ready() { return true; }\n",
+      "src/api/errors.ts": "export function translateProviderError(value: unknown) { if (!value) return 'unknown'; return String(value); }\n",
+      "tests/api.test.ts": "// behavior test\n",
+    }, "kit-wiki-v2-");
+    const synthesisPath = ".git/agentic-kit/architect-synthesis.json";
+    const synthesis = {
+      schemaVersion: 2,
+      pages: [{
+        page: "coding.md",
+        summary: "Repository-specific implementation and verification patterns.",
+        useWhen: ["implementation", "api client"],
+        sections: [{
+          id: "branching-and-errors",
+          heading: "Branching and errors",
+          useWhen: ["conditional logic", "provider error"],
+          claimType: "convention",
+          body: "Boundary helpers use guard clauses and translate provider failures before returning them to callers.",
+          evidence: [
+            { path: "src/api/client.ts", symbols: ["requestApi"] },
+            { path: "src/api/errors.ts", symbols: ["translateProviderError"] },
+          ],
+        }],
+      }],
+    };
+    await mkdir(path.dirname(path.join(repo, synthesisPath)), { recursive: true });
+    await writeFile(path.join(repo, synthesisPath), `${JSON.stringify(synthesis, null, 2)}\n`, "utf8");
+    await initWiki({ repo, wikiSplit: "root", dryRun: false, synthesis: synthesisPath });
+    const index = await readFile(path.join(repo, ".wiki/index.md"), "utf8");
+    expect(index).toContain("coding.md#branching-and-errors");
+    expect(index).toContain(synthesis.pages[0]!.summary);
+    expect(await readFile(path.join(repo, ".wiki/coding.md"), "utf8")).toContain('<a id="branching-and-errors"></a>');
+    expect((await auditWiki({ repo })).findings).toEqual([]);
+
+    await writeFile(path.join(repo, "package.json"), JSON.stringify({ name: "patterns-updated", scripts: { test: "vitest" } }), "utf8");
+    await writeFile(path.join(repo, "src/api/errors.ts"), "export const replacement = 'changed';\n", "utf8");
+    expect((await auditWiki({ repo })).findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "STALE_EVIDENCE", page: "engineering.md", detail: "package.json" }),
+      expect.objectContaining({ code: "STALE_EVIDENCE", page: "coding.md", detail: "src/api/errors.ts" }),
+      expect.objectContaining({ code: "MISSING_SYMBOL", page: "coding.md", detail: "src/api/errors.ts#translateProviderError" }),
+    ]));
+  });
+
+  it("applies schema-v2 synthesis and complete audit invariants to an explicit nested wiki root", async () => {
+    const repo = await createFixture("nested-workspaces");
+    const synthesisPath = ".git/agentic-kit/architect-synthesis.json";
+    const synthesis = {
+      schemaVersion: 2,
+      pages: [{
+        page: "packages/a/.wiki/coding.md",
+        summary: "Workspace-specific module export guidance.",
+        useWhen: ["package a implementation"],
+        sections: [{
+          id: "module-exports",
+          heading: "Module exports",
+          useWhen: ["package a exports"],
+          claimType: "fact",
+          body: "The package entry module currently exposes its public surface through explicit exports.",
+          evidence: [
+            { path: "packages/a/src/index.ts", symbols: ["export"] },
+            { path: "packages/a/package.json", symbols: ["name"] },
+          ],
+        }],
+      }],
+    };
+    await mkdir(path.dirname(path.join(repo, synthesisPath)), { recursive: true });
+    await writeFile(path.join(repo, synthesisPath), `${JSON.stringify(synthesis, null, 2)}\n`, "utf8");
+    await initWiki({ repo, wikiSplit: "nested", dryRun: false, synthesis: synthesisPath });
+    const nestedIndex = path.join(repo, "packages/a/.wiki/index.md");
+    const nestedCoding = path.join(repo, "packages/a/.wiki/coding.md");
+    expect(await readFile(nestedIndex, "utf8")).toContain("coding.md#module-exports");
+    expect(await readFile(nestedIndex, "utf8")).toContain(synthesis.pages[0]!.summary);
+    expect(await readFile(nestedCoding, "utf8")).toContain('<a id="module-exports"></a>');
+    expect((await auditWiki({ repo })).findings).toEqual([]);
+
+    await writeFile(nestedCoding, (await readFile(nestedCoding, "utf8"))
+      .replace("agentic-coding-kit-wiki:generated", "local-wiki")
+      .replace('id="module-exports"', 'id="changed-export"'), "utf8");
+    await writeFile(nestedIndex, `${await readFile(nestedIndex, "utf8")}\n[Missing](missing.md)\n`, "utf8");
+    await writeFile(path.join(repo, "packages/a/src/index.ts"), "export const changed = true;\n", "utf8");
+    expect((await auditWiki({ repo })).findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "INVALID_OWNERSHIP", page: "packages/a/.wiki/coding.md" }),
+      expect.objectContaining({ code: "MODIFIED_MANAGED_CONTENT", page: "packages/a/.wiki/coding.md" }),
+      expect.objectContaining({ code: "BROKEN_ANCHOR", page: "packages/a/.wiki/index.md", detail: "coding.md#module-exports" }),
+      expect.objectContaining({ code: "BROKEN_LINK", page: "packages/a/.wiki/index.md", detail: "missing.md" }),
+      expect.objectContaining({ code: "STALE_EVIDENCE", page: "packages/a/.wiki/coding.md", detail: "packages/a/src/index.ts" }),
+    ]));
+  });
+
+  it("rejects incidental convention claims without independent evidence", async () => {
+    const repo = await createRepository({
+      "package.json": JSON.stringify({ name: "incidental" }),
+      "src/package-helper.ts": "export function requestApi() { return '/v1'; }\n",
+    }, "kit-wiki-convention-");
+    const synthesisPath = ".git/agentic-kit/architect-synthesis.json";
+    const synthesis = {
+      schemaVersion: 2,
+      pages: [{
+        page: "coding.md",
+        summary: "Repository-specific coding conventions.",
+        useWhen: ["implementation"],
+        sections: [{
+          id: "api-style",
+          heading: "API style",
+          useWhen: ["api client"],
+          claimType: "convention",
+          body: "All outbound requests must use this exact local helper pattern.",
+          evidence: [{ path: "src/package-helper.ts", symbols: ["requestApi"] }],
+        }],
+      }],
+    };
+    await mkdir(path.dirname(path.join(repo, synthesisPath)), { recursive: true });
+    await writeFile(path.join(repo, synthesisPath), `${JSON.stringify(synthesis, null, 2)}\n`, "utf8");
+    await expect(initWiki({ repo, wikiSplit: "root", dryRun: false, synthesis: synthesisPath })).rejects.toThrow(/authoritative source or two independent code paths/i);
+  });
+
+  it("enforces coding-practice provenance for legacy synthesis", async () => {
+    const repo = await createRepository({
+      "package.json": JSON.stringify({ name: "legacy-practice" }),
+      "src/client.ts": "export function requestApi() { return '/v1'; }\n",
+    }, "kit-wiki-legacy-practice-");
+    const synthesisPath = ".git/agentic-kit/architect-synthesis.json";
+    const synthesis = {
+      schemaVersion: 1,
+      pages: [{
+        page: "coding.md",
+        sections: [{
+          heading: "API helper practice",
+          body: "Outbound requests use the repository helper so callers share one implementation path.",
+          evidence: [{ path: "src/client.ts", symbols: ["requestApi"] }],
+        }],
+      }],
+    };
+    await mkdir(path.dirname(path.join(repo, synthesisPath)), { recursive: true });
+    await writeFile(path.join(repo, synthesisPath), `${JSON.stringify(synthesis, null, 2)}\n`, "utf8");
+
+    await expect(initWiki({ repo, wikiSplit: "root", dryRun: false, synthesis: synthesisPath })).rejects.toThrow(/authoritative source or two independent code paths/i);
+  });
+
+  it("previews, backs up, and replaces an explicitly adopted legacy wiki", async () => {
+    const repo = await createRepository({
+      "package.json": JSON.stringify({ name: "legacy-wiki", scripts: { test: "vitest" } }),
+      "src/index.ts": "export const value = true;\n",
+      ".wiki/index.md": "# Legacy Index\n\nOld architecture.\n",
+      ".wiki/features.md": "# Legacy Features\n",
+      ".wiki/.features": "legacy-machine-state\n",
+    }, "kit-wiki-adopt-");
+
+    await expect(reinitWiki({ repo, wikiSplit: "root", dryRun: false })).rejects.toThrow(/conflict/i);
+    const preview = await reinitWiki({ repo, wikiSplit: "root", dryRun: true, adoptExisting: true });
+    expect(preview.findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "LEGACY_PAGE_REPLACED", page: "index.md" }),
+      expect.objectContaining({ code: "LEGACY_PAGE_DROPPED", page: "features.md" }),
+    ]));
+    expect(await readFile(path.join(repo, ".wiki/index.md"), "utf8")).toContain("Legacy Index");
+
+    await reinitWiki({ repo, wikiSplit: "root", dryRun: false, adoptExisting: true, confirmed: true });
+    expect(await readFile(path.join(repo, ".wiki/index.md"), "utf8")).toContain("agentic-coding-kit-wiki:generated");
+    await expect(readFile(path.join(repo, ".wiki/features.md"), "utf8")).rejects.toThrow();
+    await expect(readFile(path.join(repo, ".wiki/.features"), "utf8")).rejects.toThrow();
+    const backupRoot = path.join(repo, ".git/agentic-kit/wiki-backups");
+    const backups = (await readdir(backupRoot, { recursive: true, withFileTypes: true })).filter((entry) => entry.isFile()).map((entry) => entry.name);
+    expect(backups).toEqual(expect.arrayContaining(["index.md", "features.md", ".features"]));
   });
 
   it("removes only unchanged stale managed pages and reports modified conflicts", async () => {
@@ -306,7 +551,7 @@ describe("wiki repository fixtures", () => {
   });
 
   it("reports missing required pages without writing during audit", async () => {
-    for (const required of ["index.md", "repository-map.md", "architecture.md", "engineering.md"]) {
+    for (const required of ["index.md", "repository-map.md", "engineering.md", "coding.md", "reviewing.md", "testing.md", "security.md"]) {
       const repo = await createFixture("small-ts");
       await initWiki({ repo, wikiSplit: "root", dryRun: false });
       await rm(path.join(repo, ".wiki", required));
@@ -316,6 +561,19 @@ describe("wiki repository fixtures", () => {
     }
   });
 
+  it("audits the exact standard-page word ceilings without writing", async () => {
+    const budgets: Record<string, number> = { "index.md": 250, "repository-map.md": 400, "engineering.md": 500, "coding.md": 400, "reviewing.md": 400, "testing.md": 400, "security.md": 400 };
+    for (const [page, budget] of Object.entries(budgets)) {
+      const repo = await createFixture("small-ts");
+      await initWiki({ repo, wikiSplit: "root", dryRun: false });
+      const target = path.join(repo, ".wiki", page);
+      await writeFile(target, `${await readFile(target, "utf8")}\n${"overflow ".repeat(budget + 1)}`, "utf8");
+      const before = await readFile(target, "utf8");
+      expect((await auditWiki({ repo })).findings).toContainEqual(expect.objectContaining({ code: "OVERSIZED_PAGE", page, detail: expect.stringContaining(`exceeds ${budget}`) }));
+      expect(await readFile(target, "utf8")).toBe(before);
+    }
+  }, 60_000);
+
   it("audits source drift without modifying the wiki", async () => {
     const repo = await createFixture("small-ts");
     await initWiki({ repo, wikiSplit: "root", dryRun: false });
@@ -323,9 +581,14 @@ describe("wiki repository fixtures", () => {
     await execFile("git", ["rm", "--cached", "src/index.ts"], { cwd: repo });
     const audit = await auditWiki({ repo });
     expect(audit.findings?.some((finding) => finding.code === "MISSING_PATH" && finding.detail === "src/index.ts")).toBe(true);
-    const before = await readFile(path.join(repo, ".wiki/repository-map.md"), "utf8");
-    await auditWiki({ repo });
-    expect(await readFile(path.join(repo, ".wiki/repository-map.md"), "utf8")).toBe(before);
+    const mapPath = path.join(repo, ".wiki/repository-map.md");
+    const tampered = (await readFile(mapPath, "utf8")).replace("# Repository Map", "# Locally Modified Map");
+    await writeFile(mapPath, tampered, "utf8");
+    expect((await auditWiki({ repo })).findings).toContainEqual(expect.objectContaining({
+      code: "MODIFIED_MANAGED_CONTENT",
+      page: "repository-map.md",
+    }));
+    expect(await readFile(mapPath, "utf8")).toBe(tampered);
   });
 
   it("supports CLI dry-run with explicit paths containing spaces and non-ASCII", async () => {

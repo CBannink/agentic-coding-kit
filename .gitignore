@@ -33,9 +33,6 @@ node_modules/
 .deepeval/
 testResults.xml
 __pycache__/
-benchmarks/agentic-work-bench/results/
-benchmarks/results/
-benchmarks/results-*.json
-benchmarks/**/results/
-benchmarks/**/results-*.json
+benchmarks/
+tmp/
 .agentic-kit-backup/

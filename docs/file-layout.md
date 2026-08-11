@@ -17,7 +17,6 @@ cli/
   tests/
 adapters/
 scripts/
-benchmarks/
 ```
 
 - Edit `core/` and `packs/` as canonical prompt sources.

@@ -80,7 +80,11 @@ describe("PR history", () => {
     const cache = { schemaVersion: 1, collectedAt: "2026-07-01T00:00:00Z", lookbackDays: 120, provider: "github", remote: { provider: "github", host: "github.com", owner: "acme", repository: "reviewed" }, threads: [{ provider: "github", pullRequest: 7, threadId: "10", author: "alice", body: "RAW PRIVATE COMMENT THAT MUST NOT LEAK", createdAt: "2026-06-02", reviewState: "CHANGES_REQUESTED", resolved: true, codeChangedAfter: true }] };
     await mkdir(path.join(repo, ".git/agentic-kit/pr-history"), { recursive: true });
     await writeFile(path.join(repo, ".git/agentic-kit/pr-history/history.json"), JSON.stringify(cache), "utf8");
-    const synthesis = { schemaVersion: 1, pages: [{ page: "review-practices.md", sections: [{ heading: "Reuse boundary helpers", body: "API changes reuse the established shared request helper rather than introducing endpoint-local equivalents.", evidence: [{ path: "src/api.ts", symbols: ["sharedRequest"] }], reviewEvidence: [{ provider: "github", pullRequest: 7, threadId: "10" }] }] }] };
+    const standardPages = ["repository-map.md", "engineering.md", "coding.md", "reviewing.md", "testing.md", "security.md"].map((page) => ({
+      page,
+      sections: [{ heading: `Reviewed ${page.replace(".md", "")}`, body: `The ${page} guidance is grounded in the current repository manifest and remains subordinate to live source.`, evidence: [{ path: "package.json" }] }],
+    }));
+    const synthesis = { schemaVersion: 1, pages: [...standardPages, { page: "review-practices.md", sections: [{ heading: "Reuse boundary helpers", body: "API changes reuse the established shared request helper rather than introducing endpoint-local equivalents.", evidence: [{ path: "src/api.ts", symbols: ["sharedRequest"] }], reviewEvidence: [{ provider: "github", pullRequest: 7, threadId: "10" }] }] }] };
     await writeFile(path.join(repo, "synthesis.json"), JSON.stringify(synthesis), "utf8");
     await execFile("git", ["-C", repo, "add", "synthesis.json"]);
     await initWiki({ repo, wikiSplit: "root", dryRun: false, synthesis: "synthesis.json", prHistory: "off" });

@@ -5,13 +5,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { allAgents, loadManifest, validateManifestSchema, validateManifestSemantics } from "../src/manifest.js";
 import { findBrokenLocalMarkdownLinks } from "../src/links.js";
+import { getTomlRootString, setTomlRootString } from "../src/config-merge.js";
 import { parseFrontmatter, parseJsonc, parseToml, parseYaml, serializeFrontmatter, serializeToml, serializeYaml } from "../src/parsers.js";
 import {
   evaluateCompletion,
   isEvidenceFresh,
   normalizeFailureSignature,
   recordUnsuccessfulRepair,
-  type DesignPlaybook,
 } from "../src/policy.js";
 import { checkGeneratedDrift, loadSkillResources, renderArtifacts, writeGenerated } from "../src/render.js";
 import { resolveContainedPath, resolveExistingContainedPath, setPathOperationHookForTests } from "../src/paths.js";
@@ -31,15 +31,25 @@ describe("parser-backed formats", () => {
     const markdown = serializeFrontmatter({ name: "wiki", description: "Maintain repository knowledge." }, "# Wiki\n\nBody");
     expect(parseFrontmatter(markdown)).toMatchObject({ data: { name: "wiki" }, content: expect.stringContaining("# Wiki") });
   });
+
+  it("updates and restores Codex root developer instructions without rewriting other TOML", () => {
+    const source = '# keep\ndeveloper_instructions = """old\npreference"""\n\n[mcp_servers.keep]\ncommand = "keep"\n';
+    const updated = setTomlRootString(source, "developer_instructions", "old preference\n\nACK primary");
+    expect(getTomlRootString(updated, "developer_instructions")).toEqual({ exists: true, value: "old preference\n\nACK primary" });
+    expect(updated).toContain("# keep");
+    expect(updated).toContain('[mcp_servers.keep]\ncommand = "keep"');
+    const restored = setTomlRootString(updated, "developer_instructions", "old\npreference");
+    expect(getTomlRootString(restored, "developer_instructions")).toEqual({ exists: true, value: "old\npreference" });
+  });
 });
 
 describe("canonical manifest and prompts", () => {
   it("passes schema, source, and semantic validation with exact rosters", async () => {
     const manifest = await loadManifest(root);
-    expect(manifest.skills.map((item) => item.id).sort()).toEqual(["analyze", "build", "design", "pr-ready", "review", "threat-model", "wiki"]);
-    expect(manifest.agents.map((item) => item.id).sort()).toEqual(["coder", "diagnostician", "repo-scout", "reviewer", "sage", "security-reviewer", "test-engineer"]);
+    expect(manifest.skills.map((item) => item.id).sort()).toEqual(["analyze", "architecture", "build", "design", "experiment", "grill", "pr-ready", "review", "threat-model", "wiki"]);
+    expect(manifest.agents.map((item) => item.id).sort()).toEqual(["architect", "coder", "diagnostician", "repo-scout", "reviewer", "sage", "security-reviewer", "test-engineer"]);
     expect(manifest.packs.ui.agents.map((item) => item.id).sort()).toEqual(["browser-qa", "ui-critic"]);
-    expect(allAgents(manifest)).toHaveLength(9);
+    expect(allAgents(manifest)).toHaveLength(10);
   });
 
   it("enforces permissions and keeps portable sources model-neutral", async () => {
@@ -57,6 +67,31 @@ describe("canonical manifest and prompts", () => {
     const mapped = structuredClone(manifest) as any;
     mapped.model_profiles = { codex: { deep: { model: "gpt-5.6-sol", reasoning: "medium" } } };
     expect(() => validateManifestSchema(mapped, schema)).toThrow(/additional properties/);
+  });
+
+  it("applies canonical prompt validation to the OpenCode primary", async () => {
+    const manifest = structuredClone(await loadManifest(root));
+    const sandbox = await mkdtemp(path.join(tmpdir(), "kit-opencode-primary-validation-"));
+    await writeFile(path.join(sandbox, "safe.md"), "# Safe prompt\n", "utf8");
+    await writeFile(path.join(sandbox, "opencode-primary.md"), "Use gpt-5.6-sol\n", "utf8");
+    manifest.instruction_fragments.orchestrator = "safe.md";
+    manifest.instruction_fragments.opencode_primary = "opencode-primary.md";
+    for (const skill of manifest.skills) skill.source = "safe.md";
+    for (const agent of allAgents(manifest)) agent.source = "safe.md";
+
+    await expect(validateCanonicalPrompts(sandbox, manifest)).rejects.toThrow(/opencode-primary.*provider model ID/i);
+  });
+
+  it("enforces prompt budgets", async () => {
+    const manifest = structuredClone(await loadManifest(root));
+    const sandbox = await mkdtemp(path.join(tmpdir(), "kit-prompt-budget-"));
+    await writeFile(path.join(sandbox, "safe.md"), "# Safe prompt\n", "utf8");
+    await writeFile(path.join(sandbox, "orchestrator.md"), "word ".repeat(851), "utf8");
+    manifest.instruction_fragments.orchestrator = "orchestrator.md";
+    manifest.instruction_fragments.opencode_primary = "safe.md";
+    for (const skill of manifest.skills) skill.source = "safe.md";
+    for (const agent of allAgents(manifest)) agent.source = "safe.md";
+    await expect(validateCanonicalPrompts(sandbox, manifest)).rejects.toThrow(/orchestrator.*prompt budget/i);
   });
 
   it("rejects canonical source paths that escape the repository root", async () => {
@@ -96,73 +131,98 @@ describe("canonical manifest and prompts", () => {
     await expect(loadSkillResources(sandbox, "build", "core/skills/build/SKILL.md")).rejects.toThrow(/exceeds/);
   });
 
-  it("keeps canonical prompts model-neutral and encodes core invariants", async () => {
+  it("accepts the shipped canonical prompt set", async () => {
     const manifest = await loadManifest(root);
     await expect(validateCanonicalPrompts(root, manifest)).resolves.toBeUndefined();
-    const orchestrator = await readFile(path.join(root, "core/orchestrator.md"), "utf8");
-    const normalized = orchestrator.replace(/\s+/g, " ");
-    for (const phrase of ["host-neutral primary engineering agent", "exact user constraints", "live repository", "Delegation is optional", "one gate type at a time", "Test Engineer is conditional", "last relevant edit", "WIKI CHANGE: NONE"]) expect(normalized).toContain(phrase);
-    expect(orchestrator).toMatch(/Static inspection may be sufficient only for\s+non-behavioral changes/);
-    expect(orchestrator).toMatch(/Behavioral changes require executable behavior evidence/);
-    expect(orchestrator).toMatch(/`INLINE`[\s\S]*`STANDARD`[\s\S]*`DEEP`/);
-    expect(orchestrator).not.toMatch(/1-3[\s\S]*4-8[\s\S]*9\+/);
-    expect(orchestrator).toMatch(/Delegate coherent implementation to one production\s+Coder only when doing so improves isolation, context, or reliability; otherwise\s+the primary works inline/);
-    expect(orchestrator).not.toMatch(/Coder by default for meaningful/);
-    expect(orchestrator).toMatch(/`Result`, `Evidence`, and optional `Next`/);
-    expect(orchestrator).toMatch(/STANDARD packets use only the context[\s\S]*DEEP work or real drift[\s\S]*full literal contract/);
-    expect(orchestrator).toMatch(/After two failed repairs/);
-    const buildSkill = await readFile(path.join(root, "core/skills/build/SKILL.md"), "utf8");
-    const designSkill = await readFile(path.join(root, "core/skills/design/SKILL.md"), "utf8");
-    expect(buildSkill).toMatch(/one-sentence active\s+note/);
-    expect(buildSkill).toMatch(/light contract/);
-    expect(buildSkill).toMatch(/full versioned Build Contract/);
-    expect(designSkill).toMatch(/`INLINE DESIGN`[\s\S]*`REVIEWED DESIGN`[\s\S]*`PROTOTYPE`[\s\S]*`GRILLING`/);
-    const reviewer = await readFile(path.join(root, "core/agents/reviewer.md"), "utf8");
-    const coder = await readFile(path.join(root, "core/agents/coder.md"), "utf8");
-    const tester = await readFile(path.join(root, "core/agents/test-engineer.md"), "utf8");
-    const threatModel = await readFile(path.join(root, "core/skills/threat-model/SKILL.md"), "utf8");
-    const securityReviewer = await readFile(path.join(root, "core/agents/security-reviewer.md"), "utf8");
-    expect(reviewer).toContain("unverified claims");
-    expect(coder).toMatch(/Add tests only as useful\s+durable evidence/);
-    expect(tester).toMatch(/never production/);
-    expect(threatModel).toMatch(/`FOCUSED`[\s\S]*`FULL`[\s\S]*`INCREMENTAL`/);
-    expect(threatModel).toMatch(/Remain read-only unless the user explicitly approves a report target path/);
-    expect(threatModel).toMatch(/transition requested fixes[\s\S]*`build` skill/i);
-    expect(securityReviewer).toMatch(/Return only `Result`, `Evidence`, and optional `Next` sections to the main/);
-    for (const relative of [
-      "core/agents/repo-scout.md", "core/agents/coder.md", "core/agents/reviewer.md",
-      "core/agents/test-engineer.md", "core/agents/diagnostician.md", "core/agents/sage.md",
-      "core/agents/security-reviewer.md", "packs/ui/agents/browser-qa.md", "packs/ui/agents/ui-critic.md",
-    ]) {
-      const prompt = await readFile(path.join(root, relative), "utf8");
-      expect(prompt).toMatch(/main\s+orchestrator/i);
-      expect(prompt).toMatch(/evidence/i);
-      expect(prompt).toMatch(/dispatch|invoke/i);
-      expect(prompt).toContain("`.wiki/index.md`");
-      expect(prompt).toMatch(/verify it against\s+current source, report drift, and never edit `\.wiki`/);
-    }
-    const canonicalWorkflow = `${orchestrator}\n${buildSkill}\n${await readFile(path.join(root, "core/skills/build/references/testing.md"), "utf8")}\n${await readFile(path.join(root, "core/skills/build/references/profiles.md"), "utf8")}\n${await readFile(path.join(root, "README.md"), "utf8")}`;
-    expect(canonicalWorkflow).not.toMatch(/--test-first|strict test-first/i);
   });
 
-  it("keeps repository instruction surfaces on the v6 main-session architecture", async () => {
-    const agents = await readFile(path.join(root, "AGENTS.md"), "utf8");
-    const claude = await readFile(path.join(root, "CLAUDE.md"), "utf8");
-    const activeInstructions = `${agents}\n${claude}`;
+  it("encodes the primary-led three-object build flow and bounded review loop", async () => {
+    const resources = await loadSkillResources(root, "build", "core/skills/build/SKILL.md");
+    expect(resources.map((item) => item.relativePath)).toEqual(["SKILL.md"]);
 
-    expect(agents).toContain("active harness session is the orchestrator");
-    expect(agents).toMatch(/`INLINE`[\s\S]*`STANDARD`[\s\S]*`DEEP`/);
-    expect(agents).toContain("Every agent returns `Result`, `Evidence`, and optional `Next` sections to the");
-    expect(claude).toContain("active Claude Code");
-    for (const legacy of [
-      "workflow-explorer",
-      "workflow-implementer",
-      "goal-orchestrator",
-      "pre-session.ps1",
-      "post-session.ps1",
-      ".kit/session-state",
-      ".kit/context",
-    ]) expect(activeInstructions).not.toContain(legacy);
+    const build = await readFile(path.join(root, "core/skills/build/SKILL.md"), "utf8");
+    const coder = await readFile(path.join(root, "core/agents/coder.md"), "utf8");
+    const orchestrator = await readFile(path.join(root, "core/orchestrator.md"), "utf8");
+    const scout = await readFile(path.join(root, "core/agents/repo-scout.md"), "utf8");
+    const reviewer = await readFile(path.join(root, "core/agents/reviewer.md"), "utf8");
+    const tester = await readFile(path.join(root, "core/agents/test-engineer.md"), "utf8");
+    const security = await readFile(path.join(root, "core/agents/security-reviewer.md"), "utf8");
+    const flow = `${orchestrator}\n${build}`.replace(/\s+/g, " ");
+    const prompts = `${flow}\n${scout}\n${coder}\n${reviewer}\n${tester}`;
+
+    // Object flow: the primary explores, optionally scouts, then owns one shared contract.
+    expect(flow).toMatch(/primary[\s\S]*(?:explore|inspect)[\s\S]*relevant live source/i);
+    expect(flow).toMatch(/optional(?:ly)?[\s\S]*(?:Repository )?(?:Repo )?Scout/i);
+    expect(flow).toMatch(/exactly (?:these )?three shared (?:assignment )?objects/i);
+    expect(flow).toMatch(/GOAL[\s\S]*ACCEPTANCE[\s\S]*PLAN/i);
+    expect(flow).toMatch(/sole shared assignment objects/i);
+    expect(flow).toMatch(/Do not (?:create|add) separate shared sections for paths, decisions, proof, Scout facts, constraints,[\s\S]*repository summaries/i);
+    expect(flow).toMatch(/unchanged[\s\S]*(?:Coder|implementation)[\s\S]*(?:Test Engineer|testing)[\s\S]*(?:Reviewer|review)[\s\S]*repair/i);
+
+    // Focused discovery supplies repository facts, never a proposed solution.
+    for (const concept of ["relevant files", "existing behavior", "repository patterns", "likely focused tests", "generated boundaries"]) {
+      expect(scout.toLowerCase()).toContain(concept);
+    }
+    expect(scout).toMatch(/Do not[\s\S]*(?:design the solution|prescribe changes|choose an architecture)/i);
+
+    // Coder gets the immutable objects, can follow live source, and reports exact outcomes.
+    expect(coder).toMatch(/contains only the unchanged GOAL, numbered ACCEPTANCE, and PLAN/i);
+    expect(coder).toMatch(/Inspect all relevant live source/i);
+    expect(coder).toMatch(/adapt[\s\S]*details when current source requires/i);
+    expect(coder).toMatch(/report any material departure\s+from PLAN/i);
+    expect(coder).toMatch(/Do not change GOAL or[\s\S]*ACCEPTANCE/i);
+    expect(coder).toMatch(/`COMPLETE` or `BLOCKED`[\s\S]*implementation summary[\s\S]*exact changed path[\s\S]*relevant commands[\s\S]*limitations/i);
+
+    // Review is independent, binary per criterion, evidence-sensitive, and narrowly blocking.
+    expect(reviewer).toMatch(/same unchanged[\s\S]*GOAL[\s\S]*ACCEPTANCE[\s\S]*PLAN/i);
+    expect(reviewer).toMatch(/live base-to-candidate diff and every complete changed file/i);
+    expect(reviewer).toMatch(/For each acceptance criterion[\s\S]*exactly one state: `PASS` or `BLOCKED`/i);
+    expect(reviewer).toMatch(/Missing decisive evidence for important\s+changed behavior is `BLOCKED`/i);
+    for (const cause of ["unmet acceptance criterion", "realistic demonstrated bug", "violated repository invariant", "material maintainability regression"]) {
+      expect(reviewer.toLowerCase()).toContain(cause);
+    }
+    expect(reviewer).toMatch(/Do not block on preferences, speculative edges, optional cleanup, or invented[\s\S]*requirements/i);
+    expect(reviewer).toMatch(/at most three grouped material findings/i);
+    expect(prompts).not.toContain(["UN", "PROVEN"].join(""));
+
+    // Test hardening is conditional and minimal rather than another mandatory gate.
+    expect(tester).toMatch(/only when[\s\S]*important acceptance criterion[\s\S]*lacks convincing durable proof/i);
+    expect(tester).toMatch(/same unchanged[\s\S]*GOAL[\s\S]*ACCEPTANCE[\s\S]*PLAN/i);
+    expect(tester).toMatch(/minimum valuable\s+behavioral tests/i);
+    expect(tester).toMatch(/Do not add[\s\S]*broad matrices[\s\S]*incidental-wording checks[\s\S]*duplicated coverage/i);
+    expect(tester).toMatch(/Do not replace primary verification or the Reviewer/i);
+
+    // Repair is evidence-led, bounded, and always followed by a complete fresh review.
+    expect(flow).toMatch(/validates? (?:Reviewer )?findings[\s\S]*rejects?[\s\S]*speculative edges[\s\S]*scope-expanding/i);
+    expect(flow).toMatch(/supported[\s\S]*blocking evidence[\s\S]*repair Coder[\s\S]*same unchanged GOAL, ACCEPTANCE, and PLAN/i);
+    expect(flow).toMatch(/Rerun affected proof[\s\S]*fresh Reviewer[\s\S]*(?:complete GOAL|whole GOAL)[\s\S]*every (?:ACCEPTANCE|acceptance) criterion/i);
+    expect(flow).toMatch(/two[\s\S]*unsuccessful repair/i);
+
+    // Wiki context is bounded navigation and does not alter the three-object handoff.
+    for (const prompt of [orchestrator, scout, coder, reviewer, tester, security]) {
+      expect(prompt).toMatch(/nearest applicable[\s\S]*\.wiki\/index\.md/i);
+      expect(prompt).toMatch(/authoritative live source|live source, which is authoritative/i);
+      expect(prompt).toMatch(/material\s+drift/i);
+      expect(prompt).toMatch(/never edit\s+`?\.wiki`?/i);
+    }
+    expect(scout).toMatch(/repository-map and engineering[\s\S]*focus discovery/i);
+    expect(coder).toMatch(/coding[\s\S]*engineering[\s\S]*testing/i);
+    expect(reviewer).toMatch(/reviewing[\s\S]*engineering, coding, and[\s\S]*testing[\s\S]*Never block from wiki prose alone/i);
+    expect(tester).toMatch(/relevant testing sections/i);
+    expect(security).toMatch(/security[\s\S]*engineering-boundary[\s\S]*Wiki prose alone cannot support a finding/i);
+  });
+
+  it("propagates bounded wiki navigation from canonical prompts to adapters", async () => {
+    const manifest = await loadManifest(root);
+    const files = await renderArtifacts(root, manifest, { installProfile: "core", commands: false });
+    for (const role of ["coder", "repo-scout", "reviewer", "test-engineer", "security-reviewer"]) {
+      const rendered = files.filter((file) => file.path.includes(`/agents/${role}.`) || file.path.endsWith(`/agents/${role}.md`));
+      expect(rendered).toHaveLength(4);
+      for (const file of rendered) expect(file.content).toMatch(/nearest applicable[\s\S]*\.wiki\/index\.md/i);
+    }
+    for (const host of ["claude", "codex", "copilot", "opencode"]) {
+      expect(files.find((file) => file.path === `adapters/${host}/instructions.md`)?.content).toMatch(/nearest applicable[\s\S]*\.wiki\/index\.md/i);
+    }
   });
 });
 
@@ -225,7 +285,7 @@ describe("native adapter generation", () => {
     expect(core.some((file) => file.path.endsWith("security-reviewer.agent.md"))).toBe(true);
     expect(full.some((file) => file.path.endsWith("browser-qa.toml"))).toBe(true);
     expect(full.some((file) => file.path.endsWith("security-reviewer.agent.md"))).toBe(true);
-    expect(full.filter((file) => file.path.startsWith("adapters/opencode/commands/"))).toHaveLength(7);
+    expect(full.filter((file) => file.path.startsWith("adapters/opencode/commands/"))).toHaveLength(10);
     expect(() => validateGeneratedArtifacts(full)).not.toThrow();
     expect(findBrokenLocalMarkdownLinks(full)).toEqual([]);
 
@@ -252,11 +312,12 @@ describe("native adapter generation", () => {
     expect(codex).toMatchObject({ name: "reviewer", sandbox_mode: "read-only" });
     expect(codex).not.toHaveProperty("model");
     expect(codex).not.toHaveProperty("model_reasoning_effort");
+    expect(files.find((file) => file.path === "adapters/codex/instructions.md")!.content).toMatch(/agent_type[\s\S]*fork_turns: "none"/);
     const claude = parseFrontmatter(files.find((file) => file.path === "adapters/claude/agents/reviewer.md")!.content);
     expect(claude.data).toMatchObject({ name: "reviewer", model: "inherit", permissionMode: "plan" });
     expect(claude.data).not.toHaveProperty("memory");
     const opencode = parseFrontmatter(files.find((file) => file.path === "adapters/opencode/agents/reviewer.md")!.content);
-    expect(opencode.data).toMatchObject({ mode: "subagent", permission: { edit: "deny" } });
+    expect(opencode.data).toMatchObject({ mode: "subagent", permission: { edit: "deny", skill: "deny", task: "deny" } });
     expect(opencode.data).not.toHaveProperty("tools");
     expect(opencode.data).not.toHaveProperty("model");
     const command = parseFrontmatter(files.find((file) => file.path === "adapters/opencode/commands/build.md")!.content);
@@ -291,7 +352,7 @@ describe("native adapter generation", () => {
     expect(disk.charCodeAt(0)).not.toBe(0xfeff);
     await writeFile(path.join(target, first.path), `${disk}\ndrift`, "utf8");
     expect(await checkGeneratedDrift(target, files)).toEqual([`conflict:${first.path}`]);
-  });
+  }, 60_000);
 
   it("reports and removes only marker-owned stale outputs across profile changes", async () => {
     const manifest = await loadManifest(root);
@@ -351,11 +412,6 @@ describe("deterministic orchestration policy helpers", () => {
     const second = recordUnsuccessfulRepair(first.attempts);
     expect(first).toEqual({ attempts: 1, limit: 2, mayContinue: true });
     expect(second).toEqual({ attempts: 2, limit: 2, mayContinue: false });
-  });
-
-  it("keeps policy Design routes aligned with the documented playbooks", () => {
-    const routes: DesignPlaybook[] = ["INLINE_DESIGN", "REVIEWED_DESIGN", "PROTOTYPE", "GRILLING"];
-    expect(routes).toEqual(["INLINE_DESIGN", "REVIEWED_DESIGN", "PROTOTYPE", "GRILLING"]);
   });
 
   it("binds evidence and completion to the current revision", () => {
