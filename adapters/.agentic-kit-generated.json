@@ -25,7 +25,7 @@
     {
       "path": "adapters/claude/agents/repo-scout.md",
       "sourceId": "agent:repo-scout",
-      "sha256": "d59e12b7fb012326645f964dbc7451d04d967670391ffccb5bd8abc50acf3ed3"
+      "sha256": "e740c49ea4a0cefceec0d2d9f5454e03221e3620826cecef40d8439d595d5047"
     },
     {
       "path": "adapters/claude/agents/reviewer.md",
@@ -55,7 +55,7 @@
     {
       "path": "adapters/claude/instructions.md",
       "sourceId": "instruction:orchestrator",
-      "sha256": "78ec4af58d72c285beac84561ca7ece13b6a69b7741f18a2bc2fa22fc3d89e6e"
+      "sha256": "e550e85b5357823480baa8f387609a330b1b4e3e51a5d27599ac004667f5e272"
     },
     {
       "path": "adapters/claude/skills/async/SKILL.md",
@@ -255,7 +255,7 @@
     {
       "path": "adapters/codex/agents/repo-scout.toml",
       "sourceId": "agent:repo-scout",
-      "sha256": "e00f40f88f92656e1327b3672e92ef0d2e2057e6f248971c0209ae1783ec4483"
+      "sha256": "81c8e67930351fd4689c612b3cd7512d5c598648b13a8a84d62373d0bca48bb8"
     },
     {
       "path": "adapters/codex/agents/reviewer.toml",
@@ -285,7 +285,7 @@
     {
       "path": "adapters/codex/instructions.md",
       "sourceId": "instruction:orchestrator",
-      "sha256": "e4468ac06764cb1c4e5adb74fb0540e1c097991e70e5e6db9cd0d2d421f138ae"
+      "sha256": "e3288107117d6438b6feeb8c2f605262a6a11496f0e6cbc1712ba0d6e52bd7c5"
     },
     {
       "path": "adapters/codex/skills/async/SKILL.md",
@@ -485,7 +485,7 @@
     {
       "path": "adapters/copilot/agents/repo-scout.agent.md",
       "sourceId": "agent:repo-scout",
-      "sha256": "0a43465e0f4fd010c7e4f00a04ff91ae8476a66180b2f2fda7d1c5dac3310ba3"
+      "sha256": "dce2fc4bc0aecf7ff64dc9cac837377673bcd5540253406ab1afbf0c541eb3a4"
     },
     {
       "path": "adapters/copilot/agents/reviewer.agent.md",
@@ -515,7 +515,7 @@
     {
       "path": "adapters/copilot/instructions.md",
       "sourceId": "instruction:orchestrator",
-      "sha256": "e54fba52df774b2c67d86ef80d361c84d1c27d4b66be7c4098a741824c2d055a"
+      "sha256": "9376d438e788aa86bfd244dd418f7841ac41ec1308c8abad55bf15df61ae2ea1"
     },
     {
       "path": "adapters/copilot/skills/async/SKILL.md",
@@ -715,7 +715,7 @@
     {
       "path": "adapters/muse/agents/repo-scout.md",
       "sourceId": "agent:repo-scout",
-      "sha256": "b72f223da4cda4d12d036a666d27a858b5ced3daa132c4666962412714504aeb"
+      "sha256": "a5390d42864f3a071632a97c0efea1b3d2dc895e8da8a77a60fefdd451b88b84"
     },
     {
       "path": "adapters/muse/agents/reviewer.md",
@@ -745,7 +745,7 @@
     {
       "path": "adapters/muse/instructions.md",
       "sourceId": "instruction:orchestrator",
-      "sha256": "e597440dab83e2ed981ac3464398d31c29f1266dcb97a02bd85bee1d56a505bc"
+      "sha256": "9f3d9d510a7a3284aa30a08161ab28a0a1274c4d20e04863576c54ff0a9b29f9"
     },
     {
       "path": "adapters/muse/skills/async/SKILL.md",
@@ -945,7 +945,7 @@
     {
       "path": "adapters/opencode/agents/repo-scout.md",
       "sourceId": "agent:repo-scout",
-      "sha256": "147b65565baffc2bb2d090326d9178ab5de2b7538f30ed6b30c2ad8b4e2221b4"
+      "sha256": "eb5d72a210cec7ec2cebb2fef13dcff7aa11eb0a7b5ce4bdaea35624d3303d39"
     },
     {
       "path": "adapters/opencode/agents/reviewer.md",
@@ -1070,7 +1070,7 @@
     {
       "path": "adapters/opencode/instructions.md",
       "sourceId": "instruction:orchestrator",
-      "sha256": "234c8eb0b90e66ba87392fcf3d4430128c82ee55dbe53c2eaa1f13b7c8c40d89"
+      "sha256": "7d7ba724624d18b8b0123e5f3b07fc24b948dc5a35fc9f15d7e524fbc1d60815"
     },
     {
       "path": "adapters/opencode/skills/async/SKILL.md",

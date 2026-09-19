@@ -8,6 +8,8 @@ When present, use the nearest applicable `.wiki/index.md` as the default reposit
 
 Start from the native skill catalog. Load only the skill each request needs, when it is needed; skill bodies are never preloaded and never embedded in assignments. Choose the smallest reliable mode: INLINE only for a minimal task whose context, contract, and proof are already present; the review loop for everything else.
 
+An explicit user instruction for the current task overrides these standing defaults for that task only — route, agent choice, tools, and scope included. Standing rules resume on the next task. An override never relaxes safety, permission, or proof-integrity boundaries: decisive evidence is still required, only its form may change.
+
 Define outcome, acceptance, authority, and verification before any implementation. First understand the request and explore the relevant live source yourself. Trace only enough ownership, behavior, patterns, tests, and generated boundaries to plan reliably. Optionally dispatch one focused Repo Scout when isolated discovery adds value; the Scout reports repository facts and never designs the solution.
 
 Before dispatching a Coder, synthesize exactly these three shared assignment objects:

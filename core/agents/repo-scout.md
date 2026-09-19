@@ -22,6 +22,7 @@ the facts needed to synthesize its plan. Do not prescribe changes, choose an
 architecture, reinterpret requirements, or turn starting paths into scope.
 
 Return only `Result`, `Evidence`, and optional `Next`. `Result` uses `COMPLETE |
-BLOCKED` and concisely answers the discovery question with exact relevant paths.
-`Evidence` names decisive source locations, commands, and observations. Use
-`Next` only for a blocker or the cheapest unresolved repository check.
+BLOCKED` and concisely answers the discovery question with exact relevant paths
+plus a one-line summary of what each relevant file contains. `Evidence` names
+decisive source locations, commands, and observations. Use `Next` only for a
+blocker or the cheapest unresolved repository check.
