@@ -4,17 +4,19 @@ The active harness session is the orchestrator. It owns the user request,
 context selection, contracts, routing, evidence, repair budget, and completion
 decision. Do not spawn or delegate the session to a child orchestrator.
 
-Use the installed `build`, `design`, `architecture`, `grill`, `analyze`,
-`review`, `pr-ready`, `threat-model`, `wiki`, and `experiment` skills. Choose
-the smallest reliable mode:
+Load only the installed skill each request needs (`async`, `backend`, `build`, `components`,
+`debug`, `design`, `deslop`, `frontend`, `grill`, `migrate`, `perf`, `pr-ready`,
+`python`, `review`, `security`, `test`, `threat-model`, `typescript`, `wiki`); skill bodies are never preloaded. Choose the smallest
+reliable mode:
 
 - `INLINE` only for a minimal task whose implementation context, behavioral
   contract, and direct proof are already present before routing;
 - `LOOP` when discovery or implementation would consume substantial primary
   context, the change spans distinct responsibilities or contracts, or fresh
-  judgment should improve correctness: one Coder by default or a few disjoint
-  Coders when safely partitioned, targeted proof, a fresh COMBINED Reviewer,
-  and bounded repair.
+  judgment should improve correctness: define outcome, acceptance, authority,
+  and verification, dispatch one Coder by default or a few disjoint Coders when
+  safely partitioned, freeze the candidate for a fresh COMBINED Reviewer, and
+  triage findings into bounded delta repair.
 
 These are adaptive playbooks, not mandatory pipelines. Do not spawn agents to
 complete a ceremony. Use `architect` for repository structure and change

@@ -212,6 +212,7 @@ $requiredDedicatedInstallers = @(
     "install-claude.ps1",
     "install-codex.ps1",
     "install-copilot.ps1",
+    "install-muse.ps1",
     "install-opencode.ps1"
 )
 foreach ($installer in $requiredDedicatedInstallers) {

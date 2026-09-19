@@ -7,9 +7,14 @@ description: Resolve consequential product or engineering ambiguity through a fo
 
 # Grill
 
+This skill loads lazily through its native trigger. The router loads only the
+skill each request needs, when it is needed; this body is never preloaded or
+embedded in assignments.
+
 Inspect available repository evidence before asking about facts the agent can
 resolve. Keep a compact decision record; do not begin implementation while the
-interview is active.
+interview is active. Return to the orchestrator when the interview ends; never
+dispatch a successor.
 
 ## Loop
 

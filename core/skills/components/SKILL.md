@@ -1,0 +1,16 @@
+---
+name: components
+description: "Find and compose existing UI primitives; verify real APIs, state ownership and React patterns where applicable."
+---
+
+# UI components
+
+Inspect the target app/workspace, package manifest, existing components, examples/stories and canonical design-system note. Start with the repository's primitives, then its installed library and configured registries. Do not assume React, Tailwind, shadcn, a particular import alias, or an icon package merely because a tutorial uses them.
+
+If a primitive is missing, compare a small number of credible, maintained options against the required interaction, framework version, accessibility, license, dependencies and bundle cost. Use official documentation or authorized research; do not guess imports, exports or props. For shadcn projects, inspect the installed configuration, base primitive family and CLI version in the correct workspace. Use supported preview/diff operations before an authorized addition or update. Preserve local modifications. Do not run downloaded installers, load remote registries or overwrite components without applicable authority; an unavailable research tool is an evidence gap.
+
+Prefer semantic HTML for simple controls and established accessible primitives for complex dialogs, menus and comboboxes. Preserve keyboard/focus behavior, naming, disabled semantics and overlay behavior. A library is not proof that your composition is accessible. Reuse variants and tokens before adding one-off CSS. Keep inputs and output contracts small; split components around meaningful behavior or reuse, not arbitrary line counts. Avoid boolean-prop combinations that create invalid states, but do not turn every small component into a framework.
+
+For React code only: keep state with its real owner, compute derived values during render when appropriate, use stable keys, and reserve effects for synchronization with external systems. Do not blanket-apply memoization or move an entire server-rendered tree to the client. Check actual versions before using newer APIs.
+
+Verify the relevant interaction, error/empty state and responsive behavior. Report reused component origins, any approved dependency change, actual evidence and gaps. Add durable component choices to the wiki only through authorized curation; do not dump a registry catalog into every worker's context.

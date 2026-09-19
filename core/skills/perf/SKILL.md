@@ -1,0 +1,12 @@
+---
+name: perf
+description: Measure and improve a specified latency, throughput or resource bottleneck.
+---
+# Measure the suspected bottleneck
+State the user-relevant metric, representative workload, baseline candidate and acceptance target. Separate latency, throughput, memory and financial cost; an improvement in one can worsen another.
+
+Use a repeatable measurement or profile to locate the bottleneck. Record environment and workload so before/after numbers are comparable. A single noisy run is not sufficient to claim a small improvement. Distinguish algorithmic changes from infrastructure variance or caching effects.
+
+Optimize the smallest proven bottleneck while preserving correctness and failure behavior. Check memory growth, resource cleanup and significant regressions. Avoid a new cache or generic scheduler when removing redundant work solves the problem.
+
+Return measured results, variability or limitations, exact commands and candidate identifiers. A plausible complexity argument is not an executed benchmark. Stop at the agreed target; do not turn a performance task into whole-project optimization.

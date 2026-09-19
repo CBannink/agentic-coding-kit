@@ -61,6 +61,12 @@ export async function resolveHostPaths(host: Host, scope: InstallScope, repo: st
       ? { host, scope, hostRoot: configRoot, root: configRoot, administrationRoot: path.join(configRoot, ".agentic-kit"), instruction: path.join(configRoot, "AGENTS.md"), agents: path.join(configRoot, "agents"), skills: path.join(configRoot, "skills"), commands: path.join(configRoot, "commands"), config }
       : { host, scope, hostRoot: projectRoot!, root: projectRoot!, administrationRoot: path.join(projectRoot!, ".git", "agentic-kit"), instruction: path.join(projectRoot!, "AGENTS.md"), agents: path.join(projectRoot!, ".opencode", "agents"), skills: path.join(projectRoot!, ".opencode", "skills"), commands: path.join(projectRoot!, ".opencode", "commands"), config };
   }
+  if (host === "muse") {
+    const configRoot = path.resolve(context.env.MUSE_CONFIG_DIR || (context.env.XDG_CONFIG_HOME ? path.join(context.env.XDG_CONFIG_HOME, "muse") : path.join(home, ".config", "muse")));
+    return scope === "user"
+      ? { host, scope, hostRoot: configRoot, root: configRoot, administrationRoot: path.join(configRoot, ".agentic-kit"), instruction: path.join(configRoot, "AGENTS.md"), agents: path.join(configRoot, "agents"), skills: path.join(configRoot, "skills"), config: path.join(configRoot, "settings.json") }
+      : { host, scope, hostRoot: projectRoot!, root: projectRoot!, administrationRoot: path.join(projectRoot!, ".git", "agentic-kit"), instruction: path.join(projectRoot!, "AGENTS.md"), agents: path.join(projectRoot!, ".agents", "agents"), skills: path.join(projectRoot!, ".agents", "skills") };
+  }
   const copilotHome = path.resolve(context.env.COPILOT_HOME || path.join(home, ".copilot"));
   return scope === "user"
     ? { host, scope, hostRoot: copilotHome, root: copilotHome, administrationRoot: path.join(copilotHome, ".agentic-kit"), instruction: path.join(copilotHome, "copilot-instructions.md"), agents: path.join(copilotHome, "agents"), skills: path.join(copilotHome, "skills"), config: path.join(copilotHome, "settings.json") }

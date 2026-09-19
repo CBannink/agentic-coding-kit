@@ -25,8 +25,8 @@ The installer manages:
 - native skills under `.claude/skills/` or the user equivalent;
 - only supported settings changes, with ownership and restoration data.
 
-Invoke `/build`, `/design`, `/architecture`, `/grill`, `/analyze`, `/review`,
-`/pr-ready`, `/threat-model`, `/wiki`, or `/experiment`. The active Claude
+Invoke `/async`, `/backend`, `/build`, `/components`, `/debug`, `/design`, `/deslop`, `/frontend`, `/grill`, `/migrate`,
+`/perf`, `/pr-ready`, `/python`, `/review`, `/security`, `/test`, `/threat-model`, `/typescript`, or `/wiki`. The active Claude
 session remains the primary orchestrator and chooses INLINE or LOOP. Optional
 specialist agents return to it; they do not create nested orchestration chains.
 

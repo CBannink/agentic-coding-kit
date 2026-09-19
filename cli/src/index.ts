@@ -165,7 +165,7 @@ interface ManagementCliOptions {
 
 function configureManagementCommand(command: Command, hostRequired: boolean): Command {
   return command
-    .option("--host <host>", "codex, claude, opencode, copilot, or all", hostRequired ? undefined : "all")
+    .option("--host <host>", "codex, claude, opencode, copilot, muse, or all", hostRequired ? undefined : "all")
     .option("--scope <scope>", "user or project", "user")
     .option("--repo <path>", "project repository path")
     .option("--profile <profile>", "core or full", "core")
@@ -256,7 +256,7 @@ async function runMigrate(options: ManagementCliOptions): Promise<void> {
 
 function validateManagementOptions(options: ManagementCliOptions): void {
   if (!options.host) throw new Error("--host is required");
-  assertChoice(options.host, ["codex", "claude", "opencode", "copilot", "all"]);
+  assertChoice(options.host, ["codex", "claude", "opencode", "copilot", "muse", "all"]);
   assertChoice(options.scope, ["user", "project"]);
   assertChoice(options.profile, ["core", "full"]);
   assertChoice(options.security, ["preserve", "guarded", "permissive"]);
@@ -265,5 +265,5 @@ function validateManagementOptions(options: ManagementCliOptions): void {
 }
 
 function selectedHosts(value: string): Host[] {
-  return value === "all" ? ["codex", "claude", "opencode", "copilot"] : [value as Host];
+  return value === "all" ? ["codex", "claude", "opencode", "copilot", "muse"] : [value as Host];
 }

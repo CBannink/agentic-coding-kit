@@ -5,7 +5,7 @@ import { parseYaml } from "./parsers.js";
 import { resolveExistingContainedPath } from "./paths.js";
 import type { AgentDefinition, Manifest } from "./types.js";
 
-const CORE_SKILLS = ["analyze", "architecture", "build", "design", "experiment", "grill", "pr-ready", "review", "threat-model", "wiki"];
+const CORE_SKILLS = ["async", "backend", "build", "components", "debug", "design", "deslop", "frontend", "grill", "migrate", "perf", "pr-ready", "python", "review", "security", "test", "threat-model", "typescript", "wiki"];
 const CORE_AGENTS = ["architect", "coder", "diagnostician", "repo-scout", "reviewer", "sage", "security-reviewer", "test-engineer"];
 const UI_AGENTS = ["browser-qa", "ui-critic"];
 

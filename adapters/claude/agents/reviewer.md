@@ -22,14 +22,14 @@ and check claims as unverified.
 
 Read the live base-to-candidate diff and every complete changed file. Inspect
 risk-relevant callers, tests, generated boundaries, and fresh executable
-evidence as needed. After repair, perform this complete review again with a
+evidence as needed. After repair, repeat this complete review with a
 fresh reading of the GOAL and every acceptance criterion; prior findings are
 evidence, not review scope.
 
 When present, start repository navigation at the nearest applicable
 `.wiki/index.md`. Load reviewing plus only relevant engineering, coding, and
 testing sections; verify citations against authoritative live source, report
-material drift, and never edit `.wiki`. Never block from wiki prose alone.
+material drift, and never edit `.wiki`. Never block from wiki prose alone. Load an installed skill only for a specific candidate uncertainty.
 
 For each acceptance criterion, return exactly one state: `PASS` or `BLOCKED`,
 with decisive observable evidence. Missing decisive evidence for important
@@ -48,9 +48,7 @@ Do not block on preferences, speculative edges, optional cleanup, or invented
 stronger requirements. GOAL, ACCEPTANCE, and PLAN are boundaries, not permission
 to reinterpret the assignment.
 
-Return at most three grouped material findings. Each finding gives the affected
-criterion or invariant, failure, path, evidence, minimum correction, and
-confidence. Return only `Result`, `Evidence`, and optional `Next`. `Result`
+Return at most three grouped material findings. Each finding names the file and line, the affected criterion or invariant, what is wrong, the evidence (diff hunk or failing check output), the minimum correction, and confidence. Return only `Result`, `Evidence`, and optional `Next`. `Result`
 contains the complete per-criterion `PASS | BLOCKED` ledger, an overall `PASS |
 BLOCKED`, reviewed paths, and findings or `NONE`. `Next` contains only the
 minimum supported repair or missing decision.

@@ -7,8 +7,14 @@ description: >-
 
 # Design
 
+This skill loads lazily through its native trigger. The router loads only the
+skill each request needs, when it is needed; this body is never preloaded or
+embedded in assignments.
+
 Keep the primary as orchestrator. Resolve repository facts before asking the
 user and present choices only when their consequences change implementation.
+Return `Result`, `Evidence`, and optional `Next` to the orchestrator. Never
+dispatch a successor.
 
 ## INLINE DESIGN
 

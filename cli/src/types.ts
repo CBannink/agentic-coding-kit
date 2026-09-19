@@ -1,4 +1,4 @@
-export type Host = "codex" | "claude" | "opencode" | "copilot";
+export type Host = "codex" | "claude" | "opencode" | "copilot" | "muse";
 export type InstallProfile = "core" | "full";
 export type PermissionClass = "read-only" | "workspace-write" | "test-write" | "artifact-write";
 export type ModelTier = "fast" | "standard" | "deep" | "premium";

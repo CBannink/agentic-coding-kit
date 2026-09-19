@@ -7,9 +7,14 @@ description: >-
 
 # Review
 
+This skill loads lazily through its native trigger. The router loads only the
+skill each request needs, when it is needed; this body is never preloaded or
+embedded in assignments.
+
 Establish target and base. Read applicable instructions and exact wiki
 invariants, inspect the target independently, and run cheap read-only checks
-when useful.
+when useful. Return `Result`, `Evidence`, and optional `Next` to the
+orchestrator. Never dispatch a successor.
 
 - `COMBINED`: verify goal and acceptance first; inspect quality only after pass.
 - `GOAL`: check requested outcome, preservation, and proof.

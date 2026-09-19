@@ -68,7 +68,7 @@ export async function doctorHost(host: Host, scope: InstallScope, repo?: string,
   if (scope === "project") {
     try { await readFile(path.join(paths.root, ".wiki", "index.md"), "utf8"); } catch { warnings.push("Repository .wiki/index.md is missing"); }
   }
-  for (const launcher of ["install.sh", "install-codex.sh", "install-claude.sh", "install-opencode.sh", "install-copilot.sh", "install-all.sh"]) {
+  for (const launcher of ["install.sh", "install-codex.sh", "install-claude.sh", "install-opencode.sh", "install-copilot.sh", "install-muse.sh", "install-all.sh"]) {
     try { const stat = await lstat(path.join(sourceRoot, "scripts", launcher)); if (process.platform !== "win32" && !(stat.mode & 0o111)) errors.push(`Launcher is not executable: scripts/${launcher}`); } catch { warnings.push(`Launcher missing: scripts/${launcher}`); }
   }
   return { host, platform: os.platform(), architecture: os.arch(), version, resolved: { instruction: paths.instruction, agents: paths.agents, skills: paths.skills, commands: paths.commands, config: paths.config, manifest: manifestPath }, errors, warnings, profiles: { model: "preserved by kit", security: manifest?.securityProfile ?? "unknown", memory: manifest?.memoryProfile ?? "unknown" } };
@@ -95,10 +95,14 @@ function discoverySkillRoots(host: Host, scope: InstallScope, root: string, nati
     if (host === "copilot") {
       return [native, path.join(home, ".agents", "skills")];
     }
+    if (host === "muse") {
+      return [native, path.join(home, ".agents", "skills")];
+    }
     return [native];
   }
   if (host === "opencode") return [native, path.join(root, ".claude", "skills"), path.join(root, ".agents", "skills")];
   if (host === "copilot") return [native, path.join(root, ".claude", "skills"), path.join(root, ".agents", "skills")];
+  if (host === "muse") return [native, path.join(root, ".claude", "skills"), path.join(root, ".codex", "skills")];
   return [native];
 }
 function count(value: string, needle: string): number { return value.split(needle).length - 1; }

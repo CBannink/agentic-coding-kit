@@ -7,6 +7,10 @@ description: >-
 
 # Threat Model
 
+This skill loads lazily through its native trigger. The router loads only the
+skill each request needs, when it is needed; this body is never preloaded or
+embedded in assignments.
+
 Remain read-only unless the user explicitly approves a report target path.
 Threat-modeling does not authorize implementation; transition requested fixes
 into the `build` skill.
@@ -22,7 +26,8 @@ engineering wiki sections, then verify them against current source. Use a
 targeted `repo-scout` only when flows or ownership are unclear. Identify assets,
 actors, data flows, trust boundaries, existing controls, and applicable threats.
 Use the core `security-reviewer` for an independent challenge when material
-security judgment remains. Every agent returns to the main orchestrator.
+security judgment remains. Every agent returns to the main orchestrator and
+never dispatches a successor.
 
 Return `COMPLETE`, `NEEDS_CONTEXT`, or `BLOCKED`. Include concrete evidence,
 ranked threats, mitigations, verification, residual risk, assumptions, and
