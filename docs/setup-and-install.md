@@ -68,51 +68,6 @@ specialists isolated from that policy. OpenCode stores the policy only in the
 successors. ACK does not use repository `AGENTS.md` as its global control plane
 for either host.
 
-## Muse subscription in OpenCode (serverless)
-
-OpenCode can spend the Muse coding subscription directly: the `api_key` in
-Muse CLI's own login file (`~/.config/muse/auth.json`, written by
-`muse login`) is accepted as a Bearer token on `https://api.meta.ai/v1`,
-which serves `muse-spark-1.3`. No local server or background process is
-needed; OpenCode calls the Meta API straight from its own process.
-
-1. `muse login` (device-code OAuth, once).
-2. Store the key in OpenCode's auth file (re-run if Muse CLI ever
-   rotates it, then restart OpenCode):
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\muse-sync-key.ps1
-```
-
-```sh
-sh ./scripts/muse-sync-key.sh
-```
-
-3. Add the provider to `opencode.json` / `opencode.jsonc` and point agents
-   at it:
-
-```json
-{
-  "provider": {
-    "muse-sub": {
-      "npm": "@ai-sdk/openai",
-      "name": "Muse subscription (direct)",
-      "options": { "baseURL": "https://api.meta.ai/v1" },
-      "models": {
-        "muse-spark-1.3": { "name": "Muse Spark 1.3 via subscription" }
-      }
-    }
-  },
-  "agents": {
-    "coder": { "model": "muse-sub/muse-spark-1.3" },
-    "reviewer": { "model": "muse-sub/muse-spark-1.3" }
-  }
-}
-```
-
-Reasoning effort is the API default; per-model effort selection through
-OpenCode model options is not wired up.
-
 ## Repository wiki
 
 `wiki init` and `wiki reinit` are direct skill workflows. After snapshotting
