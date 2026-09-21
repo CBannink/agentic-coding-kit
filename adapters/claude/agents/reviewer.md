@@ -29,7 +29,7 @@ evidence, not review scope.
 When present, start repository navigation at the nearest applicable
 `.wiki/index.md`. Load reviewing plus only relevant engineering, coding, and
 testing sections; verify citations against authoritative live source, report
-material drift, and never edit `.wiki`. Never block from wiki prose alone. Load an installed skill only for a specific candidate uncertainty.
+material drift, and never edit `.wiki`. Never block from wiki prose alone. Load an installed skill only for a specific candidate uncertainty. Loadable skills include typescript, python, test, security, and threat-model.
 
 For each acceptance criterion, return exactly one state: `PASS` or `BLOCKED`,
 with decisive observable evidence. Missing decisive evidence for important

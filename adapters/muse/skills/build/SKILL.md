@@ -11,7 +11,7 @@ Use only in the primary session. Load this skill only when implementation is req
 
 ## Prepare
 
-Understand the user request, inspect Git state and relevant live source, and preserve unrelated work. Explore the ownership, current behavior, repository patterns, likely tests, and generated boundaries needed for a reliable plan. Optionally dispatch one focused Repo Scout when isolated discovery adds value; it reports those repository facts without designing the solution.
+Understand the user request, inspect Git state and relevant live source, and preserve unrelated work. Explore the ownership, current behavior, repository patterns, likely tests, and generated boundaries needed for a reliable plan. Optionally dispatch one focused Repo Scout when isolated discovery adds value; it reports repository facts and never designs the solution; pass its reported paths to Coder and Reviewer assignments.
 
 Define outcome, acceptance, authority, and verification. Before implementation, the primary writes exactly three shared objects:
 
@@ -32,16 +32,16 @@ INLINE only for a minimal task whose context, contract, and proof are already pr
 
 ## Implement and verify
 
-Dispatch one Coder with only the unchanged GOAL, ACCEPTANCE, and PLAN. The Coder owns its local inspect–implement–check–repair loop within scope and adapts ordinary implementation details when current source requires it. It must not change GOAL or ACCEPTANCE and must report any material PLAN departure. Routine failing assertions are the Coder's loop, not owner handoffs.
+Dispatch one Coder per goal with only the unchanged GOAL, ACCEPTANCE, and PLAN. The Coder owns its local inspect–implement–check–repair loop within scope and adapts ordinary implementation details when current source requires it. It must not change GOAL or ACCEPTANCE and must report any material PLAN departure. Routine failing assertions are the Coder's loop, not owner handoffs.
 
 After the Coder returns, freeze the stable live diff as the candidate. Reconcile its reported evidence against the actual changed files, scope, and generated boundaries. Missing decisive evidence for important changed behavior blocks. Relevant failures block unless reproduced on the untouched base or equivalently isolated.
 
-Use a Test Engineer only when an important acceptance criterion lacks convincing durable proof. Give it the same unchanged three objects. It adds only the minimum valuable behavioral tests for that criterion or a demonstrated risk—never a broad matrix, incidental-wording checks, duplicated coverage, or reinterpreted requirements. It supplements rather than replaces builder evidence and the Reviewer.
+Use a Test Engineer only when an important acceptance criterion lacks convincing durable proof. Give it the same unchanged three objects. It adds only the minimum valuable behavioral tests for that criterion or a demonstrated risk—never a broad matrix, incidental-wording checks, duplicated coverage, or reinterpreted requirements. Cap a feature at roughly 5-10 focused tests. It supplements rather than replaces builder evidence and the Reviewer.
 
 Dispatch a fresh Reviewer with the unchanged three objects after verification. It independently reads the live diff and complete changed files and records PASS or BLOCKED for every acceptance criterion. Missing decisive evidence for important changed behavior is BLOCKED.
 
 ## Repair
 
-The primary validates findings and rejects preferences, speculative edges, optional cleanup, invented stronger requirements, and scope-expanding fixes. Send the reviewer's finding verbatim — file and line, what is wrong, evidence, minimum fix — to the repair Coder with the same unchanged GOAL, ACCEPTANCE, and PLAN, plus the files it owns and the checks it must re-run. Freeze the new candidate after repair. Then dispatch a fresh Reviewer with the unchanged three objects to recheck the complete GOAL and every ACCEPTANCE criterion, not only prior findings.
+The primary validates findings and rejects preferences, speculative edges, optional cleanup, invented stronger requirements, and scope-expanding fixes. Send the reviewer's finding verbatim — file and line, what is wrong, evidence, minimum fix — to the repair Coder with the same unchanged GOAL, ACCEPTANCE, and PLAN, plus the files it owns and the checks it must re-run. Freeze the new candidate after repair. Then the Reviewer rechecks; the complete GOAL and every ACCEPTANCE criterion stay in scope, not only prior findings.
 
-Bound repair to two unsuccessful attempts for the same material failure. Stop and report the evidence when the bound is reached. Complete only after decisive evidence covers the final candidate and a fresh full-review PASS.
+Bound repair to two unsuccessful attempts for the same material failure. Stop and report the evidence when the bound is reached. Complete only after decisive evidence covers the final candidate and a full-scope review PASS.
