@@ -5,6 +5,10 @@ description: Initialize, reinitialize, or audit curated repository engineering k
 
 # Wiki
 
+This skill loads lazily through its native trigger. The router loads only the
+skill each request needs, when it is needed; this body is never preloaded or
+embedded in assignments.
+
 Support only `init`, `reinit`, and read-only `audit`. Use ordinary host read,
 search, and write tools: no `kit`, PATH setup, CLI, synthesis artifact, `.kit`,
 or temporary `.git` workflow state. Current source, configuration, instructions,

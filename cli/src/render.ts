@@ -21,7 +21,7 @@ export async function renderArtifacts(repoRoot: string, manifest: Manifest, opti
   const files: GeneratedFile[] = [];
   const skillResources = new Map<string, Array<{ relativePath: string; sourcePath: string; content: string }>>();
   for (const skill of manifest.skills) skillResources.set(skill.id, await loadSkillResources(repoRoot, skill.id, skill.source));
-  for (const host of ["codex", "claude", "opencode", "copilot"] as const) {
+  for (const host of ["codex", "claude", "opencode", "copilot", "muse"] as const) {
     for (const agent of agents.filter((candidate) => candidate.hosts.includes(host))) {
       const prompt = await readCanonical(repoRoot, agent.source);
       files.push(renderAgent(host, agent, prompt));
@@ -119,6 +119,10 @@ function renderAgent(host: Host, agent: AgentDefinition, prompt: string): Genera
   }
 
   const data = { name: agent.id, description: agent.description, tools: copilotTools(agent.permission_class) };
+  if (host === "muse") {
+    const museData = { name: agent.id, description: agent.description };
+    return generated(`adapters/muse/agents/${agent.id}.md`, serializeFrontmatter(museData, `${marker(agent.source, sourceId)}\n${prompt}`), sourceId);
+  }
   return generated(`adapters/copilot/agents/${agent.id}.agent.md`, serializeFrontmatter(data, `${marker(agent.source, sourceId)}\n${prompt}`), sourceId);
 }
 
@@ -138,10 +142,12 @@ function renderInstruction(host: Host, sourcePath: string, orchestrator: string)
   const hostNote = host === "copilot"
     ? "For Copilot, request the skill in natural language, inspect skills with `/skills`, and select custom agents with `/agent`."
     : host === "codex"
-      ? "Use native skill selection or `$build`, `$design`, `$architecture`, `$grill`, `$analyze`, `$review`, `$pr-ready`, `$threat-model`, `$wiki`, and `$experiment`. Invoke a named specialist with its `agent_type` and `fork_turns: \"none\"`; never retry a rejected named-agent dispatch as an untyped full-history fork."
+      ? "Use native skill selection or `$async`, `$backend`, `$build`, `$components`, `$debug`, `$design`, `$deslop`, `$frontend`, `$grill`, `$migrate`, `$perf`, `$pr-ready`, `$python`, `$review`, `$security`, `$test`, `$threat-model`, `$typescript`, and `$wiki`. Invoke a named specialist with its `agent_type` and `fork_turns: \"none\"`; never retry a rejected named-agent dispatch as an untyped full-history fork."
       : host === "claude"
-        ? "Use the native `/build`, `/design`, `/architecture`, `/grill`, `/analyze`, `/review`, `/pr-ready`, `/threat-model`, `/wiki`, and `/experiment` skills."
-        : "Use native skills or the optional thin slash-command forwarders.";
+        ? "Use the native `/async`, `/backend`, `/build`, `/components`, `/debug`, `/design`, `/deslop`, `/frontend`, `/grill`, `/migrate`, `/perf`, `/pr-ready`, `/python`, `/review`, `/security`, `/test`, `/threat-model`, `/typescript`, and `/wiki` skills."
+        : host === "muse"
+          ? "Muse reads AGENTS.md up the directory tree; request a kit skill in natural language and select an installed agent natively. Skills live under `.agents/skills` in the repository."
+          : "Use native skills or the optional thin slash-command forwarders.";
   const content = [
     marker(sourcePath, "instruction:orchestrator"),
     "<!-- agentic-coding-kit:start -->",

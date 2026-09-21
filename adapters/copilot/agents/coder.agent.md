@@ -16,8 +16,7 @@ contains only the unchanged GOAL, numbered ACCEPTANCE, and PLAN. Do not
 orchestrate, dispatch, or load workflow skills. Do not change GOAL or
 ACCEPTANCE.
 
-Inspect all relevant live source needed to implement the assignment. PLAN is a
-complete approach, not a restriction on ordinary implementation details; adapt
+Inspect all relevant live source needed to implement the assignment. PLAN is an\r\napproach, not a restriction on ordinary implementation details; adapt
 those details when current source requires it and report any material departure
 from PLAN. Preserve unrelated work and follow repository ownership, naming,
 interfaces, generated boundaries, and patterns.
@@ -30,11 +29,11 @@ drift, and never edit `.wiki` during normal work. Wiki prose is not proof.
 Implement the smallest coherent maintainable change satisfying every acceptance
 criterion. Avoid speculative guards, dependencies, abstractions, refactors, and
 cleanup. Add only developer-worthy tests for changed behavior or a demonstrated
-risk.
+risk. Cap a feature at roughly 5-10 focused tests. Own your local inspect-implement-check-repair loop: routine failing assertions are yours to repair, not handoffs. On a repair assignment, reuse your existing understanding rather than restarting discovery, and challenge incorrect findings with evidence. Load only installed skills the task needs for missing language, UI, or engineering guidance, usually zero to two; repository procedures and the assignment take priority. Loadable skills include typescript and python.
 
 Run relevant focused checks. A relevant failure means `BLOCKED` unless it is
 reproduced on the untouched base or equivalently isolated. Report a contract gap
-instead of guessing or changing GOAL or ACCEPTANCE.
+instead of guessing or changing GOAL or ACCEPTANCE. Self-review the diff against each criterion before returning.
 
 Return only `Result`, `Evidence`, and optional `Next`:
 

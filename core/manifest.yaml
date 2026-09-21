@@ -14,14 +14,23 @@ model_tiers:
 skills:
   - { id: build, source: core/skills/build/SKILL.md, default: true }
   - { id: design, source: core/skills/design/SKILL.md, default: true }
-  - { id: architecture, source: core/skills/architecture/SKILL.md, default: true }
   - { id: grill, source: core/skills/grill/SKILL.md, default: true }
-  - { id: analyze, source: core/skills/analyze/SKILL.md, default: true }
   - { id: review, source: core/skills/review/SKILL.md, default: true }
   - { id: pr-ready, source: core/skills/pr-ready/SKILL.md, default: true }
   - { id: threat-model, source: core/skills/threat-model/SKILL.md, default: true }
   - { id: wiki, source: core/skills/wiki/SKILL.md, default: true }
-  - { id: experiment, source: core/skills/experiment/SKILL.md, default: true }
+  - { id: async, source: core/skills/async/SKILL.md, default: true }
+  - { id: backend, source: core/skills/backend/SKILL.md, default: true }
+  - { id: components, source: core/skills/components/SKILL.md, default: true }
+  - { id: debug, source: core/skills/debug/SKILL.md, default: true }
+  - { id: deslop, source: core/skills/deslop/SKILL.md, default: true }
+  - { id: frontend, source: core/skills/frontend/SKILL.md, default: true }
+  - { id: migrate, source: core/skills/migrate/SKILL.md, default: true }
+  - { id: perf, source: core/skills/perf/SKILL.md, default: true }
+  - { id: python, source: core/skills/python/SKILL.md, default: true }
+  - { id: security, source: core/skills/security/SKILL.md, default: true }
+  - { id: test, source: core/skills/test/SKILL.md, default: true }
+  - { id: typescript, source: core/skills/typescript/SKILL.md, default: true }
 
 agents:
   - id: architect
@@ -32,7 +41,7 @@ agents:
     model_tier: deep
     conditional: true
     default: true
-    hosts: [codex, claude, opencode, copilot]
+    hosts: [codex, claude, opencode, copilot, muse]
     return_packet: architecture-decision
   - id: repo-scout
     description: Read-only repository discovery for bounded local codebase questions.
@@ -41,7 +50,7 @@ agents:
     permission_class: read-only
     model_tier: fast
     default: true
-    hosts: [codex, claude, opencode, copilot]
+    hosts: [codex, claude, opencode, copilot, muse]
     return_packet: scout-brief
   - id: coder
     description: Production implementation with minimum contract coverage.
@@ -51,7 +60,7 @@ agents:
     write_scope: [production, tests]
     model_tier: standard
     default: true
-    hosts: [codex, claude, opencode, copilot]
+    hosts: [codex, claude, opencode, copilot, muse]
     return_packet: coder-report
   - id: reviewer
     description: Independent implementation, design, and test-delta reviewer.
@@ -60,7 +69,7 @@ agents:
     permission_class: read-only
     model_tier: standard
     default: true
-    hosts: [codex, claude, opencode, copilot]
+    hosts: [codex, claude, opencode, copilot, muse]
     return_packet: review-report
   - id: test-engineer
     description: Independent adversarial test design and test-only hardening.
@@ -70,7 +79,7 @@ agents:
     write_scope: [tests, fixtures, test-utilities]
     model_tier: standard
     default: true
-    hosts: [codex, claude, opencode, copilot]
+    hosts: [codex, claude, opencode, copilot, muse]
     return_packet: test-engineer-report
   - id: diagnostician
     description: Read-only root-cause discrimination for ambiguous or repeated failures.
@@ -80,7 +89,7 @@ agents:
     model_tier: deep
     conditional: true
     default: true
-    hosts: [codex, claude, opencode, copilot]
+    hosts: [codex, claude, opencode, copilot, muse]
     return_packet: failure-brief
   - id: sage
     description: Read-only principal-engineering second opinion for difficult judgments.
@@ -90,7 +99,7 @@ agents:
     model_tier: premium
     conditional: true
     default: true
-    hosts: [codex, claude, opencode, copilot]
+    hosts: [codex, claude, opencode, copilot, muse]
     return_packet: sage-decision-memo
   - id: security-reviewer
     description: Conditional concrete trust-boundary and attack-path reviewer.
@@ -100,7 +109,7 @@ agents:
     model_tier: deep
     conditional: true
     default: true
-    hosts: [codex, claude, opencode, copilot]
+    hosts: [codex, claude, opencode, copilot, muse]
     return_packet: security-review-report
 
 packs:
@@ -114,7 +123,7 @@ packs:
         permission_class: artifact-write
         write_scope: [temporary-artifacts]
         model_tier: standard
-        hosts: [codex, claude, opencode, copilot]
+        hosts: [codex, claude, opencode, copilot, muse]
         return_packet: browser-qa-report
       - id: ui-critic
         description: Independent visual and UX judgment against a UI Design Contract.
@@ -122,7 +131,7 @@ packs:
         kind: specialist
         permission_class: read-only
         model_tier: standard
-        hosts: [codex, claude, opencode, copilot]
+        hosts: [codex, claude, opencode, copilot, muse]
         return_packet: ui-critique
 instruction_fragments:
   orchestrator: core/orchestrator.md

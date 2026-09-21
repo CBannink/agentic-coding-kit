@@ -125,7 +125,7 @@ export async function installHost(options: InstallOptions): Promise<InstallResul
   }
 
   const instructionBody = `${orchestrator.trim()}\n\n${invocationNote(options.host)}`;
-  if (options.host === "claude" || options.host === "copilot") {
+  if (options.host === "claude" || options.host === "copilot" || (options.host === "muse" && options.scope === "user")) {
     await planAndMergeBlock(paths.instruction, instructionBody, "agentic-coding-kit", "markdown", options, backupRoot, actions);
     blocks.push({ path: paths.instruction, id: "agentic-coding-kit", bodyHash: sha256(instructionBody), format: "markdown" });
   }
@@ -403,11 +403,12 @@ function primaryOpenCodeFile(paths: HostPaths, orchestrator: string, supplement:
 
 function invocationNote(host: Host): string {
   if (host === "codex") return [
-    "Use `$build`, `$design`, `$architecture`, `$grill`, `$analyze`, `$review`, `$pr-ready`, `$threat-model`, `$wiki`, and `$experiment`.",
+    "Use `$async`, `$backend`, `$build`, `$components`, `$debug`, `$design`, `$deslop`, `$frontend`, `$grill`, `$migrate`, `$perf`, `$pr-ready`, `$python`, `$review`, `$security`, `$test`, `$threat-model`, `$typescript`, and `$wiki`.",
     "Codex delegation: invoke a named specialist with its `agent_type` and `fork_turns: \"none\"`; never retry a rejected named-agent dispatch as an untyped full-history fork.",
   ].join("\n");
-  if (host === "claude") return "Use `/build`, `/design`, `/architecture`, `/grill`, `/analyze`, `/review`, `/pr-ready`, `/threat-model`, `/wiki`, and `/experiment`.";
+  if (host === "claude") return "Use `/async`, `/backend`, `/build`, `/components`, `/debug`, `/design`, `/deslop`, `/frontend`, `/grill`, `/migrate`, `/perf`, `/pr-ready`, `/python`, `/review`, `/security`, `/test`, `/threat-model`, `/typescript`, and `/wiki`.";
   if (host === "opencode") return "Use native skills or installed thin commands; direct specialists use `@agent`.";
+  if (host === "muse") return "Request a kit skill in natural language; Muse reads AGENTS.md and discovers installed skills and agents natively.";
   return "Request a kit skill in natural language; use `/skills` for discovery and `/agent` for custom-agent selection.";
 }
 

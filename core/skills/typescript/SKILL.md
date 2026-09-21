@@ -1,0 +1,18 @@
+---
+name: typescript
+description: "Implement or review TypeScript contracts, narrowing, runtime boundaries and asynchronous behavior."
+---
+
+# TypeScript
+
+Read the actual tsconfig, package scripts, runtime/framework version and nearby conventions. Preserve module format, strictness and generated schemas. Do not convert tooling, rewrite configuration or introduce a validation library merely to satisfy this skill.
+
+## Types that reflect behavior
+Treat untrusted data as unknown until the existing boundary validator establishes its shape. Type assertions and satisfies do not validate runtime input. Prefer narrowing and accurate predicates over any, double assertions or non-null assertions that hide an unresolved condition. Local interoperability assertions may be necessary; explain the proven invariant. Legitimate as const and validated SDK boundaries are not automatic review findings.
+
+Model mutually exclusive states explicitly when it prevents a real impossible combination. Keep simple data simple: do not brand every primitive, create generic type puzzles or introduce a union for a single state. Infer local values; derive related types from the existing canonical model instead of maintaining duplicate interface/schema definitions. Make public contracts readable and cover materially relevant variants exhaustively.
+
+Preserve the distinction between omitted, null and empty values where the API relies on it. Keep promise failures observable; do not float asynchronous work accidentally. Respect cancellation, ownership and server/browser boundaries. Never expose server-only configuration through a shared client module.
+
+## Evidence
+Run the project's actual type-check and targeted behavior tests. Compilation is not evidence that parsed JSON, network failures or UI interactions behave correctly. Add a regression for the changed behavior and report meaningful compatibility gaps. Use existing formatter/linter output rather than generating cosmetic review requests. Return real changed files and contract deviations through the ordinary handoff; do not start another agent or change the agreed scope.

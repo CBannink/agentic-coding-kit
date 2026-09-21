@@ -7,6 +7,10 @@ description: >-
 
 # PR Ready
 
+This skill loads lazily through its native trigger. The router loads only the
+skill each request needs, when it is needed; this body is never preloaded or
+embedded in assignments.
+
 Keep the primary as orchestrator. Establish the base, exact diff, workspace
 baseline, changed behavior, affected consumers, and applicable wiki sections.
 Historical review guidance is evidence, not authority; this skill never edits
@@ -24,4 +28,4 @@ Use [history.md](references/history.md) for curated historical practices and
 [report.md](references/report.md) for the result. Return `PR READY`,
 `NEEDS DECISION`, or `BLOCKED` with a suggested title and description, repaired
 and remaining material findings, fresh evidence, risks, and useful human-review
-attention areas.
+attention areas. Never dispatch a successor.

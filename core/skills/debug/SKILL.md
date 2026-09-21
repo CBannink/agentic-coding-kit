@@ -1,0 +1,10 @@
+---
+name: debug
+description: "Discriminate an unexplained failure or a repair that is not making progress."
+---
+
+# Debug
+
+Preserve the failing candidate and meaningful check. Obtain the smallest useful reproducer and expected behavior. Separate symptoms from a supported cause; inspect relevant state, boundaries and recent changes.
+
+Choose an experiment that distinguishes competing explanations. Read tool output in this session. Repair the supported in-scope cause, rerun affected checks and add useful regression evidence when practical. Never weaken the check to hide the defect. A narrower reproducer or ruled-out hypothesis is progress. Repeated identical failure without new evidence calls for a changed experiment or owner decision, not another guessed patch or fresh coder.

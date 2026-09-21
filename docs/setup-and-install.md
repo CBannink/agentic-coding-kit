@@ -37,7 +37,7 @@ bash scripts/install-all.sh \
 ```
 
 Use `install-codex`, `install-claude`, `install-opencode`, or
-`install-copilot` for one host. `core` installs the ten skills and eight core
+`install-copilot` for one host. `core` installs the twenty skills and eight core
 agents; `full` adds Browser QA and UI Critic. Use `--dry-run` to preview.
 
 Project scope writes native repository-local surfaces without clearing
@@ -49,10 +49,10 @@ node cli/dist/kit.cjs install --host all --scope project --repo <path> --profile
 
 ## Use
 
-- Codex: `$build`, `$design`, `$architecture`, `$grill`, `$review`,
-  `$experiment`.
-- Claude Code: `/build`, `/design`, `/architecture`, `/grill`, `/review`,
-  `/experiment`.
+- Codex: `$async`, `$backend`, `$build`, `$components`, `$debug`, `$design`, `$deslop`, `$frontend`, `$grill`, `$migrate`, `$perf`, `$pr-ready`, `$python`, `$review`, `$security`, `$test`, `$threat-model`, `$typescript`, `$wiki`.
+  Retired names (`$analyze`, `$architecture`, `$experiment`) have no installed skill.
+- Claude Code: `/async`, `/backend`, `/build`, `/components`, `/debug`, `/design`, `/deslop`, `/frontend`, `/grill`, `/migrate`, `/perf`, `/pr-ready`, `/python`, `/review`, `/security`, `/test`, `/threat-model`, `/typescript`, `/wiki`.
+  Retired names (`/analyze`, `/architecture`, `/experiment`) have no installed skill.
 - OpenCode: `/build` or the native installed skills. ACK installs a managed
   `agentic-kit` primary and preserves an unrelated configured primary unless
   explicit takeover is requested.

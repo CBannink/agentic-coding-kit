@@ -7,7 +7,7 @@ const PROMPT_BUDGETS = {
   orchestrator: { words: 850, bytes: 6 * 1024 },
   opencodePrimary: { words: 120, bytes: 2 * 1024 },
   skill: { words: 650 },
-  agent: { words: 300 },
+  agent: { words: 350 },
 } as const;
 
 export async function validateCanonicalPrompts(repoRoot: string, manifest: Manifest): Promise<void> {

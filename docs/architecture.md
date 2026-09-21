@@ -15,9 +15,10 @@ ACK has two adaptive modes:
 ```text
 INLINE: Minimal task with bounded context present before routing -> Change or answer -> Verify -> Stop
 
-LOOP:   Anchor -> Partition -> Dispatch -> Integrate/Verify -> fresh Reviewer
-                         ^                                   |
-                         +---------- fresh repair -----------+
+LOOP:   Define outcome/acceptance/authority/verification -> Builder-owned check-repair loop
+        -> Freeze candidate -> fresh Reviewer -> Triage -> Delta recheck -> Finish
+                         ^                                                |
+                         +---------------- fresh repair ------------------+
 ```
 
 LOOP is a dynamic execution map, not a TypeScript workflow engine. One
@@ -56,16 +57,18 @@ that repository instruction surface is inherited by specialists. Claude and
 Copilot use their native managed instruction files.
 
 Specialists receive their small role prompt plus a pointer-based Assignment:
-goal, acceptance criteria, plan, exact paths, and compact facts that cannot be
-recovered from those paths. They do not receive pasted source, diffs, wiki
+the unchanged GOAL, numbered ACCEPTANCE, and PLAN. Skill bodies are never
+embedded in assignments; the router loads each needed skill lazily through its
+native trigger. Specialists do not receive pasted source, diffs, wiki
 pages, logs, transcripts, or complete prior returns. Codex specialist configs
 disable nested agents and ACK skills; OpenCode specialist permissions deny
 skills and task dispatch.
 
 ## Skills and agents
 
-Skills own procedures: Build, Design, Architecture, Grill, Analyze, Review, PR
-Ready, Threat Model, Wiki, and Experiment. They load only when useful. Agents
+Skills own procedures: Analyze, Async, Backend, Build, Components, Debug, Design, Deslop, Frontend, Grill, Migrate, Perf, PR Ready, Python, Review, Security, Test, Threat Model, TypeScript, and Wiki. Each skill loads lazily through its
+native trigger (`/<skill>`, `$<skill>`, or the installed command forwarders)
+and owns one bounded slice before returning to the orchestrator. Agents
 own bounded fresh contexts or distinct permissions: Architect, Scout, Coder,
 Reviewer, Test Engineer, Diagnostician, Sage, and Security Reviewer. Browser QA
 and UI Critic are optional.

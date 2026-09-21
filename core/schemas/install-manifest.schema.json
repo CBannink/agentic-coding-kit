@@ -3,7 +3,7 @@
   "type": "object",
   "required": ["schemaVersion", "kitVersion", "host", "scope", "root", "files", "managedBlocks"],
   "properties": {
-    "schemaVersion": { "const": 1 }, "kitVersion": { "type": "string" }, "host": { "enum": ["codex", "claude", "opencode", "copilot"] }, "scope": { "enum": ["user", "project"] }, "root": { "type": "string" },
+    "schemaVersion": { "const": 1 }, "kitVersion": { "type": "string" }, "host": { "enum": ["codex", "claude", "opencode", "copilot", "muse"] }, "scope": { "enum": ["user", "project"] }, "root": { "type": "string" },
     "files": { "type": "array", "items": { "type": "object", "required": ["path", "sha256", "ownership", "sourceId"], "properties": { "path": { "type": "string" }, "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "ownership": { "const": "managed" }, "sourceId": { "type": "string" } }, "additionalProperties": false } },
     "managedBlocks": { "type": "array", "items": { "type": "object", "required": ["path", "id"], "properties": { "path": { "type": "string" }, "id": { "type": "string" } }, "additionalProperties": false } },
     "configChanges": { "type": "array", "items": { "type": "object", "required": ["path", "keyPath", "value", "previousExists", "previousValue"], "properties": { "path": { "type": "string" }, "keyPath": { "type": "array", "items": { "type": ["string", "integer"] }, "minItems": 1 }, "value": {}, "previousExists": { "type": "boolean" }, "previousValue": {} }, "additionalProperties": false } },
