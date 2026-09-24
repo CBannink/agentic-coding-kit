@@ -11,9 +11,9 @@ Use only in the primary session. Load this skill only when implementation is req
 
 ## Prepare
 
-Understand the user request, inspect Git state and relevant live source, and preserve unrelated work. Explore the ownership, current behavior, repository patterns, likely tests, and generated boundaries needed for a reliable plan. Optionally dispatch one focused Repo Scout when isolated discovery adds value; it reports repository facts and never designs the solution; pass its reported paths to Coder and Reviewer assignments.
+Understand the user request, inspect Git state and relevant live source, and preserve unrelated work. When the needed files are unknown, dispatch one focused Repo Scout first — even when you expect to implement inline; it reports repository facts and starting paths, never the solution. Read the returned files yourself; read inline directly only when you already know exactly what is needed. Explore the ownership, current behavior, repository patterns, likely tests, and generated boundaries needed for a reliable plan.
 
-Define outcome, acceptance, authority, and verification. Before implementation, the primary writes exactly three shared objects:
+Define outcome, acceptance, authority, and verification. For loop-driven or multi-agent work, the primary writes exactly three shared objects plus a compact RELEVANT FILES map of starting paths with one-line summaries:
 
 ```text
 GOAL
@@ -26,9 +26,9 @@ PLAN
 Complete repository-grounded implementation and verification approach, including authority and scope boundaries and how each criterion will be proven.
 ```
 
-These are the sole shared assignment objects. Do not add separate shared sections for paths, decisions, proof, Scout facts, constraints, or repository summaries. Keep GOAL, ACCEPTANCE, and PLAN unchanged through implementation, testing, review, and repair.
+These plus the files map are the shared assignment objects for loop work. Do not add separate shared sections for decisions, proof, Scout facts, constraints, or repository summaries. Keep GOAL, ACCEPTANCE, and PLAN unchanged through implementation, testing, review, and repair. For a simple single-agent task, send a short outcome, scope, and proof request instead of the full contract.
 
-INLINE only for a minimal task whose context, contract, and proof are already present: implement directly through this skill, verify, and stop. Substantive changes, including INLINE work, still require an independent review unless an explicit project or user policy exempts them.
+INLINE whenever you already hold the context, contract, and proof: implement directly through this skill, verify, and stop. Substantive changes, including INLINE work, still require an independent review unless an explicit project or user policy exempts them.
 
 ## Implement and verify
 
@@ -36,7 +36,7 @@ Dispatch one Coder per goal with only the unchanged GOAL, ACCEPTANCE, and PLAN. 
 
 After the Coder returns, freeze the stable live diff as the candidate. Reconcile its reported evidence against the actual changed files, scope, and generated boundaries. Missing decisive evidence for important changed behavior blocks. Relevant failures block unless reproduced on the untouched base or equivalently isolated.
 
-Use a Test Engineer only when an important acceptance criterion lacks convincing durable proof. Give it the same unchanged three objects. It adds only the minimum valuable behavioral tests for that criterion or a demonstrated risk—never a broad matrix, incidental-wording checks, duplicated coverage, or reinterpreted requirements. Cap a feature at roughly 5-10 focused tests. It supplements rather than replaces builder evidence and the Reviewer.
+Use a Test Engineer only when an important acceptance criterion lacks convincing durable proof. Give it the same unchanged three objects. It adds only the minimum valuable behavioral tests for that criterion or a demonstrated risk—never a broad matrix, incidental-wording checks, duplicated coverage, or reinterpreted requirements. Cap a feature at 5 focused tests asserting core behavior. It supplements rather than replaces builder evidence and the Reviewer.
 
 Dispatch a fresh Reviewer with the unchanged three objects after verification. It independently reads the live diff and complete changed files and records PASS or BLOCKED for every acceptance criterion. Missing decisive evidence for important changed behavior is BLOCKED.
 

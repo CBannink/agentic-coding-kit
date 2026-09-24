@@ -105,6 +105,7 @@ joins only for a concrete discovery need, risk, or proof gap.
 | `repo-scout` | Bounded repository discovery and evidence mapping. | No |
 | `coder` | Production implementation and durable behavior evidence. | Production and tests |
 | `reviewer` | Independent code, design, and test-delta judgment. | No |
+| `simple-reviewer` | Conditional PR-ready file-unit review for broad diffs; never the final gate. | No |
 | `test-engineer` | Independent high-value test hardening. | Tests and fixtures only |
 | `diagnostician` | Repeated or ambiguous failures. | No |
 | `sage` | Principal-engineering challenge for difficult decisions. | No |

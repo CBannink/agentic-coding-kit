@@ -71,6 +71,16 @@ agents:
     default: true
     hosts: [codex, claude, opencode, copilot, muse]
     return_packet: review-report
+  - id: simple-reviewer
+    description: Conditional read-only PR-ready file-unit review for broad diffs.
+    source: core/agents/simple-reviewer.md
+    kind: subagent
+    permission_class: read-only
+    model_tier: fast
+    conditional: true
+    default: true
+    hosts: [codex, claude, opencode, copilot, muse]
+    return_packet: file-review-report
   - id: test-engineer
     description: Independent adversarial test design and test-only hardening.
     source: core/agents/test-engineer.md

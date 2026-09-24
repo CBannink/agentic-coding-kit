@@ -6,7 +6,7 @@ import { resolveExistingContainedPath } from "./paths.js";
 import type { AgentDefinition, Manifest } from "./types.js";
 
 const CORE_SKILLS = ["async", "backend", "build", "components", "debug", "design", "deslop", "frontend", "grill", "migrate", "perf", "pr-ready", "python", "review", "security", "test", "threat-model", "typescript", "wiki"];
-const CORE_AGENTS = ["architect", "coder", "diagnostician", "repo-scout", "reviewer", "sage", "security-reviewer", "test-engineer"];
+const CORE_AGENTS = ["architect", "coder", "diagnostician", "repo-scout", "reviewer", "sage", "security-reviewer", "simple-reviewer", "test-engineer"];
 const UI_AGENTS = ["browser-qa", "ui-critic"];
 
 export async function loadManifest(repoRoot: string): Promise<Manifest> {

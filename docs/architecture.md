@@ -13,10 +13,11 @@ goal, acceptance criteria, plan, context, integration, proof, and final answer.
 ACK has two adaptive modes:
 
 ```text
-INLINE: Minimal task with bounded context present before routing -> Change or answer -> Verify -> Stop
+INLINE: Context, contract, and proof already held -> Change or answer -> Verify -> Stop
 
-LOOP:   Define outcome/acceptance/authority/verification -> Builder-owned check-repair loop
-        -> Freeze candidate -> fresh Reviewer -> Triage -> Delta recheck -> Finish
+LOOP:   Scout-first discovery -> Define outcome/acceptance/authority/verification
+        -> Builder-owned check-repair loop -> Freeze candidate
+        -> fresh Reviewer -> Triage -> Delta recheck -> Finish
                          ^                                                |
                          +---------------- fresh repair ------------------+
 ```
@@ -57,16 +58,19 @@ that repository instruction surface is inherited by specialists. Claude and
 Copilot use their native managed instruction files.
 
 Specialists receive their small role prompt plus a pointer-based Assignment:
-the unchanged GOAL, numbered ACCEPTANCE, and PLAN. Skill bodies are never
+for loop work, the unchanged GOAL, numbered ACCEPTANCE, PLAN, and a
+relevant-files starting map; for a simple single-agent task, a short outcome,
+scope, and proof request. Skill bodies are never
 embedded in assignments; the router loads each needed skill lazily through its
-native trigger. Specialists do not receive pasted source, diffs, wiki
-pages, logs, transcripts, or complete prior returns. Codex specialist configs
+native trigger. Specialists do not receive pasted source, wiki
+pages, logs, transcripts, or complete prior returns. The router scouts first
+for unknown files and reads inline only for known ones. Codex specialist configs
 disable nested agents and ACK skills; OpenCode specialist permissions deny
 skills and task dispatch.
 
 ## Skills and agents
 
-Skills own procedures: Analyze, Async, Backend, Build, Components, Debug, Design, Deslop, Frontend, Grill, Migrate, Perf, PR Ready, Python, Review, Security, Test, Threat Model, TypeScript, and Wiki. Each skill loads lazily through its
+Skills own procedures: Async, Backend, Build, Components, Debug, Design, Deslop, Frontend, Grill, Migrate, Perf, PR Ready, Python, Review, Security, Test, Threat Model, TypeScript, and Wiki. Each skill loads lazily through its
 native trigger (`/<skill>`, `$<skill>`, or the installed command forwarders)
 and owns one bounded slice before returning to the orchestrator. Agents
 own bounded fresh contexts or distinct permissions: Architect, Scout, Coder,

@@ -17,9 +17,25 @@ Historical review guidance is evidence, not authority; this skill never edits
 `.wiki`.
 
 For a small obvious diff, inspect, run proportionate checks, and package it
-directly. Otherwise use the primary's LOOP with one combined goal-first review
-and bounded repair. Split review modes or add test, security, browser, or UI
-specialists only for a concrete risk or missing proof.
+directly. For a broad diff, work in three passes.
+
+1. Map. Build a PR map of the diff: every changed path, which paths work
+together, and which feature or functionality each group implements. One
+feature per unit; a unit may span an implementation plus its directly
+corresponding test. Map inline for a small diff; for a broad one use a
+single reviewer to produce the map. Drop units with no meaningful content
+and never assign one path to two units.
+2. Scan. Fan out one read-only `simple-reviewer` per feature unit with its
+assigned paths, the base, and exactly one concern grounded in that feature:
+bug risk, or maintainability — needless properties and abstractions, endless
+branching, duplicated logic; less code is better to maintain. Unit reviewers
+run on the cheap fast tier and judge only their unit: no whole-diff claims,
+no universal checklist, no other unit's findings.
+3. Decide. The primary collects unit reports as leads, not verdicts: check
+each against live source, reconcile cross-feature implications, deduplicate
+root causes, then repair and run the normal fresh whole-diff `reviewer` as
+the authoritative gate. Split other review modes or add test, security,
+browser, or UI specialists only for a concrete risk or missing proof.
 
 Select review concerns only from the goal, diff, repository rules, or failed
 evidence. Do not run a universal checklist.

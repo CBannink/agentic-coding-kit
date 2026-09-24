@@ -15,7 +15,7 @@
     {
       "path": "adapters/claude/agents/coder.md",
       "sourceId": "agent:coder",
-      "sha256": "3581cbc05b4283a042e6d03cd0dd318e48cb249728073bb4af51cfc53aa36eab"
+      "sha256": "de5e35b93670a0e7966e7f59a37501b18b21c05ac298b2b2e6a1cd8a269e45b1"
     },
     {
       "path": "adapters/claude/agents/diagnostician.md",
@@ -25,12 +25,12 @@
     {
       "path": "adapters/claude/agents/repo-scout.md",
       "sourceId": "agent:repo-scout",
-      "sha256": "e740c49ea4a0cefceec0d2d9f5454e03221e3620826cecef40d8439d595d5047"
+      "sha256": "d9d218295cf4a900eabd7de9d9cd7319ac0578a7c93dfad8f6601286e8ff592d"
     },
     {
       "path": "adapters/claude/agents/reviewer.md",
       "sourceId": "agent:reviewer",
-      "sha256": "5f108bbba534ccfd86b7c9ef0a7c92529dfef7d384ff51bcc4d851b39d0d7d8d"
+      "sha256": "635e8839c4d25f21cdb1b22a39f2154d8758e449ad627bb1e067eb81742b6e53"
     },
     {
       "path": "adapters/claude/agents/sage.md",
@@ -41,6 +41,11 @@
       "path": "adapters/claude/agents/security-reviewer.md",
       "sourceId": "agent:security-reviewer",
       "sha256": "29824f7fd62529178e01172099697908415076688589b525ce6be5010445aada"
+    },
+    {
+      "path": "adapters/claude/agents/simple-reviewer.md",
+      "sourceId": "agent:simple-reviewer",
+      "sha256": "e32a8c0796a4c798f1d1abf8ac87cbd00dfb3fdcb4c1dc523e9cd2532fa858cf"
     },
     {
       "path": "adapters/claude/agents/test-engineer.md",
@@ -55,7 +60,7 @@
     {
       "path": "adapters/claude/instructions.md",
       "sourceId": "instruction:orchestrator",
-      "sha256": "40e0f9403e1eff8c10edd91363d47563d058fa7ce438a4d7388f0c4e9222c8f7"
+      "sha256": "603e9a4fa4e5ffad614d9c740e495e716f90c810914faa0535491715a4a55cef"
     },
     {
       "path": "adapters/claude/skills/async/SKILL.md",
@@ -70,7 +75,7 @@
     {
       "path": "adapters/claude/skills/build/SKILL.md",
       "sourceId": "skill:build:SKILL.md",
-      "sha256": "8d4aeba0f401450ff06f836ee00ceb3e3cb106c5aa3a2e9d2e224e89e4c349b0"
+      "sha256": "44d6891de758fd02dbe0487f9253f432d66b0b55110464facad0672ea13347db"
     },
     {
       "path": "adapters/claude/skills/components/SKILL.md",
@@ -140,7 +145,7 @@
     {
       "path": "adapters/claude/skills/pr-ready/SKILL.md",
       "sourceId": "skill:pr-ready:SKILL.md",
-      "sha256": "c3f47a7fc4b470c7731823081be99c5276c944ae326b1a6e5a679ae847c42082"
+      "sha256": "d36167ee9b7b505e9f77df59ada31d60d07fc7ebb335d3e5b928874946d41d7e"
     },
     {
       "path": "adapters/claude/skills/python/SKILL.md",
@@ -245,7 +250,7 @@
     {
       "path": "adapters/codex/agents/coder.toml",
       "sourceId": "agent:coder",
-      "sha256": "8d845dad72a8d15d7bb039583a0d802f91879c0dad35c975ebafe67b9e655187"
+      "sha256": "2fc485fdfbe30934b07840b690a606807c670735b44e0927afa66a81d56f49e9"
     },
     {
       "path": "adapters/codex/agents/diagnostician.toml",
@@ -255,12 +260,12 @@
     {
       "path": "adapters/codex/agents/repo-scout.toml",
       "sourceId": "agent:repo-scout",
-      "sha256": "81c8e67930351fd4689c612b3cd7512d5c598648b13a8a84d62373d0bca48bb8"
+      "sha256": "6fcc044f2da700114493b3b24eb3585359646f43758a5b2fe203c09002693369"
     },
     {
       "path": "adapters/codex/agents/reviewer.toml",
       "sourceId": "agent:reviewer",
-      "sha256": "64ead1fad6aa0fc6e810f8f2a304a8558d0790186bb3f6b35c9568fd62abe38c"
+      "sha256": "c2ef168948c88daea015ba30794640d2b49d6c0ada402e4f3ec2e21cab3166da"
     },
     {
       "path": "adapters/codex/agents/sage.toml",
@@ -271,6 +276,11 @@
       "path": "adapters/codex/agents/security-reviewer.toml",
       "sourceId": "agent:security-reviewer",
       "sha256": "6332b3ff8a85a791ccd4e327ef6ac4f4e782a5c0a4c126ed310239b6183857b2"
+    },
+    {
+      "path": "adapters/codex/agents/simple-reviewer.toml",
+      "sourceId": "agent:simple-reviewer",
+      "sha256": "0312d766679907363f884866cd960dbf0121c97756dcdf53d189c3ee8c4f20e4"
     },
     {
       "path": "adapters/codex/agents/test-engineer.toml",
@@ -285,7 +295,7 @@
     {
       "path": "adapters/codex/instructions.md",
       "sourceId": "instruction:orchestrator",
-      "sha256": "8feaac7b4136dac8263bf036a88c1be0039ad3ac9883189938f741a2cfa41444"
+      "sha256": "08cd458005d44ff3eff72065a5a4de0f44e7bfb1c4c59e5af2781cc9591232ad"
     },
     {
       "path": "adapters/codex/skills/async/SKILL.md",
@@ -300,7 +310,7 @@
     {
       "path": "adapters/codex/skills/build/SKILL.md",
       "sourceId": "skill:build:SKILL.md",
-      "sha256": "8d4aeba0f401450ff06f836ee00ceb3e3cb106c5aa3a2e9d2e224e89e4c349b0"
+      "sha256": "44d6891de758fd02dbe0487f9253f432d66b0b55110464facad0672ea13347db"
     },
     {
       "path": "adapters/codex/skills/components/SKILL.md",
@@ -370,7 +380,7 @@
     {
       "path": "adapters/codex/skills/pr-ready/SKILL.md",
       "sourceId": "skill:pr-ready:SKILL.md",
-      "sha256": "c3f47a7fc4b470c7731823081be99c5276c944ae326b1a6e5a679ae847c42082"
+      "sha256": "d36167ee9b7b505e9f77df59ada31d60d07fc7ebb335d3e5b928874946d41d7e"
     },
     {
       "path": "adapters/codex/skills/python/SKILL.md",
@@ -475,7 +485,7 @@
     {
       "path": "adapters/copilot/agents/coder.agent.md",
       "sourceId": "agent:coder",
-      "sha256": "3341a1f4a31c51c5f97327623b854978e19c652b10a12ec477edf395ebbcff13"
+      "sha256": "5804fbbc0d65fea075ced10dd5996b76154c43a21e8767a7976f33d77a107185"
     },
     {
       "path": "adapters/copilot/agents/diagnostician.agent.md",
@@ -485,12 +495,12 @@
     {
       "path": "adapters/copilot/agents/repo-scout.agent.md",
       "sourceId": "agent:repo-scout",
-      "sha256": "dce2fc4bc0aecf7ff64dc9cac837377673bcd5540253406ab1afbf0c541eb3a4"
+      "sha256": "64fe0138baf5a5f4800a529c65f16802ae99e9a6b579853cd4c89ebe72d2c3b1"
     },
     {
       "path": "adapters/copilot/agents/reviewer.agent.md",
       "sourceId": "agent:reviewer",
-      "sha256": "44562f1848666e0c2dd6cefbdecab0310f87dbff32a0e855aec9bbffcc448e93"
+      "sha256": "0ffb7d41c97a84051086923eb9c31a3d35db40b97c5b70d8dc02dda24e32cf28"
     },
     {
       "path": "adapters/copilot/agents/sage.agent.md",
@@ -501,6 +511,11 @@
       "path": "adapters/copilot/agents/security-reviewer.agent.md",
       "sourceId": "agent:security-reviewer",
       "sha256": "53e342bb72c06860e70eae0e16713714639e81a6f70fd888fbacd235bbcb98ce"
+    },
+    {
+      "path": "adapters/copilot/agents/simple-reviewer.agent.md",
+      "sourceId": "agent:simple-reviewer",
+      "sha256": "da9d13883d9679300d15ac0f331f800bf92b20b9366579d30e6602cdbc73a478"
     },
     {
       "path": "adapters/copilot/agents/test-engineer.agent.md",
@@ -515,7 +530,7 @@
     {
       "path": "adapters/copilot/instructions.md",
       "sourceId": "instruction:orchestrator",
-      "sha256": "6c127eef3a2b09e43f6e0c3b4fa3436a1941e954f22e833478adaeaee9d826ab"
+      "sha256": "2c460b27eaa83b48e08b73547aa172f18cc887fea88a2a572bf524b37b21dd0a"
     },
     {
       "path": "adapters/copilot/skills/async/SKILL.md",
@@ -530,7 +545,7 @@
     {
       "path": "adapters/copilot/skills/build/SKILL.md",
       "sourceId": "skill:build:SKILL.md",
-      "sha256": "8d4aeba0f401450ff06f836ee00ceb3e3cb106c5aa3a2e9d2e224e89e4c349b0"
+      "sha256": "44d6891de758fd02dbe0487f9253f432d66b0b55110464facad0672ea13347db"
     },
     {
       "path": "adapters/copilot/skills/components/SKILL.md",
@@ -600,7 +615,7 @@
     {
       "path": "adapters/copilot/skills/pr-ready/SKILL.md",
       "sourceId": "skill:pr-ready:SKILL.md",
-      "sha256": "c3f47a7fc4b470c7731823081be99c5276c944ae326b1a6e5a679ae847c42082"
+      "sha256": "d36167ee9b7b505e9f77df59ada31d60d07fc7ebb335d3e5b928874946d41d7e"
     },
     {
       "path": "adapters/copilot/skills/python/SKILL.md",
@@ -705,7 +720,7 @@
     {
       "path": "adapters/muse/agents/coder.md",
       "sourceId": "agent:coder",
-      "sha256": "fc721abf91aea065c7fe718bc80f9ee756c209483415e08a40b6e0721a7d0edd"
+      "sha256": "6bdd6b09a5866b79ef6fd3d05eed675562a6078582f6c66764098e6e06b6481a"
     },
     {
       "path": "adapters/muse/agents/diagnostician.md",
@@ -715,12 +730,12 @@
     {
       "path": "adapters/muse/agents/repo-scout.md",
       "sourceId": "agent:repo-scout",
-      "sha256": "a5390d42864f3a071632a97c0efea1b3d2dc895e8da8a77a60fefdd451b88b84"
+      "sha256": "53342bc362e4da86749d649ed3384c66fcff9b20c8255acda3ba64d54c13884c"
     },
     {
       "path": "adapters/muse/agents/reviewer.md",
       "sourceId": "agent:reviewer",
-      "sha256": "7d839051691e84156f83a7570b1d955c77bc12691ad5c6aa3d1ad7cc27506474"
+      "sha256": "3b3af2c4696ae21631a7703f97d353dc0c716af6d8b3839d830bb1006e270295"
     },
     {
       "path": "adapters/muse/agents/sage.md",
@@ -731,6 +746,11 @@
       "path": "adapters/muse/agents/security-reviewer.md",
       "sourceId": "agent:security-reviewer",
       "sha256": "ebff55017cf98645efd75601b4d41326e413a8da47a2bddc13bb56159be5a20d"
+    },
+    {
+      "path": "adapters/muse/agents/simple-reviewer.md",
+      "sourceId": "agent:simple-reviewer",
+      "sha256": "8022e615f0dbb90d53c22c7c67a9b739860312b1ec255620e14cfb8f84cb9425"
     },
     {
       "path": "adapters/muse/agents/test-engineer.md",
@@ -745,7 +765,7 @@
     {
       "path": "adapters/muse/instructions.md",
       "sourceId": "instruction:orchestrator",
-      "sha256": "981237e39f41a80309d76f0d42d7a7a2676c4aab0dda61a679c5bad94b445b51"
+      "sha256": "d2f29c87535ebd2b4cfb813f2c4d4b5a07ec669f86cba55cf64b2cc079cf50a1"
     },
     {
       "path": "adapters/muse/skills/async/SKILL.md",
@@ -760,7 +780,7 @@
     {
       "path": "adapters/muse/skills/build/SKILL.md",
       "sourceId": "skill:build:SKILL.md",
-      "sha256": "8d4aeba0f401450ff06f836ee00ceb3e3cb106c5aa3a2e9d2e224e89e4c349b0"
+      "sha256": "44d6891de758fd02dbe0487f9253f432d66b0b55110464facad0672ea13347db"
     },
     {
       "path": "adapters/muse/skills/components/SKILL.md",
@@ -830,7 +850,7 @@
     {
       "path": "adapters/muse/skills/pr-ready/SKILL.md",
       "sourceId": "skill:pr-ready:SKILL.md",
-      "sha256": "c3f47a7fc4b470c7731823081be99c5276c944ae326b1a6e5a679ae847c42082"
+      "sha256": "d36167ee9b7b505e9f77df59ada31d60d07fc7ebb335d3e5b928874946d41d7e"
     },
     {
       "path": "adapters/muse/skills/python/SKILL.md",
@@ -935,7 +955,7 @@
     {
       "path": "adapters/opencode/agents/coder.md",
       "sourceId": "agent:coder",
-      "sha256": "e0b15462c38577a0ed19f893d2b996f16626f61e868733c4fba97e62277382b9"
+      "sha256": "f57b59ab9de5c696c08ed45b89129546693580a6058fcb151f580f9490e88fe5"
     },
     {
       "path": "adapters/opencode/agents/diagnostician.md",
@@ -945,12 +965,12 @@
     {
       "path": "adapters/opencode/agents/repo-scout.md",
       "sourceId": "agent:repo-scout",
-      "sha256": "eb5d72a210cec7ec2cebb2fef13dcff7aa11eb0a7b5ce4bdaea35624d3303d39"
+      "sha256": "ac9fb9df04752c2b7c31007feaaf3a757556454630ec6b1d828630bd4af04a9c"
     },
     {
       "path": "adapters/opencode/agents/reviewer.md",
       "sourceId": "agent:reviewer",
-      "sha256": "5f502fd3df7a792d75d163c24fe7a3760d65c3136434abb51078476068000197"
+      "sha256": "3bb64ef6ca717dfdeb6c9ecdd2038befd6243ecc1ad934629520cc1bc7087622"
     },
     {
       "path": "adapters/opencode/agents/sage.md",
@@ -961,6 +981,11 @@
       "path": "adapters/opencode/agents/security-reviewer.md",
       "sourceId": "agent:security-reviewer",
       "sha256": "8d0fd384f8a85ea2949f99f925aed1aff023ac91ead8c07094a4c26ce6b8b227"
+    },
+    {
+      "path": "adapters/opencode/agents/simple-reviewer.md",
+      "sourceId": "agent:simple-reviewer",
+      "sha256": "e4d96e3ba0f6f166e4501564477c25d30d2debf326604fac9018c667bff94bf3"
     },
     {
       "path": "adapters/opencode/agents/test-engineer.md",
@@ -1070,7 +1095,7 @@
     {
       "path": "adapters/opencode/instructions.md",
       "sourceId": "instruction:orchestrator",
-      "sha256": "fa09f103a9371474524baf3d203f34e43dac9a4dd47d0092febaab318b4e0531"
+      "sha256": "efdab39e0d01fe4bdd1e56a4c33d2bee242d8e42a4c5c1ef42ab56a56f05a951"
     },
     {
       "path": "adapters/opencode/skills/async/SKILL.md",
@@ -1085,7 +1110,7 @@
     {
       "path": "adapters/opencode/skills/build/SKILL.md",
       "sourceId": "skill:build:SKILL.md",
-      "sha256": "8d4aeba0f401450ff06f836ee00ceb3e3cb106c5aa3a2e9d2e224e89e4c349b0"
+      "sha256": "44d6891de758fd02dbe0487f9253f432d66b0b55110464facad0672ea13347db"
     },
     {
       "path": "adapters/opencode/skills/components/SKILL.md",
@@ -1155,7 +1180,7 @@
     {
       "path": "adapters/opencode/skills/pr-ready/SKILL.md",
       "sourceId": "skill:pr-ready:SKILL.md",
-      "sha256": "c3f47a7fc4b470c7731823081be99c5276c944ae326b1a6e5a679ae847c42082"
+      "sha256": "d36167ee9b7b505e9f77df59ada31d60d07fc7ebb335d3e5b928874946d41d7e"
     },
     {
       "path": "adapters/opencode/skills/python/SKILL.md",
