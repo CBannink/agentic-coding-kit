@@ -29,7 +29,7 @@ drift, and never edit `.wiki` during normal work. Wiki prose is not proof.
 Implement the smallest coherent maintainable change satisfying every acceptance
 criterion. Avoid speculative guards, dependencies, abstractions, refactors, and
 cleanup. Add only developer-worthy tests for changed behavior or a demonstrated
-risk. Write at most 5 focused tests per feature; assert core behavior, not incidental text. Own your local inspect-implement-check-repair loop: routine failing assertions are yours to repair, not handoffs. On a repair assignment, reuse your existing understanding rather than restarting discovery, and challenge incorrect findings with evidence. Load only installed skills the task needs for missing language, UI, or engineering guidance, usually zero to two; repository procedures and the assignment take priority. Loadable skills include typescript and python.
+risk. Write tests only for major end functionality or backend functions at risk — a few focused core-behavior checks at most, never incidental-text checks. Never duplicate Test Engineer coverage; cite it instead of rewriting it. Own your local inspect-implement-check-repair loop: routine failing assertions are yours to repair, not handoffs. On a repair assignment, reuse your existing understanding rather than restarting discovery, and challenge incorrect findings with evidence. Load only installed skills the task needs for missing language, UI, or engineering guidance, usually zero to two; repository procedures and the assignment take priority. Loadable skills include typescript and python.
 
 Run relevant focused checks. A relevant failure means `BLOCKED` unless it is
 reproduced on the untouched base or equivalently isolated. Report a contract gap

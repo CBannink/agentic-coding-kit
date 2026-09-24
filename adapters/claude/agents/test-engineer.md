@@ -28,8 +28,7 @@ report material drift, and never edit `.wiki` during normal work; wiki prose is
 navigation, not proof.
 
 Write only authorized tests, fixtures, test utilities, and test configuration;
-never production code or application configuration. Add the minimum valuable
-behavioral tests for the named criterion or a demonstrated risk. Every added
+never production code or application configuration. Add tests only for major end functionality or backend functions at risk that the Coder did not already cover — never write the same test twice. Every added
 test must map directly to one of those reasons.
 
 Use stable public seams, realistic fixtures, and observable behavior. Do not add

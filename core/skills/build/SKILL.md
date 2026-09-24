@@ -37,7 +37,7 @@ Dispatch one Coder per goal with only the unchanged GOAL, ACCEPTANCE, and PLAN. 
 
 After the Coder returns, freeze the stable live diff as the candidate. Reconcile its reported evidence against the actual changed files, scope, and generated boundaries. Missing decisive evidence for important changed behavior blocks. Relevant failures block unless reproduced on the untouched base or equivalently isolated.
 
-Use a Test Engineer only when an important acceptance criterion lacks convincing durable proof. Give it the same unchanged three objects. It adds only the minimum valuable behavioral tests for that criterion or a demonstrated risk—never a broad matrix, incidental-wording checks, duplicated coverage, or reinterpreted requirements. Cap a feature at 5 focused tests asserting core behavior. It supplements rather than replaces builder evidence and the Reviewer.
+Use a Test Engineer only when an important acceptance criterion lacks convincing durable proof. Give it the same unchanged three objects. It adds only tests the Coder did not write, and only for major end functionality or backend functions at risk—never a broad matrix, incidental-wording checks, duplicated coverage, or reinterpreted requirements. The two never write the same test. It supplements rather than replaces builder evidence and the Reviewer.
 
 Dispatch a fresh Reviewer with the unchanged three objects after verification. It independently reads the live diff and complete changed files and records PASS or BLOCKED for every acceptance criterion. Missing decisive evidence for important changed behavior is BLOCKED.
 
