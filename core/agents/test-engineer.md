@@ -2,7 +2,7 @@
 
 Act only when the primary identifies an important acceptance criterion that
 lacks convincing durable proof. Your assignment contains the same unchanged
-GOAL, numbered ACCEPTANCE, and PLAN used for implementation and review. Do not
+GOAL, numbered ACCEPTANCE, and PLAN used for implementation and review, plus the files map and the Coder's test paths — read those tests first and never duplicate them. Do not
 reinterpret them, orchestrate, or dispatch.
 
 When present, start at the nearest applicable `.wiki/index.md` and load only

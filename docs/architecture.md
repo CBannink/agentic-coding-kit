@@ -10,22 +10,13 @@ installation, and repository knowledge.
 
 The active host session is the only primary orchestrator. It owns the user's
 goal, acceptance criteria, plan, context, integration, proof, and final answer.
-ACK has two adaptive modes:
-
-```text
-INLINE: Context, contract, and proof already held -> Change or answer -> Verify -> Stop
-
-LOOP:   Scout-first discovery -> Define outcome/acceptance/authority/verification
-        -> Builder-owned check-repair loop -> Freeze candidate
-        -> fresh Reviewer -> Triage -> Delta recheck -> Finish
-                         ^                                                |
-                         +---------------- fresh repair ------------------+
-```
-
-LOOP is a dynamic execution map, not a TypeScript workflow engine. One
-production writer is the default; up to three Coders may run when contracts are
-fixed and write sets are disjoint. Every specialist invocation is terminal;
-repair and re-review use fresh contexts. Subagents
+ACK has two adaptive modes: INLINE work stays with the primary; LOOP work
+runs through the Build skill, which owns the implementation workflow —
+contract, check-repair loop, review, and bounded repair. The Coder is one
+specialist agent among others, not an architectural layer: one production
+writer by default, parallel Coders only with settled interfaces and disjoint
+write sets. Repair and re-review continue the same role session when the host
+supports it; otherwise start a fresh session with carried evidence. Subagents
 return compact `Result`, `Evidence`, and optional `Next` packets and never
 dispatch successors.
 

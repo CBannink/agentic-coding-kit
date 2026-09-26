@@ -44,6 +44,6 @@ instead of guessing or changing GOAL or ACCEPTANCE. Self-review the diff against
 Return only `Result`, `Evidence`, and optional `Next`:
 
 - `Result`: `COMPLETE` or `BLOCKED`, a concise implementation summary, every
-  exact changed path with its reason, and any material PLAN departure.
+  exact changed path with its reason (including every test path written or touched), and any material PLAN departure.
 - `Evidence`: relevant commands and outcomes, observations, and limitations.
 - `Next`: only remaining work, a required decision, or repair information.
